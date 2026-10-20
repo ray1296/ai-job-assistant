@@ -1,6 +1,7 @@
 import http from "node:http";
 import { createExtractionService } from "./resume-extraction.mjs";
 import { createAiGateway } from "./ai-gateway.mjs";
+import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
@@ -28,6 +29,8 @@ CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
 CREATE TABLE IF NOT EXISTS profiles(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,body TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS resumes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,title TEXT NOT NULL,body TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS resumes_owner ON resumes(user_id,updated_at);
+CREATE TABLE IF NOT EXISTS job_intents(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,job_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,job_id));
+CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
 PRAGMA user_version=1;`);
 const stmt = {
   user: db.prepare(
@@ -313,6 +316,57 @@ const server = http.createServer(async (req, res) => {
           req.headers["x-csrf-token"] !== s.csrf
         )
           throw failure(403, "会话校验失败，请刷新后重试");
+      }
+      if (p === "/api/jobs" && m === "GET") {
+        const allowed = [
+          "q",
+          "direction",
+          "city",
+          "education",
+          "recruitmentType",
+          "source",
+          "page",
+          "pageSize",
+        ];
+        const u = new URL(req.url, "http://local");
+        const q = Object.fromEntries(
+          allowed
+            .filter((k) => u.searchParams.has(k))
+            .map((k) => [k, u.searchParams.get(k)]),
+        );
+        if ((q.q || "").length > 100) throw failure(400, "搜索词过长");
+        return send(res, 200, listJobs(q));
+      }
+      if (p === "/api/jobs/facets" && m === "GET")
+        return send(res, 200, facets());
+      const jobMatch = p.match(/^\/api\/jobs\/([a-f0-9]{24})$/);
+      if (jobMatch && m === "GET") {
+        const job = getJob(jobMatch[1]);
+        if (!job) throw failure(404, "岗位不存在");
+        return send(res, 200, { job });
+      }
+      if (p === "/api/job-intents" && m === "GET")
+        return send(res, 200, {
+          jobIds: db
+            .prepare(
+              "SELECT job_id FROM job_intents WHERE user_id=? ORDER BY created_at DESC",
+            )
+            .all(s.user_id)
+            .map((x) => x.job_id),
+        });
+      if (p === "/api/job-intents" && m === "PUT") {
+        const x = await body(req);
+        if (!Array.isArray(x.jobIds) || x.jobIds.length > 107)
+          throw failure(400, "投递意向格式错误");
+        const ids = [...new Set(x.jobIds.map((v) => String(v)))];
+        if (ids.some((id) => !getJob(id)))
+          throw failure(400, "包含不存在的岗位");
+        db.prepare("DELETE FROM job_intents WHERE user_id=?").run(s.user_id);
+        const ins = db.prepare(
+          "INSERT INTO job_intents(user_id,job_id,created_at) VALUES(?,?,?)",
+        );
+        for (const id of ids) ins.run(s.user_id, id, Date.now());
+        return send(res, 200, { jobIds: ids });
       }
       if (p === "/api/ai/status" && m === "GET")
         return send(res, 200, aiGateway.status());

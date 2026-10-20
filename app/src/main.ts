@@ -13,6 +13,7 @@ import Companions from "./companions";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
+const Jobs = defineAsyncComponent(() => import("./jobs"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -259,6 +260,10 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
+      if (active.value === "jobs") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        return h(Jobs, { key: session.user?.id || "public" });
+      }
       if (active.value === "profile" || active.value === "resume") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
