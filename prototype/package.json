@@ -1,0 +1,19 @@
+{
+  "name": "career-ai-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.mjs"
+  },
+  "devDependencies": {
+    "@vue/compiler-sfc": "^3.5.44",
+    "echarts": "^5.5.1",
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.58.0",
+    "sass": "^1.105.2",
+    "vant": "^4.10.2",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  }
+}

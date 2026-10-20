@@ -1,0 +1,23 @@
+# Explicit allowlisted project repository; original reference projects stay local
+/*
+!/.gitignore
+!/PROJECT_MEMORY.md
+!/README.md
+!/docs/
+!/prototype/
+!/app/
+**/node_modules/
+**/dist/
+**/.env
+**/.env.*
+!**/.env.example
+**/*.sqlite*
+**/data/
+**/uploads/
+**/private/
+**/*.log
+**/*credentials*
+**/artifacts/
+prototype/public/app.js
+prototype/public/legacy.js
+prototype/public/legacy.css

@@ -1,0 +1,98 @@
+.agent-rail{display:none!important}.workspace{display:block!important}.legacy-frame{width:100%;border:1px solid #e5dff0;border-radius:12px;background:#fff}.dashboard-frame{height:1500px}.study-frame{height:1120px}.resume-toolbar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:15px;margin-bottom:20px}.version-switch{display:flex;gap:8px;flex-wrap:wrap}.document-ribbon{background:#fff;padding:17px;border:1px solid #e6e2eb;color:#8d80a1;font-size:11px}.document-ribbon span{float:right}.resume-desk{padding:35px;background:#eae8ef;overflow:auto;margin-bottom:20px}.resume-document{max-width:794px;margin:auto;min-height:1000px;padding:60px;outline:none}.resume-document h1{font-size:30px}.application-layout{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.5fr);gap:20px}.intention-scroll{height:555px;overflow-y:scroll;padding-right:9px}.intention-item{display:block;width:100%;text-align:left;padding:24px 15px;background:#faf8fd;border:1px solid #eee8f5;border-radius:9px;margin-bottom:14px;min-height:220px}.intention-item b{font-size:13px}.intention-item p,.intention-item small{font-size:10px;color:#a091af}.intention-item.chosen{background:#eee6fa;border-color:#bfa9dc}.application-editor textarea{height:505px;resize:vertical;font-size:13px;line-height:2}.application-actions{display:flex;gap:10px;flex-wrap:wrap}.empty-intent{padding:60px 10px;text-align:center;color:#aa9db7}.floating-pet{position:fixed;z-index:25;user-select:none;touch-action:none;width:112px;filter:drop-shadow(0 5px 5px #50416315)}.pet-drag{cursor:grab;text-align:center}.pet-drag:active{cursor:grabbing}.pet-drag>span{display:block;font-size:9px;background:#ffffffcf;border:1px solid #e9e0f4;border-radius:9px;padding:4px;white-space:nowrap;color:#8e7aa5}.small-pet{width:54px}.small-pet .pet-drag>span{font-size:7px;padding:3px}.pet-menu{position:absolute;right:0;top:0;border:0;border-radius:9px;background:#fff9;color:#b49dcb;font-size:12px}.lead-pet .avatar{margin-bottom:0}.small-pet .avatar{width:39px;height:42px}.floating-pet:hover{filter:drop-shadow(0 4px 7px #73558f44)}@media(max-width:650px){.application-layout{grid-template-columns:1fr}.intention-scroll{height:280px}.application-editor textarea{height:400px}.resume-desk{padding:10px}.resume-document{padding:25px;min-height:700px}.document-ribbon span{float:none;display:block;margin-top:9px}.floating-pet.lead-pet{transform:scale(.7);transform-origin:top left}.small-pet{transform:scale(.8);transform-origin:top left}}
+/* ===== 沉浸式外壳 + 星盘导航 ===== */
+.immersive-main{min-height:100vh;display:flex;flex-direction:column}
+.sky-header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;padding:13px 22px;background:rgba(250,248,253,.85);backdrop-filter:blur(12px);border-bottom:1px solid #ece6f3}
+.sky-brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:#4a3a6e;font-weight:700}
+.sky-brand>span{font-size:20px}
+.sky-brand small{display:block;font-size:9px;color:#a091af;letter-spacing:2px}
+.sky-now{margin-left:auto;font-size:13px;color:#8d80a1}
+.sky-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sky-actions .btn{padding:8px 13px;font-size:12px}
+.admin-portal{background:transparent;border:1px dashed #c9b6e4;color:#7b6a9e;border-radius:9px;padding:8px 13px;font-size:12px;cursor:pointer;white-space:nowrap}
+.admin-portal:hover{border-style:solid;background:#f4eefa}
+.page-content{flex:1;padding:24px 22px 70px;max-width:1280px;margin:0 auto;width:100%}
+.scene-heading{margin:4px 0 22px}
+.scene-heading .eyebrow{font-size:10px;letter-spacing:3px;color:#b09bc9;text-transform:uppercase}
+.scene-heading h1{font-size:30px;letter-spacing:1px;margin:4px 0 2px;color:#4a3a6e}
+.scene-heading p{color:#8d80a1;margin:0;font-size:13px}
+.page-footer{text-align:center;color:#a091af;font-size:12px;padding:20px 0 4px;border-top:1px solid #f0eaf6;margin-top:20px}
+.page-footer span{display:block;margin-top:4px;color:#bfb2cf;font-size:11px}
+
+.orbit-trigger{position:fixed;left:20px;bottom:20px;z-index:50;display:flex;align-items:center;gap:9px;padding:12px 16px;border-radius:999px;border:1px solid #d8c8ee;background:linear-gradient(135deg,#f4eefa,#e9dff6);color:#5b4a80;cursor:pointer;box-shadow:0 6px 20px #73558f2b;font-weight:600}
+.orbit-trigger i{font-size:22px;line-height:1}
+.orbit-trigger:hover{transform:translateY(-2px)}
+.orbit-overlay{position:fixed;inset:0;z-index:60;background:rgba(250,248,253,.97);backdrop-filter:blur(10px);padding:40px 30px;overflow:auto}
+.orbit-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;max-width:1000px;margin-left:auto;margin-right:auto}
+.orbit-head span{font-size:20px;font-weight:700;color:#4a3a6e}
+.orbit-close{border:1px solid #d8c8ee;background:#fff;border-radius:9px;padding:8px 14px;cursor:pointer;color:#7b6a9e}
+.orbit-links{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.orbit-item{display:flex;align-items:center;gap:10px;padding:16px 14px;border-radius:12px;border:1px solid #ece2f5;background:#fff;cursor:pointer;color:#5b4a80;font-size:14px;text-align:left}
+.orbit-item small{color:#b09bc9;font-size:10px}
+.orbit-item i{font-size:18px}
+.orbit-item.selected{border-color:#b596d6;background:linear-gradient(135deg,#f1e8fb,#e6daf4);box-shadow:0 4px 14px #73558f22}
+.orbit-item:hover{border-color:#b596d6}
+.orbit-admin{display:block;margin:22px auto 0;max-width:1000px}
+
+.fog-veil{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,rgba(255,255,255,0),#f7f4fb 55%,#ffffff);opacity:0;pointer-events:none;transition:opacity .43s ease}
+.fog-veil.in{opacity:1}
+.fog-veil.out{opacity:0}
+
+/* ===== 求职大屏控制器 ===== */
+.dashboard-controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:10px}
+.dashboard-focus{display:flex;gap:8px}
+.direction-select{display:flex;align-items:center;gap:8px;font-size:13px;color:#6d5c88}
+.direction-select select{padding:8px 12px;border-radius:9px;border:1px solid #d8c8ee;background:#fff;color:#4a3a6e}
+.city-scroll{display:flex;align-items:center;gap:10px;width:100%;margin-bottom:4px}
+.city-scroll-label{font-size:12px;color:#a091af;flex:none}
+.city-scroll-track{display:flex;gap:8px;overflow-x:auto;padding:6px 2px;scrollbar-width:thin}
+.city-choice{flex:none;padding:8px 14px;border-radius:999px;border:1px solid #e3d7f0;background:#fff;color:#6d5c88;cursor:pointer;font-size:13px;white-space:nowrap}
+.city-choice.selected{background:#7460c9;color:#fff;border-color:#7460c9}
+.dashboard-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dashboard-stage{margin-top:14px}
+.dashboard-frame{width:100%;height:auto;aspect-ratio:16/9;min-height:620px}
+
+/* ===== 个人信息偏好标签 / 文本域 ===== */
+.preference-input{display:flex;gap:8px;align-items:center}
+.preference-input input{flex:1}
+.preference-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;min-height:26px}
+.preference-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;background:#f0e8fa;border:1px solid #d9c6ee;color:#5b4a80;font-size:13px}
+.preference-tag button{border:0;background:transparent;color:#a091af;cursor:pointer;font-size:15px;line-height:1;padding:0}
+.preference-tag button:hover{color:#e0576a}
+.preference-tag:hover{border-color:#e0576a;background:#fdeef1}
+.grow-text{width:100%;resize:none;min-height:56px;line-height:1.6}
+.experience-entry{margin-bottom:16px}
+
+/* ===== 简历工作室 AI 提示 ===== */
+.ai-help-strip{background:linear-gradient(135deg,#f5f0fb,#ece2f7);border:1px solid #dccbef;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.ai-help-title{font-weight:700;color:#5b4a80;font-size:13px;flex:none}
+.ai-help-items{display:flex;flex-wrap:wrap;gap:8px}
+.ai-help{border:1px solid #d8c8ee;background:#fff;border-radius:9px;padding:8px 12px;font-size:12px;color:#6d5c88;cursor:pointer}
+.ai-help:hover{border-color:#a886cf;background:#faf6ff}
+.decor-toggle{display:flex;align-items:center;gap:7px;font-size:12px;color:#7b6a9e;margin-left:auto;cursor:pointer}
+.decor-toggle input{accent-color:#7460c9}
+
+/* ===== 上传简历大按钮 ===== */
+.big-upload{font-size:17px;padding:16px 26px;border-radius:12px;box-shadow:0 6px 16px #73558f2e}
+
+/* ===== 首页旅程（沉浸式）===== */
+.journey-hero{max-width:1180px;margin:0 auto;padding:28px 0 8px}
+.journey-hero .eyebrow{display:block;font-size:11px;letter-spacing:3px;color:#a58bc4;margin-bottom:12px}
+.journey-hero h1{font-size:52px;line-height:1.1;letter-spacing:.5px;margin:0 0 14px;color:#3d2f58;font-weight:800}
+.journey-hero h1 span{color:#7460c9}
+.journey-hero>p{font-size:16px;color:#7d6f95;max-width:600px;margin:0 0 28px;line-height:1.6}
+.journey-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.journey-choices button{position:relative;text-align:left;background:linear-gradient(160deg,#faf7ff,#f2ecfa);border:1px solid #e6ddf2;border-radius:18px;padding:24px 22px 22px;cursor:pointer;transition:.25s;overflow:hidden}
+.journey-choices button::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(116,96,201,.14),transparent 70%)}
+.journey-choices button:hover{transform:translateY(-4px);box-shadow:0 14px 34px #73558f24;border-color:#cfb9e6}
+.journey-choices button>span{display:block;font-size:11px;letter-spacing:2px;color:#a58bc4;margin-bottom:10px}
+.journey-choices button h2{margin:0 0 8px;font-size:21px;color:#4a3a6e}
+.journey-choices button p{margin:0 0 14px;font-size:13px;color:#8d80a1;line-height:1.55}
+.journey-choices button b{font-weight:600;color:#7460c9;font-size:14px}
+.journey-path{max-width:1180px;margin:0 auto;padding:24px 0 6px}
+.journey-path>span{display:block;font-size:12px;letter-spacing:2px;color:#a58bc4;margin-bottom:14px}
+.journey-path button{background:#fff;border:1px solid #e6ddf2;border-radius:12px;padding:12px 16px;margin:0 10px 10px 0;cursor:pointer;color:#5b4a80;font-size:14px;transition:.2s}
+.journey-path button small{color:#b09bc9;margin-right:6px;font-size:11px}
+.journey-path button span{color:#b09bc9}
+.journey-path button:hover{border-color:#b596d6;background:#faf6ff;transform:translateY(-2px)}
+.journey-note{max-width:1180px;margin:0 auto;text-align:center;padding-top:6px}
+@media(max-width:860px){.journey-hero h1{font-size:36px}.journey-choices{grid-template-columns:1fr}}

@@ -1,0 +1,16 @@
+import {ref,reactive,h} from 'vue';
+export const subjects=reactive([{id:1,name:'Java后端',icon:'☕'},{id:2,name:'Agent开发',icon:'✦'},{id:3,name:'前端开发',icon:'🌐'}]);
+export const useRoute=()=>({params:{subjectId:new URLSearchParams(location.search).get('subject')||'1'},query:{versionId:'1'}});
+export const useRouter=()=>({push:(p)=>{if(typeof p==='string'&&p.startsWith('/review/'))location.href='/legacy.html?screen=subject&subject='+p.split('/')[2].split('?')[0];else if(p==='/upload')window.parent.postMessage({type:'prototype-upload'},location.origin);else location.href='/legacy.html?screen=study'},back:()=>location.href='/legacy.html?screen=study',replace:()=>{}});
+const noop=async()=>{alert('外观预览：此处暂未连接业务服务。');return {data:[],code:200}};
+export const useUserStore=()=>({subjects,fetchSubjects:async()=>{},removeSubject:async(id)=>{const i=subjects.findIndex(s=>s.id===id);if(i>=0)subjects.splice(i,1)}});
+export const useStatsStore=()=>({fetchOverview:async()=>({questions:8,materials:3,flashcards:3})});
+export const getVersionList=async()=>({data:[{id:1,name:'第一轮复习 · 示例版本',questionCount:8,cardCount:3},{id:2,name:'面试前冲刺 · 示例版本',questionCount:8,cardCount:3}]});
+export const getSubjectReview=async(id)=>({data:{subject:subjects.find(s=>s.id==id)||subjects[0],flashcards:[{id:1,front:'Nacos 在微服务架构中主要起到什么作用？',back:'注册中心与配置中心',quickAnswer:'注册中心 + 配置中心',fullAnswer:'服务注册发现、动态配置与健康检查。',topic:'微服务'},{id:2,front:'MyBatis-Plus 与 MyBatis 有什么区别？',back:'内置 CRUD 与条件构造器',quickAnswer:'减少重复 SQL',fullAnswer:'增强 CRUD、分页、条件构造和代码生成。',topic:'持久层'},{id:3,front:'如何让工具调用更可控？',back:'校验参数并限定工具权限',quickAnswer:'Schema + 权限 + 确认',fullAnswer:'对工具参数和结果进行校验，高影响操作需人工确认。',topic:'Agent'}],questions:[{id:11,type:'choice',stem:'以下哪项属于服务发现的职责？',options:['查找可用服务实例','处理页面布局','压缩图片','渲染动画'],answer:'A',analysis:'注册中心维护服务实例。'},{id:12,type:'judge',stem:'配置中心可以集中管理服务配置。',answer:'正确',analysis:'这是配置中心的核心作用。'},{id:13,type:'short',stem:'Nacos 在微服务架构中主要起到什么作用？',answer:'注册中心、配置中心、服务发现、动态配置、健康检查。',topic:'微服务'}],totalQuestions:3,knowledgePoints:[{id:1,title:'微服务'}]}});
+export const uploadKnowledge=noop,uploadQuestions=noop,parseFile=noop,createVersion=noop,renameVersion=noop,deleteVersion=noop,aiRecognize=noop,aiGenerateQuiz=noop,aiRecognizeQuestion=noop;
+export const getQuestionStats=async()=>({data:{}});export const getFavoriteList=async()=>({data:[]});export const getWrongQuestions=async()=>({data:[]});export const toggleFavorite=noop;export const removeWrongQuestion=noop;export const addWrongQuestion=noop;export const getMarketDetail=noop;
+export const askAI=()=>window.parent.postMessage({type:'prototype-canvas'},location.origin);
+export const useTheme=()=>ref('paper');export const cssVar=(key,fallback)=>getComputedStyle(document.documentElement).getPropertyValue(key).trim()||fallback;
+export const aiStudySummary=noop,aiWrongSteps=noop,aiShortMemo=noop,aiSubjectLink=noop,aiGeneratePage=noop,aiPageSave=noop;
+export const EmptyState={props:['text'],render(){return h('div',{style:'padding:40px;text-align:center'},this.text)}};
+export const ElMessage={success:noop,error:noop,info:noop,warning:noop};
