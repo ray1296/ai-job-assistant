@@ -2,6 +2,7 @@ import { defineComponent, h, ref, onMounted, onUnmounted, nextTick } from "vue";
 import { api, errorText } from "./api";
 import InlineEdit from "./inline-edit";
 import ResumeImport from "./resume-import";
+import AiReview from "./ai-review";
 import {
   blankDocument,
   fromLegacy,
@@ -417,6 +418,27 @@ export default defineComponent({
             "一张文档，直接打磨。双击任意文本开始编辑，回车确认，Esc取消。",
           ),
         ]),
+        h(AiReview, {
+          document: doc.value,
+          disabled: busy.value,
+          onApply: (items: any[]) =>
+            change(() => {
+              for (const s of items) {
+                for (const section of doc.value.sections)
+                  for (const item of section.items) {
+                    if (item.content.includes(s.before))
+                      item.content = item.content.replace(s.before, s.after);
+                    if (item.title.includes(s.before))
+                      item.title = item.title.replace(s.before, s.after);
+                  }
+                if (doc.value.header.summary.includes(s.before))
+                  doc.value.header.summary = doc.value.header.summary.replace(
+                    s.before,
+                    s.after,
+                  );
+              }
+            }),
+        }),
         h("details", { class: "studio-import-toggle" }, [
           h("summary", "＋ 导入已有简历 · PDF / DOCX / 图片"),
           h(ResumeImport, {

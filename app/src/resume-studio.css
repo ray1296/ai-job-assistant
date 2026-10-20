@@ -1,4 +1,56 @@
 /* Single document studio. Never reintroduce editor + preview split. */
+.ai-review-panel {
+  background: #fff;
+  border: 1px solid #dfd2eb;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 0 0 20px;
+}
+.ai-review-panel h3 {
+  margin: 0 0 8px;
+}
+.ai-review-panel > p {
+  font-size: 12px;
+  color: #8e7b9d;
+}
+.ai-review-panel textarea {
+  min-height: 64px;
+  margin: 8px 0 12px;
+}
+.ai-suggestion {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #e4dced;
+  border-radius: 10px;
+  background: #fcfaff;
+}
+.ai-suggestion label {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+.ai-suggestion strong {
+  display: block;
+  margin: 8px 0;
+  color: #6c4c8a;
+}
+.ai-suggestion p {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.ai-before {
+  color: #936d76;
+}
+.ai-after {
+  color: #527b64;
+}
+.ai-suggestion small,
+.ai-review-panel > small {
+  font-size: 10px;
+  color: #9787a3;
+}
 .import-candidate .field-evidence {
   grid-column: 1/-1;
   overflow-wrap: anywhere;

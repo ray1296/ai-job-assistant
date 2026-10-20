@@ -1,5 +1,6 @@
 import http from "node:http";
 import { createExtractionService } from "./resume-extraction.mjs";
+import { createAiGateway } from "./ai-gateway.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
@@ -14,6 +15,7 @@ const dataDir = path.resolve(
 fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 fs.chmodSync(dataDir, 0o700);
 const extraction = createExtractionService(dataDir);
+const aiGateway = createAiGateway(dataDir);
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
 fs.chmodSync(dbPath, 0o600);
@@ -311,6 +313,20 @@ const server = http.createServer(async (req, res) => {
           req.headers["x-csrf-token"] !== s.csrf
         )
           throw failure(403, "会话校验失败，请刷新后重试");
+      }
+      if (p === "/api/ai/status" && m === "GET")
+        return send(res, 200, aiGateway.status());
+      if (p === "/api/ai/resume-review" && m === "POST") {
+        const x = await body(req);
+        const document = validateDocument(x.document);
+        return send(
+          res,
+          200,
+          await aiGateway.review(s.user_id, {
+            document,
+            prompt: typeof x.prompt === "string" ? x.prompt.slice(0, 1000) : "",
+          }),
+        );
       }
       if (p === "/api/resume-extractions/limits" && m === "GET")
         return send(res, 200, extraction.status());

@@ -15,6 +15,7 @@
     "test:studio": "node tests/studio-smoke.mjs",
     "test:intake": "node tests/intake-smoke.mjs",
     "test:extraction": "python3 tests/extraction-fixtures.py && node tests/extraction-security.mjs",
+    "test:ai": "node tests/ai-smoke.mjs",
     "setup:ocr": "bash server/setup-ocr.sh"
   },
   "dependencies": {

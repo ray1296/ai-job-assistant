@@ -160,10 +160,11 @@ h2 {
 .page-footer {
   text-align: center;
   color: #b2a5be;
-  font-size: 12px;
-  margin-top: 35px;
+  font-size: 10px;
+  line-height: 1.35;
+  margin-top: 10px;
   border-top: 1px solid #ece6f3;
-  padding: 20px;
+  padding: 6px 4px 8px;
 }
 .journey-hero {
   padding: 55px 20px 48px;
@@ -689,7 +690,7 @@ textarea {
     display: none;
   }
   .page-content {
-    padding: 20px 15px 95px;
+    padding: 20px 15px 28px;
   }
   .journey-hero {
     padding: 35px 5px;
