@@ -1,6 +1,7 @@
 import { defineComponent, h, ref, onMounted, onUnmounted, nextTick } from "vue";
 import { api, errorText } from "./api";
 import InlineEdit from "./inline-edit";
+import ResumeImport from "./resume-import";
 import {
   blankDocument,
   fromLegacy,
@@ -127,7 +128,7 @@ export default defineComponent({
           title: duplicate
             ? title.value + " · 副本"
             : "我的简历 · " + (versions.value.length + 1),
-          body: { text: plainText(document), document },
+          body: { document },
         });
         install(r.resume);
         await refresh();
@@ -150,7 +151,7 @@ export default defineComponent({
       try {
         const r = await api("/resumes/" + id, "PUT", {
           title: title.value,
-          body: { document: doc.value, text: plainText(doc.value) },
+          body: { document: doc.value },
           revision: current.value.revision,
         });
         current.value = r.resume;
@@ -415,6 +416,16 @@ export default defineComponent({
             "p",
             "一张文档，直接打磨。双击任意文本开始编辑，回车确认，Esc取消。",
           ),
+        ]),
+        h("details", { class: "studio-import-toggle" }, [
+          h("summary", "＋ 导入已有简历 · PDF / DOCX / 图片"),
+          h(ResumeImport, {
+            disabled: busy.value,
+            onCreated: async (r: Resume) => {
+              await refresh();
+              if (flush() && canLeave()) install(r);
+            },
+          }),
         ]),
         h("div", { class: "resume-toolbar" }, [
           h("div", { class: "version-switch" }, [

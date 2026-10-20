@@ -12,7 +12,10 @@
     "test:smoke": "node tests/api-smoke.mjs",
     "typecheck": "tsc --noEmit",
     "test:browser": "node tests/browser-smoke.mjs",
-    "test:studio": "node tests/studio-smoke.mjs"
+    "test:studio": "node tests/studio-smoke.mjs",
+    "test:intake": "node tests/intake-smoke.mjs",
+    "test:extraction": "python3 tests/extraction-fixtures.py && node tests/extraction-security.mjs",
+    "setup:ocr": "bash server/setup-ocr.sh"
   },
   "dependencies": {
     "buffer": "^6.0.3",

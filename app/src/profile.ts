@@ -1,4 +1,5 @@
 import { defineComponent, h, ref, onMounted, watch } from "vue";
+import ResumeImport from "./resume-import";
 import {
   api,
   emptyProfile,
@@ -223,18 +224,11 @@ export default defineComponent({
           h("h1", "个人信息"),
           h("p", "先选择城市或职业方向，再整理经历。不需要先有简历。"),
         ]),
-        h("section", { class: "upload-placeholder" }, [
-          h(
-            "button",
-            {
-              class: "big-upload",
-              disabled: true,
-              title: "简历上传解析将在下一批接入",
-            },
-            "＋ 上传已有简历（可选，下一批接入）",
-          ),
-          h("small", "本批可填写并保存资料；不将未接通的解析按钮伪装为可用。"),
-        ]),
+        h(ResumeImport, {
+          disabled: loading.value || busy.value,
+          onProfile: (patch: Partial<Profile>) =>
+            Object.assign(model.value, patch),
+        }),
         loading.value
           ? h(
               "div",

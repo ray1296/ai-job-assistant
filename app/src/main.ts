@@ -10,6 +10,7 @@ import {
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
 import Companions from "./companions";
+import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const pages = [
@@ -175,7 +176,7 @@ const app = defineComponent({
           ),
           h("div", { class: "hero-status" }, [
             h("span", { class: "live-dot" }),
-            "本批已接通 · 旅程地图、账号、资料、简历原位编辑",
+            "本批已接通 · 可拖动星盘、简历识别与确认导入",
           ]),
         ]),
         h("div", { class: "journey-choices" }, [
@@ -239,7 +240,7 @@ const app = defineComponent({
         h(
           "div",
           { class: "notice" },
-          "审核提示：账号、个人信息与文档式简历编辑/Word导出已接通；其他页面仍展示外观原型，AI功能尚未接通。",
+          "审核提示：账号、资料、简历本地识别/确认导入、文档编辑与Word导出已接通；其他页面仍为外观原型，AI理解和优化尚未接通。",
         ),
       ]);
     }
@@ -370,15 +371,10 @@ const app = defineComponent({
             "逐光 · 不替你决定，陪你迈出下一步",
           ),
         ]),
-        h(
-          "button",
-          {
-            class: "orbit-trigger",
-            "aria-expanded": orbit.value,
-            onClick: () => (orbit.value = !orbit.value),
-          },
-          [h("i", "☯"), "展开星盘"],
-        ),
+        h(OrbitTrigger, {
+          expanded: orbit.value,
+          onToggle: () => (orbit.value = !orbit.value),
+        }),
         orbit.value
           ? h(
               "div",

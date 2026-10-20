@@ -18,6 +18,8 @@
 **/*.log
 **/*credentials*
 **/artifacts/
+**/.tools/
+**/__pycache__/
 prototype/public/app.js
 prototype/public/legacy.js
 prototype/public/legacy.css

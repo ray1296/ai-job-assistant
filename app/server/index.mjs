@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createExtractionService } from "./resume-extraction.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
@@ -12,6 +13,7 @@ const dataDir = path.resolve(
 );
 fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 fs.chmodSync(dataDir, 0o700);
+const extraction = createExtractionService(dataDir);
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
 fs.chmodSync(dbPath, 0o600);
@@ -247,7 +249,8 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/health" && m === "GET")
         return send(res, 200, {
           status: "ok",
-          batch: 2,
+          batch: 3,
+          localExtraction: true,
           ai: false,
           resumeDocument: 2,
         });
@@ -308,6 +311,25 @@ const server = http.createServer(async (req, res) => {
           req.headers["x-csrf-token"] !== s.csrf
         )
           throw failure(403, "会话校验失败，请刷新后重试");
+      }
+      if (p === "/api/resume-extractions/limits" && m === "GET")
+        return send(res, 200, extraction.status());
+      if (p === "/api/resume-extractions" && m === "POST") {
+        limited("extract:" + s.user_id, 8);
+        return send(res, 202, { job: await extraction.create(req, s.user_id) });
+      }
+      const extractionMatch = p.match(
+        /^\/api\/resume-extractions\/([a-f0-9-]{36})$/,
+      );
+      if (extractionMatch) {
+        if (m === "GET")
+          return send(res, 200, {
+            job: extraction.get(extractionMatch[1], s.user_id),
+          });
+        if (m === "DELETE") {
+          extraction.delete(extractionMatch[1], s.user_id);
+          return send(res, 200, { ok: true });
+        }
       }
       if (p === "/api/auth/logout" && m === "POST") {
         const token = String(req.headers.cookie || "").match(
@@ -516,13 +538,16 @@ server.keepAliveTimeout = 5000;
 server.listen(
   Number(process.env.PORT || 5174),
   process.env.HOST || "0.0.0.0",
-  () => console.log("Career batch 2 listening on " + server.address().port),
+  () => console.log("Career batch 3 listening on " + server.address().port),
 );
 let closing = false;
 function shutdown() {
   if (closing) return;
   closing = true;
-  server.close(() => {
+  const cleanup = extraction.close();
+  server.close(async () => {
+    await cleanup;
+    await extraction.close();
     db.close();
     process.exit(0);
   });
