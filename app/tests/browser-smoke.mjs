@@ -22,7 +22,7 @@ p.on("dialog", (d) => d.accept());
 const email = "browser-" + Date.now() + "@example.invalid";
 await fs.mkdir("artifacts", { recursive: true });
 try {
-  await p.goto("http://127.0.0.1:5173/");
+  await p.goto(process.env.TEST_BASE_URL || "http://127.0.0.1:5173/");
   await p.getByText("填写个人信息", { exact: true }).first().waitFor();
   pass("Vue home renders");
   await p.screenshot({ path: "artifacts/batch1-home.png", fullPage: true });
@@ -62,38 +62,26 @@ try {
   await p.screenshot({ path: "artifacts/batch1-profile.png", fullPage: true });
   await p.getByRole("button", { name: "展开星盘", exact: false }).click();
   await p.getByRole("button", { name: /简历工作室/ }).click();
-  await p.getByRole("button", { name: "创建第一份简历" }).click();
-  await p.getByRole("textbox", { name: "版本名称" }).fill("前端求职版");
-  await p.getByRole("button", { name: "从已保存个人信息填入" }).click();
-  await p.getByRole("textbox", { name: "简历正文" }).waitFor();
-  await p.waitForFunction(() =>
-    document.querySelector("[aria-label=简历正文]")?.value.includes("验收同学"),
+  await p.getByRole("button", { name: "创建第一份简历", exact: true }).click();
+  await p.getByRole("button", { name: "从个人信息整理", exact: true }).click();
+  await p.waitForFunction(
+    () =>
+      document.querySelector("[aria-label=简历姓名]")?.textContent ===
+      "验收同学",
   );
   await p
-    .getByRole("textbox", { name: "简历正文" })
-    .fill("验收同学\n真实经历\n<script>window.pwned=true</script>");
-  await p.getByRole("button", { name: "保存当前版本" }).click();
-  await p.getByText("已保存当前简历版本").waitFor();
-  assert.equal(await p.evaluate(() => window.pwned), undefined);
-  pass("profile import and safe resume save with no script execution");
-  await p.getByRole("button", { name: "＋ 新建版本", exact: true }).click();
-  await p.getByRole("textbox", { name: "版本名称" }).fill("后端求职版");
-  await p.getByRole("textbox", { name: "简历正文" }).fill("第二版本独立正文");
-  await p.getByRole("button", { name: "保存当前版本" }).click();
-  await p.getByText("已保存当前简历版本").waitFor();
-  await p.getByRole("button", { name: "前端求职版", exact: true }).click();
-  await p.waitForFunction(() =>
-    document.querySelector("[aria-label=简历正文]")?.value.includes("真实经历"),
-  );
-  pass("independent resume versions switch correctly");
+    .getByRole("button", { name: "保存当前版本", exact: true })
+    .last()
+    .click();
+  await p.getByText("当前版本已保存", { exact: true }).waitFor();
+  pass("saved profile imports into actual document");
   await p.reload();
-  await p.getByRole("button", { name: "前端求职版", exact: true }).click();
-  await p.getByRole("textbox", { name: "简历正文" }).waitFor();
-  await p.waitForFunction(() =>
-    document.querySelector("[aria-label=简历正文]")?.value.includes("真实经历"),
+  await p.getByRole("textbox", { name: "简历姓名" }).waitFor();
+  assert.equal(
+    await p.getByRole("textbox", { name: "简历姓名" }).innerText(),
+    "验收同学",
   );
-  pass("resume and session persist after reload");
-  await p.screenshot({ path: "artifacts/batch1-resume.png", fullPage: true });
+  pass("document session and profile persist after reload");
   await p.getByRole("button", { name: "展开星盘", exact: false }).click();
   await p.getByRole("button", { name: /就业数据大屏/ }).click();
   const frame = p.frameLocator("iframe");

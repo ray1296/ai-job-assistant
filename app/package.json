@@ -11,9 +11,12 @@
     "start": "node server/index.mjs",
     "test:smoke": "node tests/api-smoke.mjs",
     "typecheck": "tsc --noEmit",
-    "test:browser": "node tests/browser-smoke.mjs"
+    "test:browser": "node tests/browser-smoke.mjs",
+    "test:studio": "node tests/studio-smoke.mjs"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
+    "docx": "^9.5.1",
     "vue": "3.5.44"
   },
   "devDependencies": {

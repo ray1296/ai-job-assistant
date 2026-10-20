@@ -1,4 +1,5 @@
 import http from "node:http";
+import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
@@ -186,6 +187,16 @@ function resumeData(x) {
   if (!title) throw failure(400, "请填写版本名称");
   if (!x.body || typeof x.body !== "object")
     throw failure(400, "简历内容格式错误");
+  if (x.body.document !== undefined) {
+    const document = validateDocument(x.body.document);
+    const text = documentText(document);
+    if (
+      text.length > 60000 ||
+      Buffer.byteLength(JSON.stringify(document)) > 110000
+    )
+      throw failure(400, "简历内容过大，请精简后保存");
+    return { title, body: { text, document } };
+  }
   return {
     title,
     body: { text: string(x.body.text ?? "", 60000, "简历正文") },
@@ -234,7 +245,12 @@ const server = http.createServer(async (req, res) => {
           throw failure(403, "跨站请求被拒绝");
       }
       if (p === "/api/health" && m === "GET")
-        return send(res, 200, { status: "ok", batch: 1, ai: false });
+        return send(res, 200, {
+          status: "ok",
+          batch: 2,
+          ai: false,
+          resumeDocument: 2,
+        });
       if (p === "/api/auth/session" && m === "GET") {
         const s = session(req);
         return send(
@@ -331,9 +347,13 @@ const server = http.createServer(async (req, res) => {
             "资料已在另一页面更新，请重新载入后合并；当前编辑未丢失",
           );
         const now = Date.now();
-        db.prepare(
-          "INSERT INTO profiles VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET body=excluded.body,revision=excluded.revision,updated_at=excluded.updated_at",
-        ).run(s.user_id, JSON.stringify(profile), revision + 1, now);
+        const result = db
+          .prepare(
+            "INSERT INTO profiles VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET body=excluded.body,revision=excluded.revision,updated_at=excluded.updated_at WHERE profiles.revision=excluded.revision-1",
+          )
+          .run(s.user_id, JSON.stringify(profile), revision + 1, now);
+        if (result.changes !== 1)
+          throw failure(409, "资料并发更新，请重新载入后合并；当前编辑仍保留");
         return send(res, 200, {
           profile,
           revision: revision + 1,
@@ -383,9 +403,23 @@ const server = http.createServer(async (req, res) => {
               409,
               "该版本已在另一页面修改，请先重新载入；当前编辑仍保留",
             );
-          db.prepare(
-            "UPDATE resumes SET title=?,body=?,revision=revision+1,updated_at=? WHERE id=? AND user_id=?",
-          ).run(v.title, JSON.stringify(v.body), Date.now(), id, s.user_id);
+          const result = db
+            .prepare(
+              "UPDATE resumes SET title=?,body=?,revision=revision+1,updated_at=? WHERE id=? AND user_id=? AND revision=?",
+            )
+            .run(
+              v.title,
+              JSON.stringify(v.body),
+              Date.now(),
+              id,
+              s.user_id,
+              x.revision,
+            );
+          if (result.changes !== 1)
+            throw failure(
+              409,
+              "版本并发更新，请重新载入后合并；当前编辑仍保留",
+            );
           return send(res, 200, {
             resume: resumeOut(stmt.resume.get(id, s.user_id)),
           });
@@ -394,10 +428,13 @@ const server = http.createServer(async (req, res) => {
           const x = await body(req);
           if (x.revision !== r.revision)
             throw failure(409, "版本已更新，请重新载入确认后删除");
-          db.prepare("DELETE FROM resumes WHERE id=? AND user_id=?").run(
-            id,
-            s.user_id,
-          );
+          const result = db
+            .prepare(
+              "DELETE FROM resumes WHERE id=? AND user_id=? AND revision=?",
+            )
+            .run(id, s.user_id, x.revision);
+          if (result.changes !== 1)
+            throw failure(409, "版本并发更新，未执行删除");
           return send(res, 200, { ok: true });
         }
       }
@@ -479,7 +516,7 @@ server.keepAliveTimeout = 5000;
 server.listen(
   Number(process.env.PORT || 5174),
   process.env.HOST || "0.0.0.0",
-  () => console.log("Career batch 1 listening on " + server.address().port),
+  () => console.log("Career batch 2 listening on " + server.address().port),
 );
 let closing = false;
 function shutdown() {

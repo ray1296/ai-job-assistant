@@ -211,6 +211,74 @@ try {
     r.headers.get("content-security-policy").includes("object-src 'none'"),
   );
   pass("real app served with CSP");
+  const { validateDocument, documentText } = await import(
+    "../server/resume-document.mjs"
+  );
+  const document = {
+    schemaVersion: 2,
+    header: { name: "结构化同学", headline: "前端", contact: "", summary: "" },
+    sections: [
+      {
+        id: "sec1",
+        title: "教育",
+        items: [{ id: "item1", title: "学校", meta: "时间", content: "内容" }],
+      },
+    ],
+    layout: { template: "compact", fontSize: 15, accent: "navy" },
+  };
+  assert.deepEqual(validateDocument(document), document);
+  assert.match(documentText(document), /结构化同学/);
+  assert.throws(() =>
+    validateDocument({
+      ...document,
+      sections: [document.sections[0], document.sections[0]],
+    }),
+  );
+  assert.throws(() =>
+    validateDocument({
+      ...document,
+      header: { ...document.header, name: "x".repeat(121) },
+    }),
+  );
+  pass("structured schema rejects duplicate ids and oversized fields");
+  await req(a, "/api/auth/login", "POST", {
+    email: "alpha@example.invalid",
+    password: "Test-Only-Strong-123!",
+  });
+  r = await req(a, "/api/resumes", "POST", {
+    title: "结构版本",
+    body: { document, text: "forged" },
+  });
+  assert.equal(r.status, 201);
+  const structured = r.data.resume;
+  assert.equal(structured.body.document.header.name, "结构化同学");
+  assert.notEqual(structured.body.text, "forged");
+  pass("structured document stored with server-derived canonical text");
+  const results = await Promise.all(
+    Array.from({ length: 8 }, (_, i) =>
+      req(a, "/api/resumes/" + structured.id, "PUT", {
+        title: "race" + i,
+        body: { document },
+        revision: 1,
+      }),
+    ),
+  );
+  assert.equal(results.filter((x) => x.status === 200).length, 1);
+  assert.equal(results.filter((x) => x.status === 409).length, 7);
+  pass("eight concurrent writers allow only one revision winner");
+  r = await req(a, "/api/resumes/" + structured.id, "DELETE", { revision: 1 });
+  assert.equal(r.status, 409);
+  pass("concurrent stale delete cannot remove updated document");
+  const reads = await Promise.all(
+    Array.from({ length: 24 }, () => req(a, "/api/resumes/" + structured.id)),
+  );
+  assert.ok(
+    reads.every(
+      (x) =>
+        x.status === 200 && x.data.resume.body.document.sections.length === 1,
+    ),
+  );
+  pass("bounded concurrent reads preserve structured data");
   console.log("TOTAL", checks, "checks passed");
 } finally {
   await stop();

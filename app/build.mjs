@@ -18,5 +18,6 @@ await build({
   },
 });
 await fs.copyFile("src/app.css", "dist/assets/app.css");
+await fs.copyFile("src/resume-studio.css", "dist/assets/resume-studio.css");
 await fs.copyFile("src/index.html", "dist/index.html");
 console.log("Built Vue shell with lazy profile/resume modules");

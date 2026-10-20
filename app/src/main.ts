@@ -42,6 +42,7 @@ const app = defineComponent({
       authMode = ref<"login" | "register">("login"),
       email = ref(""),
       password = ref(""),
+      showPassword = ref(false),
       busy = ref(false),
       error = ref(""),
       notice = ref(""),
@@ -122,6 +123,7 @@ const app = defineComponent({
         Object.assign(session, r);
         auth.value = false;
         password.value = "";
+        showPassword.value = false;
         notice.value =
           authMode.value === "register"
             ? "账号已创建，资料将只保存在你的账号下"
@@ -173,7 +175,7 @@ const app = defineComponent({
           ),
           h("div", { class: "hero-status" }, [
             h("span", { class: "live-dot" }),
-            "第一批功能已接通 · 账号、个人资料、简历版本",
+            "本批已接通 · 旅程地图、账号、资料、简历原位编辑",
           ]),
         ]),
         h("div", { class: "journey-choices" }, [
@@ -237,7 +239,7 @@ const app = defineComponent({
         h(
           "div",
           { class: "notice" },
-          "审核提示：本批只有账号、个人信息、简历版本是真实业务；其他页面仍展示已确定的外观原型，不是完成状态。",
+          "审核提示：账号、个人信息与文档式简历编辑/Word导出已接通；其他页面仍展示外观原型，AI功能尚未接通。",
         ),
       ]);
     }
@@ -312,6 +314,14 @@ const app = defineComponent({
           ),
           h("span", { class: "sky-now" }, title.value),
           h("div", { class: "sky-actions" }, [
+            h(
+              "button",
+              {
+                class: "journey-map-entry",
+                onClick: () => (orbit.value = true),
+              },
+              "旅程地图",
+            ),
             session.user
               ? h(
                   "span",
@@ -380,7 +390,7 @@ const app = defineComponent({
               },
               [
                 h("div", { class: "orbit-head" }, [
-                  h("h2", "你想去往哪里？"),
+                  h("h2", "你的旅程地图"),
                   h(
                     "button",
                     { onClick: () => (orbit.value = false) },
@@ -470,23 +480,67 @@ const app = defineComponent({
                             ).value),
                         }),
                       ]),
-                      h("label", { class: "field" }, [
-                        h("span", "密码（10—128位）"),
-                        h("input", {
-                          type: "password",
-                          value: password.value,
-                          required: true,
-                          minlength: 10,
-                          maxlength: 128,
-                          autocomplete:
-                            authMode.value === "login"
-                              ? "current-password"
-                              : "new-password",
-                          onInput: (e: Event) =>
-                            (password.value = (
-                              e.target as HTMLInputElement
-                            ).value),
-                        }),
+                      h("div", { class: "field" }, [
+                        h(
+                          "label",
+                          { for: "auth-password" },
+                          "密码（10—128位）",
+                        ),
+                        h("div", { class: "password-field" }, [
+                          h("input", {
+                            id: "auth-password",
+                            type: showPassword.value ? "text" : "password",
+                            value: password.value,
+                            required: true,
+                            minlength: 10,
+                            maxlength: 128,
+                            autocomplete:
+                              authMode.value === "login"
+                                ? "current-password"
+                                : "new-password",
+                            onInput: (e: Event) =>
+                              (password.value = (
+                                e.target as HTMLInputElement
+                              ).value),
+                          }),
+                          h(
+                            "button",
+                            {
+                              type: "button",
+                              class: "password-eye",
+                              "aria-label": showPassword.value
+                                ? "隐藏密码"
+                                : "显示密码",
+                              "aria-pressed": showPassword.value,
+                              "aria-controls": "auth-password",
+                              onClick: () =>
+                                (showPassword.value = !showPassword.value),
+                            },
+                            [
+                              h(
+                                "svg",
+                                {
+                                  viewBox: "0 0 24 24",
+                                  width: 21,
+                                  height: 21,
+                                  fill: "none",
+                                  stroke: "currentColor",
+                                  "stroke-width": 1.6,
+                                  "aria-hidden": true,
+                                },
+                                [
+                                  h("path", {
+                                    d: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z",
+                                  }),
+                                  h("circle", { cx: 12, cy: 12, r: 3 }),
+                                  showPassword.value
+                                    ? h("path", { d: "M3 3l18 18" })
+                                    : null,
+                                ],
+                              ),
+                            ],
+                          ),
+                        ]),
                       ]),
                       error.value
                         ? h("p", { class: "error", role: "alert" }, error.value)
