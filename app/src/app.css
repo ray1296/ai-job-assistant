@@ -217,20 +217,23 @@ h2 {
   justify-content: center;
   margin: 24px 0;
 }
-.job-detail-overlay {
-  position: fixed;
-  inset: 0;
+.job-detail::backdrop {
   background: #241b3566;
-  z-index: 80;
-  padding: 5vh 5vw;
-  overflow: auto;
 }
 .job-detail {
   background: #fff;
-  max-width: 800px;
+  color: inherit;
+  width: min(800px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid #ded3eb;
   margin: auto;
   border-radius: 18px;
   padding: 24px;
+}
+.job-detail-close {
+  float: right;
 }
 .job-detail pre {
   white-space: pre-wrap;
@@ -244,6 +247,270 @@ h2 {
 }
 .job-detail a {
   color: #7254a0;
+}
+/* Native jobs and application-plan surfaces share the established violet house style. */
+.jobs-page,
+.plan-page,
+.plan-layout > *,
+.plan-editor > * {
+  min-width: 0;
+}
+.jobs-summary,
+.plan-overview,
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.jobs-summary {
+  justify-content: space-between;
+}
+.jobs-page a,
+.plan-page a {
+  color: #65458f;
+  text-underline-offset: 3px;
+}
+.jobs-toolbar input,
+.jobs-toolbar select {
+  width: 100%;
+  min-width: 0;
+}
+.job-card h2,
+.job-card p,
+.job-card small,
+.plan-editor h2 {
+  overflow-wrap: anywhere;
+}
+.plan-overview {
+  margin: -8px 0 20px;
+}
+.native-status {
+  background: #eee7f7;
+  color: #634781;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.plan-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.plan-sidebar,
+.plan-editor,
+.plan-empty {
+  background: #fff;
+  border: 1px solid #e5dced;
+  border-radius: 16px;
+  padding: 22px;
+}
+.plan-sidebar {
+  position: sticky;
+  top: 88px;
+  padding: 18px 12px;
+}
+.plan-sidebar h2 {
+  padding: 0 8px;
+  font-size: 16px;
+}
+.plan-job-list {
+  list-style: none;
+  padding: 3px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(65dvh, 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.plan-job-list button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px;
+  overflow-wrap: anywhere;
+}
+.plan-job-list button.active {
+  border-color: #9778bd;
+  background: #f0eafa;
+  box-shadow: inset 3px 0 #8a69b7;
+}
+.plan-job-list strong {
+  font-size: 14px;
+}
+.plan-job-list span {
+  font-size: 12px;
+}
+.plan-job-list small {
+  color: #796889;
+}
+.plan-editor h2 {
+  margin-bottom: 8px;
+}
+.plan-editor label {
+  display: block;
+  margin: 18px 0 8px;
+  font-weight: 600;
+}
+.plan-help {
+  font-size: 12px;
+  color: #75667f;
+  line-height: 1.7;
+}
+.plan-textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  padding: 16px;
+  border: 1px solid #d8cbe8;
+  border-radius: 12px;
+  background: #fefcff;
+}
+.plan-count {
+  text-align: right;
+  color: #796889;
+  font-size: 12px;
+  margin: 8px 0 16px;
+}
+.plan-actions {
+  margin: 14px 0;
+}
+.plan-actions a {
+  display: inline-block;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.plan-suggestion,
+.plan-conflict {
+  border: 1px solid #d8cbe8;
+  background: #faf7fd;
+  padding: 18px;
+  border-radius: 12px;
+  margin-top: 22px;
+}
+.plan-suggestion h3,
+.plan-conflict h3 {
+  font-size: 16px;
+}
+.plan-suggestion p,
+.plan-conflict p {
+  font-size: 13px;
+}
+.plan-suggestion pre,
+.plan-conflict pre {
+  font: inherit;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.plan-conflict button {
+  margin: 6px 6px 0 0;
+}
+@media (max-width: 1000px) {
+  .job-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .jobs-toolbar {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+  .plan-layout {
+    grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+    gap: 14px;
+  }
+  .plan-editor {
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .job-grid {
+    grid-template-columns: 1fr;
+  }
+  .jobs-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .jobs-toolbar input {
+    grid-column: 1 / -1;
+  }
+  .jobs-toolbar button {
+    grid-column: 1 / -1;
+  }
+  .jobs-summary {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .job-card {
+    padding: 16px;
+  }
+  .job-actions button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 10px;
+  }
+  .job-detail {
+    padding: 18px;
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .jobs-footer {
+    gap: 10px;
+  }
+  .jobs-footer .primary {
+    flex-basis: 100%;
+  }
+  .plan-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plan-sidebar {
+    position: static;
+  }
+  .plan-job-list {
+    max-height: 245px;
+  }
+  .plan-editor,
+  .plan-empty {
+    padding: 18px 14px;
+  }
+  .plan-textarea {
+    min-height: 330px;
+    padding: 12px;
+    font-size: 16px;
+  }
+  .plan-overview {
+    gap: 10px;
+  }
+  .plan-actions {
+    align-items: stretch;
+    gap: 8px;
+  }
+  .plan-actions button {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+  .plan-actions a {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+  .plan-suggestion,
+  .plan-conflict {
+    padding: 14px;
+  }
+  .plan-conflict button {
+    width: 100%;
+    margin: 6px 0 0;
+  }
 }
 .scene-heading {
   margin: 4px 0 24px;

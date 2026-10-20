@@ -20,9 +20,13 @@ export async function api<T = any>(
   url: string,
   method = "GET",
   body?: unknown,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   const c = new AbortController();
-  const timer = setTimeout(() => c.abort(), 12000);
+  const abort = () => c.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  if (options.signal?.aborted) c.abort();
+  const timer = setTimeout(abort, options.timeoutMs ?? 12000);
   try {
     const r = await fetch("/api" + url, {
       method,
@@ -42,6 +46,7 @@ export async function api<T = any>(
     throw new ApiError("网络连接异常或请求超时；当前编辑仍保留，请重试", 0);
   } finally {
     clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
   }
 }
 export async function loadSession() {

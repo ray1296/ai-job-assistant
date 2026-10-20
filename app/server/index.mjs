@@ -1,6 +1,8 @@
 import http from "node:http";
 import { createExtractionService } from "./resume-extraction.mjs";
 import { createAiGateway } from "./ai-gateway.mjs";
+import { createApplicationPlan } from "./application-plan.mjs";
+import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
@@ -32,6 +34,8 @@ CREATE INDEX IF NOT EXISTS resumes_owner ON resumes(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS job_intents(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,job_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,job_id));
 CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
 PRAGMA user_version=1;`);
+const applicationPlan = createApplicationPlan(db, getJob);
+const applicationCopy = createApplicationCopy(dataDir);
 const stmt = {
   user: db.prepare(
     "SELECT id,email,password_hash,salt FROM users WHERE email=?",
@@ -346,27 +350,55 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { job });
       }
       if (p === "/api/job-intents" && m === "GET")
-        return send(res, 200, {
-          jobIds: db
-            .prepare(
-              "SELECT job_id FROM job_intents WHERE user_id=? ORDER BY created_at DESC",
-            )
-            .all(s.user_id)
-            .map((x) => x.job_id),
-        });
+        return send(res, 200, { jobIds: applicationPlan.jobIds(s.user_id) });
       if (p === "/api/job-intents" && m === "PUT") {
         const x = await body(req);
-        if (!Array.isArray(x.jobIds) || x.jobIds.length > 107)
-          throw failure(400, "投递意向格式错误");
-        const ids = [...new Set(x.jobIds.map((v) => String(v)))];
-        if (ids.some((id) => !getJob(id)))
-          throw failure(400, "包含不存在的岗位");
-        db.prepare("DELETE FROM job_intents WHERE user_id=?").run(s.user_id);
-        const ins = db.prepare(
-          "INSERT INTO job_intents(user_id,job_id,created_at) VALUES(?,?,?)",
+        return send(
+          res,
+          200,
+          applicationPlan.replaceIntents(s.user_id, x.jobIds),
         );
-        for (const id of ids) ins.run(s.user_id, id, Date.now());
-        return send(res, 200, { jobIds: ids });
+      }
+      const intentMatch = p.match(/^\/api\/job-intents\/([a-f0-9]{24})$/);
+      if (intentMatch && (m === "PUT" || m === "DELETE"))
+        return send(
+          res,
+          200,
+          applicationPlan.mutateIntent(s.user_id, intentMatch[1], m === "PUT"),
+        );
+      if (p === "/api/application-plan" && m === "GET")
+        return send(res, 200, applicationPlan.list(s.user_id));
+      const planMatch = p.match(/^\/api\/application-plan\/([a-f0-9]{24})$/);
+      if (planMatch && m === "GET")
+        return send(res, 200, applicationPlan.detail(s.user_id, planMatch[1]));
+      if (planMatch && m === "PUT")
+        return send(
+          res,
+          200,
+          applicationPlan.save(s.user_id, planMatch[1], await body(req)),
+        );
+      if (p === "/api/ai/application-copy" && m === "POST") {
+        const x = await body(req);
+        const job = typeof x.jobId === "string" && getJob(x.jobId);
+        if (!job) throw failure(404, "岗位不存在");
+        const controller = new AbortController();
+        const cancel = () => {
+          if (!res.writableEnded) controller.abort();
+        };
+        res.on("close", cancel);
+        try {
+          return send(
+            res,
+            200,
+            await applicationCopy.generate(
+              s.user_id,
+              { job, text: x.text, mode: x.mode },
+              controller.signal,
+            ),
+          );
+        } finally {
+          res.off("close", cancel);
+        }
       }
       if (p === "/api/ai/status" && m === "GET")
         return send(res, 200, aiGateway.status());

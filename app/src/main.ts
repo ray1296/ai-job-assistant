@@ -14,6 +14,7 @@ import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const Jobs = defineAsyncComponent(() => import("./jobs"));
+const Plan = defineAsyncComponent(() => import("./plan"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -153,7 +154,10 @@ const app = defineComponent({
     const loginPrompt = () =>
       h("section", { class: "card empty" }, [
         h("h2", "让经历只属于你"),
-        h("p", "登录后保存个人信息与简历版本，不用在公共演示账号里填写资料。"),
+        h(
+          "p",
+          "登录后查看岗位、保存投递意向与话术，也能管理个人信息与简历版本。私人数据按账号隔离。",
+        ),
         h(
           "button",
           {
@@ -260,9 +264,13 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
-      if (active.value === "jobs") {
+      if (active.value === "jobs" || active.value === "plan") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
-        return h(Jobs, { key: session.user?.id || "public" });
+        if (!session.user) return loginPrompt();
+        return h(active.value === "jobs" ? Jobs : Plan, {
+          key: session.user.id + active.value,
+          onDirty: (v: boolean) => (dirty.value = v),
+        });
       }
       if (active.value === "profile" || active.value === "resume") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
@@ -416,7 +424,13 @@ const app = defineComponent({
                         name,
                         h(
                           "small",
-                          ["home", "profile", "resume"].includes(id)
+                          [
+                            "home",
+                            "profile",
+                            "resume",
+                            "jobs",
+                            "plan",
+                          ].includes(id)
                             ? "已接通"
                             : "外观原型",
                         ),

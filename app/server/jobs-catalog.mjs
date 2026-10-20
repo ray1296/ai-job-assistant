@@ -1,97 +1,49 @@
 import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
-const root = "/home/ubuntu/linux/dsh-home/attachments/v1/files";
-const source = path.join(
-  root,
-  "87/87e81c7db17ff06c5b94bb7681e8c78eea7c87b0ec1e995b8645e487502d925c/互联网校招实习岗位_6方向_官网为主_终版.csv",
-);
-function csv(text) {
-  const rows = [];
-  let row = [],
-    cell = "",
-    quote = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quote) {
-      if (c === '"' && text[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (c === '"') quote = false;
-      else cell += c;
-    } else if (c === '"') quote = true;
-    else if (c === ",") {
-      row.push(cell);
-      cell = "";
-    } else if (c === "\n") {
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
-    } else if (c !== "\r") cell += c;
+
+const source = new URL("../data/jobs-catalog.json", import.meta.url);
+
+export function safeHttpUrl(raw) {
+  const value = String(raw || "").trim();
+  if (!/^https?:\/\/[^/?#]/i.test(value) || /[\u0000-\u0020\u007f\\]/.test(value)) return "";
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && url.hostname && !url.username && !url.password ? value : "";
+  } catch {
+    return "";
   }
-  if (cell || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-  const h = rows.shift();
-  return rows
-    .filter((r) => r.some(Boolean))
-    .map((r) => Object.fromEntries(h.map((k, i) => [k, r[i] || ""])));
 }
-function cityArray(raw) {
-  return [
-    ...new Set(
-      String(raw)
-        .split(/[、,，/]/)
-        .map((x) =>
-          x
-            .trim()
-            .replace(/市（[^）]+）$/, "市")
-            .replace(/市$/, "")
-            .replace(/·.*$/, "")
-            .trim(),
-        )
-        .filter(Boolean),
-    ),
-  ];
+
+export function cityArray(...values) {
+  return [...new Set(values.flatMap((raw) => String(raw || "").split(/[、,，/;；\s]+/)
+    .map((city) => city.trim().replace(/[（(][^）)]*[）)]/g, "").replace(/·.*$/, "").replace(/等$/, "").replace(/市$/, "").trim())
+    .filter(Boolean)))];
 }
+
+function boundedInteger(value, fallback, max) {
+  if ((typeof value !== "number" && typeof value !== "string") || String(value).trim() === "") return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number) || !Number.isInteger(number) || number <= 0) return fallback;
+  return Math.min(number, max);
+}
+
 export function loadCatalog() {
-  const rows = csv(fs.readFileSync(source, "utf8").replace(/^\uFEFF/, ""));
-  return rows.map((r, i) => ({
-    id: crypto
-      .createHash("sha256")
-      .update(
-        (r["职位链接"] || r["来源平台"] + "|" + r["职位ID"] || "") +
-          "|" +
-          r["公司"] +
-          "|" +
-          r["岗位名称"] +
-          "|" +
-          i,
-      )
-      .digest("hex")
-      .slice(0, 24),
-    direction: r["方向"],
-    company: r["公司"],
-    companyScale: r["公司规模"],
-    platform: r["来源平台"],
-    title: r["岗位名称"],
-    category: r["岗位类别"],
-    city: r["城市"],
-    cities: cityArray(r["城市"] + " " + r["覆盖城市"]),
-    address: r["详细地址"],
-    addressPrecision: r["地址精度"],
-    recruitmentType: r["招聘类型"],
-    education: r["学历"],
-    salary: r["薪资"],
-    jd: r["岗位职责/JD"],
-    requirements: r["任职要求"],
-    bonus: r["加分项/其他信息"],
-    url: r["职位链接"],
-    sourceType: r["数据来源类型"],
-    fetchedAt: r["抓取日期"],
-  }));
+  const catalog = JSON.parse(fs.readFileSync(source, "utf8"));
+  if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.jobs)) throw new Error("Invalid jobs catalog");
+  const ids = new Set();
+  return catalog.jobs.map(({ id, raw: r, url }) => {
+    if (!/^[a-f0-9]{24}$/.test(id) || ids.has(id)) throw new Error("Invalid or duplicate catalog ID");
+    ids.add(id);
+    return {
+      id,
+      direction: r["方向"], company: r["公司"], companyScale: r["公司规模"],
+      platform: r["来源平台"], title: r["岗位名称"], category: r["岗位类别"],
+      city: r["城市"], cities: cityArray(r["城市"], r["覆盖城市"]),
+      address: r["详细地址"], addressPrecision: r["地址精度"],
+      recruitmentType: r["招聘类型"], education: r["学历"], salary: r["薪资"],
+      jd: r["岗位职责/JD"], requirements: r["任职要求"], bonus: r["加分项/其他信息"],
+      url: safeHttpUrl(url), sourceType: r["数据来源类型"], fetchedAt: r["抓取日期"],
+    };
+  });
 }
 const jobs = loadCatalog();
 export function listJobs(q = {}) {
@@ -125,8 +77,8 @@ export function listJobs(q = {}) {
       a = a.filter((j) =>
         f === "cities" ? j.cities.includes(String(q[k])) : j[f] === q[k],
       );
-  const page = Math.max(1, Number(q.page) || 1),
-    size = Math.min(50, Math.max(1, Number(q.pageSize) || 20));
+  const page = boundedInteger(q.page, 1, 1000000),
+    size = boundedInteger(q.pageSize, 20, 50);
   return {
     jobs: a.slice((page - 1) * size, page * size),
     total: a.length,
