@@ -28,4 +28,4 @@ The same test visits `#jobs`, adds one real catalog job to the account’s inten
 
 ## Execution status
 
-Prepared and syntax-checked. Final live acceptance is pending the learning implementation build; screenshots are not evidence until the final test run has passed and images have been inspected.
+Passed: 8 real Chromium checks against an isolated service and again against deployed http://127.0.0.1:5173 (exit 0). No mocked APIs. Desktop and 390px images inspected. Public run artifacts: app/artifacts/learning-public/. Synthetic A/B acceptance accounts remain in the public test database; no real personal information was used. Current-page cursor/shuffle order are not persisted; mastery transition has API coverage but is not a separate browser assertion.
