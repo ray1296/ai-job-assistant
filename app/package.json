@@ -16,6 +16,8 @@
     "test:intake": "node tests/intake-smoke.mjs",
     "test:extraction": "python3 tests/extraction-fixtures.py && node tests/extraction-security.mjs",
     "test:ai": "node tests/ai-smoke.mjs",
+    "test:learning": "python3 tests/learning-api-importer.py && node --test tests/learning-api.test.mjs",
+    "test:learning:browser": "node tests/learning-browser.mjs",
     "setup:ocr": "bash server/setup-ocr.sh"
   },
   "dependencies": {

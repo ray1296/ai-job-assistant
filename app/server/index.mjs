@@ -1,4 +1,6 @@
 import http from "node:http";
+import { createLearning } from "./learning-state.mjs";
+import { questionFacets, questionCount } from "./learning-catalog.mjs";
 import { createExtractionService } from "./resume-extraction.mjs";
 import { createAiGateway } from "./ai-gateway.mjs";
 import { createApplicationPlan } from "./application-plan.mjs";
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS job_intents(user_id TEXT NOT NULL REFERENCES users(id
 CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
 PRAGMA user_version=1;`);
 const applicationPlan = createApplicationPlan(db, getJob);
+const learning = createLearning(db);
 const applicationCopy = createApplicationCopy(dataDir);
 const stmt = {
   user: db.prepare(
@@ -259,6 +262,8 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, {
           status: "ok",
           batch: 3,
+          learning: true,
+          questionCount,
           localExtraction: true,
           ai: false,
           resumeDocument: 2,
@@ -321,6 +326,30 @@ const server = http.createServer(async (req, res) => {
         )
           throw failure(403, "会话校验失败，请刷新后重试");
       }
+      if (p === "/api/questions" && m === "GET")
+        return send(
+          res,
+          200,
+          learning.list(
+            s.user_id,
+            Object.fromEntries(new URL(req.url, "http://local").searchParams),
+          ),
+        );
+      if (p === "/api/questions/facets" && m === "GET")
+        return send(res, 200, questionFacets());
+      if (p === "/api/learning/summary" && m === "GET")
+        return send(res, 200, learning.summary(s.user_id));
+      const questionMatch = p.match(
+        /^\/api\/questions\/([a-f0-9]{24})(\/state)?$/,
+      );
+      if (questionMatch && !questionMatch[2] && m === "GET")
+        return send(res, 200, learning.detail(s.user_id, questionMatch[1]));
+      if (questionMatch && questionMatch[2] && m === "PUT")
+        return send(
+          res,
+          200,
+          learning.save(s.user_id, questionMatch[1], await body(req)),
+        );
       if (p === "/api/jobs" && m === "GET") {
         const allowed = [
           "q",
@@ -611,7 +640,9 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("Content-Length", stat.size);
     res.setHeader(
       "Cache-Control",
-      /\/assets\//.test(relative) ? "public,max-age=3600" : "no-cache",
+      /\/assets\/.*-[A-Z0-9]{8}\.js$/.test(relative)
+        ? "public,max-age=31536000,immutable"
+        : "no-cache",
     );
     if (m === "HEAD") return res.end();
     const stream = fs.createReadStream(file);
@@ -622,6 +653,7 @@ const server = http.createServer(async (req, res) => {
       send(res, e.status || 500, {
         error: e.status ? e.message : "服务暂时出错，请保留草稿后重试",
         requestId,
+        ...(e.status === 409 && e.state ? { state: e.state } : {}),
       });
     } else res.destroy();
     if (!e.status)

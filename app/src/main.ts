@@ -15,6 +15,8 @@ const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const Jobs = defineAsyncComponent(() => import("./jobs"));
 const Plan = defineAsyncComponent(() => import("./plan"));
+const Knowledge = defineAsyncComponent(() => import("./knowledge"));
+const Practice = defineAsyncComponent(() => import("./practice"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -156,7 +158,7 @@ const app = defineComponent({
         h("h2", "让经历只属于你"),
         h(
           "p",
-          "登录后查看岗位、保存投递意向与话术，也能管理个人信息与简历版本。私人数据按账号隔离。",
+          "登录后查看岗位与题库、保存学习进度、收藏和投递方案，也能管理个人信息与简历版本。私人数据按账号隔离。",
         ),
         h(
           "button",
@@ -181,7 +183,7 @@ const app = defineComponent({
           ),
           h("div", { class: "hero-status" }, [
             h("span", { class: "live-dot" }),
-            "本批已接通 · 可拖动星盘、简历识别与确认导入",
+            "已接通 · 真实岗位、投递方案、题库与学习进度",
           ]),
         ]),
         h("div", { class: "journey-choices" }, [
@@ -245,7 +247,7 @@ const app = defineComponent({
         h(
           "div",
           { class: "notice" },
-          "审核提示：账号、资料、简历本地识别/确认导入、文档编辑与Word导出已接通；AI审阅入口已接通但当前未配置项目凭据，视觉解析与自动优化尚未接通。",
+          "账号、资料、简历编辑、岗位与投递方案已接通；面经题库支持来源核对、收藏和自评复习。AI审阅与话术质量需以实际调用验证为准，题库暂不提供AI讲题或自动生成。",
         ),
       ]);
     }
@@ -264,6 +266,11 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
+      if (active.value === "knowledge" || active.value === "practice") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(active.value === "knowledge" ? Knowledge : Practice, { key: session.user.id + active.value });
+      }
       if (active.value === "jobs" || active.value === "plan") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
@@ -430,6 +437,8 @@ const app = defineComponent({
                             "resume",
                             "jobs",
                             "plan",
+                            "knowledge",
+                            "practice",
                           ].includes(id)
                             ? "已接通"
                             : "外观原型",

@@ -13,6 +13,13 @@
 !**/.env.example
 **/*.sqlite*
 **/data/
+!/app/data/
+/app/data/*
+!/app/data/jobs-catalog.json
+!/app/data/jobs-identities.json
+!/app/data/jobs-manifest.json
+!/app/data/learning-catalog.json
+!/app/data/learning-manifest.json
 **/uploads/
 **/private/
 **/*.log
