@@ -34,7 +34,9 @@ export default defineComponent({
       sectionName = ref(""),
       panel = ref(""),
       decoration = ref(false),
-      aiPrompt = ref("");
+      aiPrompt = ref(""),
+      layoutBusy = ref(false),
+      layoutSuggestion = ref<any>(null);
     let saved = "";
     const snapshot = () =>
       JSON.stringify({ title: title.value, document: doc.value });
@@ -141,6 +143,24 @@ export default defineComponent({
       } finally {
         busy.value = false;
       }
+    }
+    let layoutSource = "";
+    async function recommendLayout() {
+      if (!current.value || layoutBusy.value || !flush()) return;
+      layoutBusy.value = true; error.value = ""; layoutSuggestion.value = null;
+      const sent = JSON.stringify(doc.value);
+      try {
+        const r = await api("/ai/resume-layout", "POST", { document: doc.value, prompt: aiPrompt.value });
+        if (JSON.stringify(doc.value) !== sent) throw Error("文档已变更，请针对最新内容重新生成布局建议");
+        layoutSource = sent; layoutSuggestion.value = r.layout;
+      } catch (e) { error.value = errorText(e); }
+      finally { layoutBusy.value = false; }
+    }
+    function applyLayout() {
+      const x = layoutSuggestion.value;
+      if (!x || JSON.stringify(doc.value) !== layoutSource) { error.value = "文档已变更，请重新生成布局建议"; return; }
+      change(() => { doc.value.layout = { template: x.template, fontSize: x.fontSize, accent: x.accent }; });
+      layoutSuggestion.value = null; notice.value = "已应用到本地草稿，请检查后保存";
     }
     async function save() {
       if (!current.value || busy.value || !flush()) return;
@@ -420,24 +440,28 @@ export default defineComponent({
         ]),
         h(AiReview, {
           document: doc.value,
-          disabled: busy.value,
-          onApply: (items: any[]) =>
-            change(() => {
-              for (const s of items) {
-                for (const section of doc.value.sections)
-                  for (const item of section.items) {
-                    if (item.content.includes(s.before))
-                      item.content = item.content.replace(s.before, s.after);
-                    if (item.title.includes(s.before))
-                      item.title = item.title.replace(s.before, s.after);
-                  }
-                if (doc.value.header.summary.includes(s.before))
-                  doc.value.header.summary = doc.value.header.summary.replace(
-                    s.before,
-                    s.after,
-                  );
-              }
-            }),
+          disabled: busy.value || editing.value,
+          onApply: (items: any[]) => {
+            const targets: { object: any; key: string; suggestion: any }[] = [];
+            for (const s of items) {
+              if (!s.before?.trim() || !s.after?.trim()) throw Error("建议必须包含有效原文与修改内容");
+              const matches: {object: any; key: string; path: string}[] = [];
+              const scan = (object: any, key: string, path: string) => { if (object[key]?.includes(s.before)) matches.push({object, key, path}); };
+              for (const key of ["name", "headline", "contact", "summary"]) scan(doc.value.header, key, "header." + key);
+              doc.value.sections.forEach((section, si) => section.items.forEach((item, ii) => {
+                for (const key of ["title", "meta", "content"]) scan(item, key, `sections.${si}.items.${ii}.${key}`);
+              }));
+              const path = String(s.field).replace(/^document\./, "");
+              const exact = matches.filter(m => m.path === path);
+              const explicit = /^(?:header\.|sections(?:\.|\[))/.test(path);
+              const eligible = explicit ? exact : matches;
+              if (eligible.length !== 1) throw Error("原文已变化或出现多处相同文本，请明确定位后重新审阅");
+              const target = eligible[0];
+              if (targets.some(t => t.object === target.object && t.key === target.key)) throw Error("同一字段有多条建议，请逐条采纳");
+              targets.push({...target, suggestion: s});
+            }
+            change(() => { for (const t of targets) t.object[t.key] = t.object[t.key].replace(t.suggestion.before, t.suggestion.after); });
+          },
         }),
         h("details", { class: "studio-import-toggle" }, [
           h("summary", "＋ 导入已有简历 · PDF / DOCX / 图片"),
@@ -477,17 +501,9 @@ export default defineComponent({
               "button",
               {
                 disabled: !current.value,
-                onClick: () => (panel.value = "ai-content"),
+                onClick: () => (panel.value = "layout"),
               },
-              "✦ AI 优化内容",
-            ),
-            h(
-              "button",
-              {
-                disabled: !current.value,
-                onClick: () => (panel.value = "ai-layout"),
-              },
-              "✧ AI 调整布局 / 外观",
+              "✧ 调整布局 / 外观",
             ),
             h(
               "button",
@@ -511,22 +527,6 @@ export default defineComponent({
                 onClick: () => (panel.value = "ai-section"),
               },
               "＋ 描述新板块，AI 帮你添加",
-            ),
-            h(
-              "button",
-              {
-                disabled: !current.value,
-                onClick: () => (panel.value = "ai-content"),
-              },
-              "✎ AI 补全 / 优化内容",
-            ),
-            h(
-              "button",
-              {
-                disabled: !current.value,
-                onClick: () => (panel.value = "ai-layout"),
-              },
-              "✧ AI 调整布局与外观",
             ),
           ]),
           h("label", { class: "decor-toggle" }, [
@@ -726,6 +726,15 @@ export default defineComponent({
                               ])
                             : panel.value === "layout"
                               ? h("div", { class: "panel-actions" }, [
+                                  h("button", { disabled: layoutBusy.value || busy.value || editing.value, onClick: recommendLayout }, layoutBusy.value ? "AI正在分析布局…" : "AI推荐布局"),
+                                  layoutSuggestion.value ? h("section", { class: "ai-layout-preview" }, [
+                                    h("h3", "AI布局建议（尚未应用）"),
+                                    h("p", `${layoutSuggestion.value.template === "compact" ? "紧凑" : "经典"}模板 · ${layoutSuggestion.value.fontSize}px · ${layoutSuggestion.value.accent}`),
+                                    h("p", layoutSuggestion.value.reason),
+                                    ...(layoutSuggestion.value.changes || []).map((text: string) => h("p", text)),
+                                    h("button", { onClick: applyLayout }, "应用此布局到草稿"),
+                                    h("button", { onClick: () => layoutSuggestion.value = null }, "放弃建议"),
+                                  ]) : null,
                                   h("label", [
                                     "字号 ",
                                     h(

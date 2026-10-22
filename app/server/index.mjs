@@ -1,8 +1,10 @@
 import http from "node:http";
+import { profileData, string } from "./profile-data.mjs";
 import { createLearning } from "./learning-state.mjs";
 import { questionFacets, questionCount } from "./learning-catalog.mjs";
 import { createExtractionService } from "./resume-extraction.mjs";
-import { createAiGateway } from "./ai-gateway.mjs";
+import { createResumeImports } from "./resume-import.mjs";
+import { createAiGateway, validateLayoutInput } from "./ai-gateway.mjs";
 import { createApplicationPlan } from "./application-plan.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
@@ -19,7 +21,9 @@ const dataDir = path.resolve(
 );
 fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 fs.chmodSync(dataDir, 0o700);
-const extraction = createExtractionService(dataDir);
+const extraction = createExtractionService(dataDir, (...args) =>
+  resumeImports.recognize(...args),
+);
 const aiGateway = createAiGateway(dataDir);
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
@@ -38,6 +42,7 @@ CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
 PRAGMA user_version=1;`);
 const applicationPlan = createApplicationPlan(db, getJob);
 const learning = createLearning(db);
+const resumeImports = createResumeImports(db, dataDir, profileData);
 const applicationCopy = createApplicationCopy(dataDir);
 const stmt = {
   user: db.prepare(
@@ -150,48 +155,6 @@ function login(res, u) {
       (process.env.CAREER_SECURE_COOKIE === "true" ? "; Secure" : ""),
   );
   return { user: { id: u.id, email: u.email }, csrf };
-}
-const fields = {
-  name: 120,
-  phone: 64,
-  email: 254,
-  summary: 4000,
-  skills: 8000,
-  honors: 8000,
-};
-function string(v, max, label) {
-  if (typeof v !== "string" || v.length > max)
-    throw failure(400, label + "格式错误或过长");
-  return v;
-}
-function profileData(p) {
-  if (!p || typeof p !== "object" || Array.isArray(p))
-    throw failure(400, "个人信息格式错误");
-  const out = {};
-  for (const [k, n] of Object.entries(fields))
-    out[k] = string(p[k] ?? "", n, k);
-  for (const k of ["cities", "directions"]) {
-    if (!Array.isArray(p[k]) || p[k].length > 40)
-      throw failure(400, "意向标签过多");
-    out[k] = [
-      ...new Set(
-        p[k]
-          .map((v) => string(v, 80, k))
-          .map((v) => v.trim())
-          .filter(Boolean),
-      ),
-    ];
-  }
-  for (const k of ["education", "projects", "experience"]) {
-    if (!Array.isArray(p[k]) || p[k].length > 30)
-      throw failure(400, "经历数量过多");
-    out[k] = p[k].map((x) => ({
-      title: string(x?.title ?? "", 200, k),
-      period: string(x?.period ?? "", 100, k),
-      detail: string(x?.detail ?? "", 8000, k),
-    }));
-  }
-  return out;
 }
 function resumeOut(r) {
   return r ? { ...r, body: JSON.parse(r.body) } : null;
@@ -326,6 +289,67 @@ const server = http.createServer(async (req, res) => {
         )
           throw failure(403, "会话校验失败，请刷新后重试");
       }
+      if (p === "/api/resume-imports" && m === "GET")
+        return send(res, 200, { drafts: resumeImports.list(s.user_id) });
+      if (p === "/api/resume-imports" && m === "POST") {
+        if (req.headers["x-ai-consent"] !== "true")
+          throw failure(400, "请先同意将本次简历发送到AI服务识别");
+        if (
+          String(req.headers["content-type"] || "").startsWith(
+            "application/json",
+          )
+        ) {
+          const x = await body(req),
+            controller = new AbortController();
+          const cancel = () => {
+            if (!res.writableEnded) controller.abort();
+          };
+          res.on("close", cancel);
+          try {
+            return send(res, 201, {
+              draft: await resumeImports.recognize(
+                s.user_id,
+                { text: x.text, filename: "修正后简历" },
+                controller.signal,
+              ),
+            });
+          } finally {
+            res.off("close", cancel);
+          }
+        }
+        req.headers["x-file-name"] = encodeURIComponent(
+          new URL(req.url, "http://local").searchParams.get("filename") ||
+            "上传的简历",
+        );
+        return send(res, 202, {
+          job: await extraction.create(req, s.user_id, true),
+        });
+      }
+      const reprocessMatch = p.match(/^\/api\/resume-imports\/([a-f0-9-]{36})\/reprocess$/);
+      if (reprocessMatch && m === "POST") {
+        if (req.headers["x-ai-consent"] !== "true") throw failure(400, "请先同意AI重新整理");
+        const x = await body(req), controller = new AbortController();
+        const cancel = () => { if (!res.writableEnded) controller.abort(); };
+        res.on("close", cancel);
+        try { return send(res, 200, { draft: await resumeImports.reprocess(reprocessMatch[1], s.user_id, x.sourceText, x.revision, controller.signal) }); }
+        finally { res.off("close", cancel); }
+      }
+      const importMatch = p.match(/^\/api\/resume-imports\/([a-f0-9-]{36})$/);
+      if (importMatch) {
+        const id = importMatch[1];
+        if (m === "GET")
+          return send(res, 200, { draft: resumeImports.get(id, s.user_id) });
+        if (m === "PUT")
+          return send(res, 200, {
+            draft: resumeImports.update(id, s.user_id, await body(req)),
+          });
+        if (m === "DELETE") {
+          const x = await body(req);
+          resumeImports.delete(id, s.user_id, x.revision);
+          res.writeHead(204, { "Cache-Control": "no-store" });
+          return res.end();
+        }
+      }
       if (p === "/api/questions" && m === "GET")
         return send(
           res,
@@ -339,6 +363,22 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, questionFacets());
       if (p === "/api/learning/summary" && m === "GET")
         return send(res, 200, learning.summary(s.user_id));
+      const generatedMatch = p.match(/^\/api\/questions\/([a-f0-9]{24})\/(generate|generated)$/);
+      if (generatedMatch) {
+        const question = learning.detail(s.user_id, generatedMatch[1]).question;
+        db.exec("CREATE TABLE IF NOT EXISTS learning_generated(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,question_id TEXT NOT NULL,kind TEXT NOT NULL,body TEXT NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(user_id,question_id,kind))");
+        if (generatedMatch[2] === "generated" && m === "GET") return send(res, 200, { items: db.prepare("SELECT body FROM learning_generated WHERE user_id=? AND question_id=? ORDER BY updated_at DESC").all(s.user_id, question.id).map(row => JSON.parse(row.body)) });
+        if (generatedMatch[2] === "generate" && m === "POST") {
+          const x = await body(req);
+          if (!["summary", "choice", "judgment", "cloze", "code"].includes(x.kind)) throw failure(400, "不支持的AI题型");
+          const cached = db.prepare("SELECT body FROM learning_generated WHERE user_id=? AND question_id=? AND kind=?").get(s.user_id, question.id, x.kind);
+          if (cached && !x.regenerate) return send(res, 200, { ...JSON.parse(cached.body), cached: true });
+          const result = await aiGateway.learning(s.user_id, { kind: x.kind, question: question.question, answer: question.answer, source: question.source });
+          const generated = { ...result, questionId: question.id, generatedAt: new Date().toISOString(), label: "AI生成 · 请核对来源" };
+          db.prepare("INSERT INTO learning_generated(user_id,question_id,kind,body,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id,question_id,kind) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at").run(s.user_id, question.id, x.kind, JSON.stringify(generated), Date.now());
+          return send(res, 200, generated);
+        }
+      }
       const questionMatch = p.match(
         /^\/api\/questions\/([a-f0-9]{24})(\/state)?$/,
       );
@@ -443,11 +483,18 @@ const server = http.createServer(async (req, res) => {
           }),
         );
       }
+      if (p === "/api/ai/resume-layout" && m === "POST") {
+        const x = await body(req);
+        const document = validateDocument(x.document);
+        const layoutInput = validateLayoutInput({ document, extras: x.extras, prompt: typeof x.prompt === "string" ? x.prompt.slice(0, 1000) : "" });
+        return send(res, 200, await aiGateway.layout(s.user_id, layoutInput));
+      }
       if (p === "/api/resume-extractions/limits" && m === "GET")
         return send(res, 200, extraction.status());
       if (p === "/api/resume-extractions" && m === "POST") {
-        limited("extract:" + s.user_id, 8);
-        return send(res, 202, { job: await extraction.create(req, s.user_id) });
+        if (req.headers["x-ai-consent"] !== "true")
+          throw failure(400, "上传简历须同意AI识别；请刷新页面后重新上传");
+        return send(res, 202, { job: await extraction.create(req, s.user_id, true) });
       }
       const extractionMatch = p.match(
         /^\/api\/resume-extractions\/([a-f0-9-]{36})$/,
@@ -603,7 +650,7 @@ const server = http.createServer(async (req, res) => {
     const preview = name.startsWith("/preview/");
     const publicRoot = preview
       ? path.resolve(root, "../prototype/public")
-      : path.join(root, "dist");
+      : path.resolve(process.env.CAREER_STATIC_DIR || path.join(root, "dist"));
     const relative = preview ? name.slice("/preview".length) : name;
     let file = path.resolve(
       publicRoot,
@@ -681,6 +728,7 @@ function shutdown() {
   const cleanup = extraction.close();
   server.close(async () => {
     await cleanup;
+    resumeImports.close();
     await extraction.close();
     db.close();
     process.exit(0);

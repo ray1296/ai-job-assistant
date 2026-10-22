@@ -1,13 +1,10 @@
 """Bounded local extraction. No network, no macros, no arbitrary HTML rendering."""
-import sys,os,json,subprocess,zipfile,struct,re,tempfile,time,xml.etree.ElementTree as ET
+import sys,os,json,subprocess,zipfile,struct,re,tempfile,time,base64,xml.etree.ElementTree as ET
 path,kind=sys.argv[1:3]
 root=os.path.dirname(path)
-ocrroot=os.path.abspath(os.path.join(os.path.dirname(__file__),'../.tools/ocr/root/usr'))
+# All formats require downstream AI semantic structuring.
+vision=True
 env={**os.environ,'OMP_THREAD_LIMIT':'1','OMP_NUM_THREADS':'1','OPENBLAS_NUM_THREADS':'1'}
-if os.path.exists(ocrroot+'/bin/tesseract'):
-    env['LD_LIBRARY_PATH']=ocrroot+'/lib/x86_64-linux-gnu'
-    env['TESSDATA_PREFIX']=ocrroot+'/share/tesseract-ocr/5/tessdata'
-ocr=ocrroot+'/bin/tesseract' if os.path.exists(ocrroot+'/bin/tesseract') else '/usr/bin/tesseract'
 MAX_TEXT=40000
 DEADLINE=time.monotonic()+68
 
@@ -21,10 +18,6 @@ def run(args,timeout=25):
         output.seek(0);raw=output.read(500001)
         if len(raw)>500000:raise ValueError('提取结果过大，请精简文件')
         return raw.decode('utf8',errors='replace')
-
-def recognize(file):
-    if not os.path.exists(ocr):raise ValueError('本机OCR暂不可用，请上传文字型PDF或DOCX')
-    return run([ocr,file,'stdout','-l','chi_sim+eng','--psm','3'],30).strip()
 
 def dimensions(file):
     with open(file,'rb') as f:
@@ -53,7 +46,7 @@ def dimensions(file):
     raise ValueError('不支持的图片结构，请转换成普通PNG或JPEG')
 
 def main():
-    pages=[];warnings=[];method=''
+    pages=[];warnings=[];method='';images=[]
     if kind=='docx':
         method='DOCX正文提取'
         with zipfile.ZipFile(path) as z:
@@ -64,42 +57,59 @@ def main():
                 if 'vbaproject' in i.filename.lower():raise ValueError('不接受含宏文档')
             info=z.getinfo('word/document.xml')
             if sum(i.filename=='word/document.xml' for i in items)!=1:raise ValueError('DOCX正文重复或缺失')
-            with z.open(info) as stream:raw=stream.read(8*1024*1024+1)
-            if len(raw)>8*1024*1024:raise ValueError('DOCX正文体积过大')
-            checked=raw.replace(b'\x00',b'').upper()
-            if b'<!DOCTYPE' in checked or b'<!ENTITY' in checked:raise ValueError('不接受含实体声明的文档')
-            tree=ET.fromstring(raw)
             ns='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
-            lines=[''.join(n.text or '' for n in p.iter(ns+'t')) for p in tree.iter(ns+'p')]
-            pages=[{'page':1,'text':'\n'.join(lines),'method':method}]
-            warnings.append('仅提取正文与表格文字；页眉、图片和复杂版式不作还原，DOCX页码未计算。')
+            parts=['word/document.xml']+sorted(i.filename for i in items if re.fullmatch(r'word/(?:header|footer)\d+\.xml',i.filename))
+            lines=[]
+            def paragraph_text(node):
+                out=[]
+                for n in node:
+                    if n.tag==ns+'p':continue
+                    if n.tag==ns+'t':out.append(n.text or '')
+                    elif n.tag==ns+'tab':out.append('\t')
+                    elif n.tag in (ns+'br',ns+'cr'):out.append('\n')
+                    else:out.append(paragraph_text(n))
+                return ''.join(out)
+            for part in parts:
+                if sum(i.filename==part for i in items)!=1:raise ValueError('DOCX正文重复或缺失')
+                with z.open(part) as stream:raw=stream.read(8*1024*1024+1)
+                if len(raw)>8*1024*1024:raise ValueError('DOCX正文体积过大')
+                checked=raw.replace(b'\x00',b'').upper()
+                if b'<!DOCTYPE' in checked or b'<!ENTITY' in checked:raise ValueError('不接受含实体声明的文档')
+                tree=ET.fromstring(raw)
+                for p in tree.iter(ns+'p'):
+                    value=paragraph_text(p)
+                    if value.strip():lines.append(value)
+            pages=[{'page':None,'text':'\n'.join(lines),'method':method}]
+            warnings.append('提取正文、表格、文本框与页眉页脚文字供AI理解；DOCX页码未知，图片内文字未提取。')
     elif kind=='pdf':
         info=run(['/usr/bin/pdfinfo',path],10)
         n=re.search(r'^Pages:\s+(\d+)',info,re.M)
         if not n:raise ValueError('无法读取PDF页数')
         count=int(n[1])
         if count<1 or count>4:raise ValueError('本机保护上限为4页，请只保留简历页面后再上传')
-        method='PDF文字提取 / 按需OCR'
-        warnings.append('有文字层的页面优先提取文字，不保证识别同页内嵌图片；请逐页检查原文是否完整。')
+        method='PDF页面渲染供AI视觉识别'
         for i in range(1,count+1):
-            text=run(['/usr/bin/pdftotext','-f',str(i),'-l',str(i),'-layout','-enc','UTF-8',path,'-'],10).strip()
-            origin='PDF文字层'
-            if len(re.sub(r'\s','',text))<25:
-                prefix=os.path.join(root,'page-'+str(i))
-                run(['/usr/bin/pdftoppm','-f',str(i),'-l',str(i),'-singlefile','-scale-to','2200','-png',path,prefix],15)
-                text=recognize(prefix+'.png');origin='本地OCR'
-                try:os.unlink(prefix+'.png')
-                except OSError:pass
-            pages.append({'page':i,'text':text,'method':origin})
+            prefix=os.path.join(root,'page-'+str(i))
+            run(['/usr/bin/pdftoppm','-f',str(i),'-l',str(i),'-singlefile','-scale-to','1800','-png',path,prefix],15)
+            with open(prefix+'.png','rb') as f:image=f.read(4*1024*1024+1)
+            if len(image)>4*1024*1024:raise ValueError('渲染图片过大，请精简页面')
+            images.append({'mime':'image/png','data':base64.b64encode(image).decode('ascii')})
+            pages.append({'page':i,'text':'','method':'PDF页面视觉识别'})
+            os.unlink(prefix+'.png')
     else:
         width,height=dimensions(path)
         if width<20 or height<20 or width*height>12000000 or max(width,height)>6000:raise ValueError('图片限制为1200万像素且长边≤6000，请缩小后重试')
-        method='本地中英文OCR';pages=[{'page':1,'text':recognize(path),'method':method}]
+        with open(path,'rb') as f:image=f.read(5*1024*1024+1)
+        images=[{'mime':'image/png' if kind=='png' else 'image/jpeg','data':base64.b64encode(image).decode('ascii')}]
+        method='图片供AI视觉识别';pages=[{'page':1,'text':'','method':method}]
     text='\n\n'.join(p['text'] for p in pages)
-    if not text.strip():raise ValueError('未识别到可用文字，请使用清晰正向图片或文字型PDF')
+    if images:text=''
+    if not text.strip() and not images:raise ValueError('未识别到可用文字，请使用清晰正向图片或文字型PDF')
     if len(text)>MAX_TEXT:raise ValueError('识别文字超过40000字，请精简文件')
-    warnings.append('这是本地文字提取与规则归类，不是AI理解；请逐项核对，OCR可能错字或错序。')
-    print(json.dumps({'text':text,'pages':pages,'method':method,'warnings':warnings},ensure_ascii=False))
+    warnings.append('本进程仅准备原文/页面，必须经AI语义结构化后方可使用；不会本地规则归类。')
+    result={'text':text,'pages':pages,'method':method,'warnings':warnings}
+    if vision:result['images']=images
+    print(json.dumps(result,ensure_ascii=False))
 try:main()
 except Exception as e:
     if isinstance(e,ValueError):message=str(e)

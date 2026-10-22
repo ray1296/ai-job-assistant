@@ -46,6 +46,20 @@
 .ai-after {
   color: #527b64;
 }
+.ai-after-edit {
+  display: grid;
+  gap: 4px;
+  color: #527b64;
+}
+.ai-after-edit textarea {
+  min-height: 56px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid #cdbbdd;
+  border-radius: 7px;
+  background: #fff;
+  color: #3f3348;
+}
 .ai-suggestion small,
 .ai-review-panel > small {
   font-size: 10px;

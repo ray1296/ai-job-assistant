@@ -1321,6 +1321,22 @@ textarea {
   .learning-self-assessment .learning-actions button { flex: 1 1 40%; }
   .study-answer { padding: 16px; }
 }
+.practice-card { margin-top: 22px; padding: clamp(16px, 3vw, 28px); }
+.practice-arrows { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.practice-arrows button { flex: 1 1 130px; }
+.practice-switch { display: flex; gap: 8px; border-bottom: 1px solid var(--border, #ded6e7); margin: 18px 0 0; overflow-x: auto; }
+.practice-switch button { border: 0; border-bottom: 3px solid transparent; background: transparent; white-space: nowrap; }
+.practice-switch button.active { color: #245f58; border-bottom-color: #278577; font-weight: 700; }
+.practice-flip-stage { display: grid; perspective: 1100px; min-height: 270px; }
+.practice-face { grid-area: 1 / 1; align-self: stretch; padding: clamp(18px, 4vw, 32px); border: 1px solid var(--border, #ded6e7); border-radius: 8px; background: #fff; backface-visibility: hidden; transform: rotateY(180deg); opacity: 0; visibility: hidden; transition: transform .42s ease, opacity .22s ease, visibility .42s; }
+.practice-face[aria-hidden="false"] { transform: rotateY(0); opacity: 1; visibility: visible; }
+.practice-front { background: #f2f8f6; }
+.practice-ai { background: #f7f5fb; }
+.practice-source { background: #fff9f0; }
+.practice-label { display: block; margin-bottom: 16px; color: #526b66; font-size: 12px; font-weight: 700; }
+.practice-generators { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.practice-generators button { flex: 1 1 130px; }
+.practice-provenance { color: #526b66; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

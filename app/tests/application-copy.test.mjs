@@ -82,7 +82,7 @@ test("AI rejects malformed truncated oversized and empty results", () =>
       await assert.rejects(ai.generate("a", input), { status: 502 });
     }
   }));
-test("AI admission is synchronous, rejects busy callers, and enforces user rate", () =>
+test("AI admission rejects concurrent callers without a sequential frequency cap", () =>
   fixture(async (dir) => {
     await configure(dir);
     let release, entered;
@@ -102,7 +102,7 @@ test("AI admission is synchronous, rejects busy callers, and enforces user rate"
     await first;
     await ai.generate("a", input);
     await ai.generate("a", input);
-    await assert.rejects(ai.generate("a", input), { status: 429 });
+    assert.equal((await ai.generate("a", input)).text, "safe");
     assert.equal((await ai.generate("b", input)).text, "safe");
   }));
 test("AI timeout releases admission and validation happens before provider", () =>

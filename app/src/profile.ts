@@ -41,8 +41,19 @@ export default defineComponent({
           ? { ...emptyProfile(), ...r.profile }
           : emptyProfile();
         revision.value = r.revision;
-        dirty.value = false;
-        props.onDirty(false);
+        const staged = sessionStorage.getItem("resume-import-stage");
+        if (staged) {
+          sessionStorage.removeItem("resume-import-stage");
+          try {
+            const ref = JSON.parse(staged) as { draftId:string; fields:(keyof Profile)[]; extraNotes?:string };
+            const pending = await api<{draft:any}>("/resume-imports/" + ref.draftId);
+            for (const key of ref.fields) (model.value as any)[key] = JSON.parse(JSON.stringify(pending.draft.profile[key]));
+            if (ref.extraNotes) model.value.notes = [model.value.notes, ref.extraNotes].filter(Boolean).join("\n\n");
+          } catch (e) { error.value = "恢复待确认简历草稿失败：" + errorText(e); }
+        }
+        const hasStagedImport = !!staged;
+        dirty.value = hasStagedImport;
+        props.onDirty(hasStagedImport);
         hydrate = true;
       } catch (e) {
         error.value = errorText(e);
@@ -226,8 +237,10 @@ export default defineComponent({
         ]),
         h(ResumeImport, {
           disabled: loading.value || busy.value,
-          onProfile: (patch: Partial<Profile>) =>
-            Object.assign(model.value, patch),
+          onProfile: (patch: Partial<Profile>, extraNotes = "") => {
+            Object.assign(model.value, patch);
+            if (extraNotes) model.value.notes = [model.value.notes, extraNotes].filter(Boolean).join("\n\n");
+          },
         }),
         loading.value
           ? h(
@@ -288,6 +301,7 @@ export default defineComponent({
                       "荣誉证书",
                     ),
                   ]),
+                  h("label", { class: "field" }, [h("span", "备注"), textarea(model.value.notes || "", v => model.value.notes = v, "备注")]),
                 ]),
                 h("div", { class: "save-bar" }, [
                   h(

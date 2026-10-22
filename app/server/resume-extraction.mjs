@@ -55,7 +55,7 @@ export function workerArgs(folder, input, kind) {
     kind,
   ];
 }
-export function createExtractionService(privateDir) {
+export function createExtractionService(privateDir, recognize) {
   const jobs = new Map();
   let active = null;
   let activePromise = null;
@@ -91,6 +91,7 @@ export function createExtractionService(privateDir) {
   }
   function cancel(j) {
     j.cancelled = true;
+    j.controller?.abort();
     stopChild(j.child);
     j.state = "cancelled";
   }
@@ -110,6 +111,7 @@ export function createExtractionService(privateDir) {
       if (j.cancelled) return;
       j.state = "processing";
       const args = workerArgs(folder, input, kind);
+      if (j.ai) args.push("vision");
       const child = spawn("/usr/bin/prlimit", args, {
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
@@ -126,16 +128,23 @@ export function createExtractionService(privateDir) {
         overflow = false;
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (b) => {
-        if (Buffer.byteLength(output) + Buffer.byteLength(b) > 600000) {
+        if (
+          Buffer.byteLength(output) + Buffer.byteLength(b) >
+          (j.ai ? 24 * 1024 * 1024 : 600000)
+        ) {
           overflow = true;
           stopChild(child);
         } else output += b.toString();
       });
       child.stderr.resume();
-      timeout = setTimeout(() => {
-        j.timedOut = true;
-        stopChild(child);
-      }, 75000);
+      timeout = setTimeout(
+        () => {
+          j.timedOut = true;
+          j.controller?.abort();
+          stopChild(child);
+        },
+        j.ai ? 120000 : 75000,
+      );
       const code = await new Promise((resolve, reject) => {
         child.once("error", reject);
         child.once("close", resolve);
@@ -151,6 +160,39 @@ export function createExtractionService(privateDir) {
       }
       if (code !== 0 || result.error)
         throw Error(result.error || "文件解析失败");
+      if (j.ai) {
+        if (!recognize) throw Error("AI识别未配置");
+        j.controller = new AbortController();
+        const draft = await recognize(
+          j.owner,
+          {
+            text: result.text,
+            images: result.images || [],
+            pages: result.pages,
+            filename: j.name,
+          },
+          j.controller.signal,
+        );
+        if (j.cancelled) return;
+        result = {
+          text: draft.sourceText,
+          pages: result.pages,
+          method: draft.method,
+          warnings: draft.warnings,
+          draftId: draft.id,
+          draftRevision: draft.revision,
+          ai: {
+            extras: draft.extras || [],
+            profile: draft.profile,
+            evidence: draft.evidence,
+            provider: draft.provider,
+            model: draft.model,
+            mode: draft.mode,
+            metrics: draft.metrics,
+            provenance: draft.provenance,
+          },
+        };
+      }
       j.result = result;
       j.state = "ready";
     } catch (e) {
@@ -165,7 +207,9 @@ export function createExtractionService(privateDir) {
       if (active === j) active = null;
     }
   }
-  async function create(req, userId) {
+  async function create(req, userId, ai = true) {
+    // Legacy callers cannot opt into a local fallback.
+    ai = true;
     sweep();
     if (active)
       throw fail(
@@ -205,6 +249,7 @@ export function createExtractionService(privateDir) {
       state: "receiving",
       created: Date.now(),
       cancelled: false,
+      ai,
     };
     try {
       j.name = decodeURIComponent(

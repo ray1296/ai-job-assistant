@@ -68,6 +68,7 @@ export interface Profile {
   summary: string;
   skills: string;
   honors: string;
+  notes: string;
   cities: string[];
   directions: string[];
   education: Experience[];
@@ -81,6 +82,7 @@ export const emptyProfile = (): Profile => ({
   summary: "",
   skills: "",
   honors: "",
+  notes: "",
   cities: [],
   directions: [],
   education: [{ title: "", period: "", detail: "" }],

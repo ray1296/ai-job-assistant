@@ -7,7 +7,6 @@ export function createApplicationCopy(
   { fetchImpl = fetch, timeoutMs = 45000 } = {},
 ) {
   let active = false;
-  const rates = new Map();
   return {
     async generate(userId, { job, text = "", mode = "generate" }, signal) {
       validateDraftText(text);
@@ -50,14 +49,6 @@ export function createApplicationCopy(
           url.password
         )
           throw fail(503, "AI服务配置不可用");
-        const now = Date.now();
-        for (const [id, b] of rates)
-          if (now - b.start >= 60000) rates.delete(id);
-        const bucket = rates.get(userId) || { start: now, n: 0 };
-        if (bucket.n >= 3 || (!rates.has(userId) && rates.size >= 10000))
-          throw fail(429, "AI话术请求过于频繁，请稍后重试");
-        bucket.n++;
-        rates.set(userId, bucket);
         const input = JSON.stringify({ mode, job, text });
         if (Buffer.byteLength(input) > 50000)
           throw fail(413, "岗位与话术内容过长");

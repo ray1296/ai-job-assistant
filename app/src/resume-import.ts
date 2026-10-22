@@ -1,6 +1,6 @@
 import { defineComponent, h, ref, computed, onBeforeUnmount } from "vue";
 import { api, session, errorText, type Profile } from "./api";
-import { proposeImport } from "./resume-import-model";
+import { fromProfile } from "./resume-model";
 const labels: Partial<Record<keyof Profile, string>> = {
   name: "姓名",
   phone: "电话",
@@ -17,6 +17,9 @@ interface Result {
   method: string;
   pages: { page: number; text: string; method: string }[];
   warnings: string[];
+  ai?: { profile: Profile; extras?: { title: string; content: string }[]; evidence: { field: string; source: string }[]; provider: string; model: string; mode: string };
+  draftId?: string;
+  draftRevision?: number;
 }
 export default defineComponent({
   props: { onProfile: Function, onCreated: Function, disabled: Boolean },
@@ -33,7 +36,15 @@ export default defineComponent({
       selected = ref<string[]>([]),
       candidate = ref<Profile | null>(null),
       filename = ref(""),
-      proposal = ref<ReturnType<typeof proposeImport> | null>(null);
+      proposal = ref<{profile: Profile; extras: {title: string; content: string}[]; evidence: {field: string; source: string}[]; warnings: string[]} | null>(null),
+      aiConsent = ref(false),
+      pendingId = ref(""),
+      pendingRevision = ref(0),
+      pendingDrafts = ref<any[]>([]),
+      destination = ref<"profile" | "resume" | "">(""),
+      addToNotes = ref(false),
+      extraInformation = computed(() => (candidate.value?.notes || "").trim());
+
     let generation = 0,
       disposed = false;
     let stopped = false,
@@ -46,15 +57,50 @@ export default defineComponent({
         ? v.some((x) => (typeof x === "string" ? x : !!(x.title || x.detail)))
         : !!v;
     };
-    const keys = computed(() =>
-      (Object.keys(labels) as (keyof Profile)[]).filter(hasField),
-    );
-    function regroup() {
-      proposal.value = proposeImport(source.value);
-      groupedSource.value = source.value;
-      candidate.value = JSON.parse(JSON.stringify(proposal.value.profile));
-      selected.value = [];
-      notice.value = "已按修正后的原文重新归类，请勾选确认需要导入的字段";
+    const keys = computed(() => Object.keys(labels) as (keyof Profile)[]);
+    const normalizeEvidence = (items:any[] = []) => items.map((e:any) => {
+      const path = String(e.path || e.field || "").replace(/^profile\./, "");
+      const field = (Object.keys(labels) as string[]).find((k) => path === k || path.startsWith(k + ".") || path.startsWith(k + "[")) || path;
+      return { field, source: [e.quote, e.page != null ? "第" + e.page + "页" : ""].filter(Boolean).join(" · ") || String(e.source || "") };
+    });
+    const isAiMode = (m:string) => m === "vision" || m === "text" || m === "ai";
+    async function restoreDrafts() {
+      try {
+        const list = await api<{ drafts: any[] }>("/resume-imports");
+        pendingDrafts.value = list.drafts || [];
+        if (pendingDrafts.value.length) {
+          const d = await api<{ draft: any }>("/resume-imports/" + pendingDrafts.value[0].id);
+          pendingId.value = d.draft.id; pendingRevision.value = d.draft.revision;
+          source.value = d.draft.sourceText; groupedSource.value = source.value;
+          candidate.value = d.draft.profile;
+          proposal.value = { profile: d.draft.profile, extras: d.draft.extras || [], evidence: normalizeEvidence(d.draft.evidence || []), warnings: d.draft.warnings || [] };
+          result.value = { text: source.value, method: d.draft.method || "服务器待确认草稿", pages: [], warnings: d.draft.warnings || [], ai: isAiMode(d.draft.mode) ? { profile: d.draft.profile, extras: d.draft.extras || [], evidence: normalizeEvidence(d.draft.evidence || []), provider: d.draft.provider || "", model: d.draft.model || "", mode: d.draft.mode } : undefined };
+          notice.value = "已恢复服务器中的待确认草稿；尚未写入个人资料或简历。";
+        }
+      } catch (e) { error.value = errorText(e); }
+    }
+    void restoreDrafts();
+    async function regroup() {
+      if (saving.value || processing.value) return;
+      if (!pendingId.value) { error.value = "缺少待确认草稿，无法请求AI重新识别"; return; }
+      if (!aiConsent.value) { error.value = "请先确认将修正原文交给AI整理"; return; }
+      saving.value = true;
+      try {
+        error.value = "";
+        const r = await fetch("/api/resume-imports/" + encodeURIComponent(pendingId.value) + "/reprocess", {
+          method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrf || "", "X-AI-Consent": "true" },
+          body: JSON.stringify({ sourceText: source.value, revision: pendingRevision.value }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw Error(data.error || "AI重新识别失败");
+        const draft = data.draft || data;
+        pendingRevision.value = draft.revision ?? pendingRevision.value;
+        candidate.value = JSON.parse(JSON.stringify(draft.profile));
+        proposal.value = { profile: draft.profile, extras: draft.extras || [], evidence: normalizeEvidence(draft.evidence || []), warnings: draft.warnings || [] };
+        groupedSource.value = source.value; selected.value = []; addToNotes.value = false;
+        notice.value = "已由AI重新归类；请核对并勾选需要导入的字段。";
+      } catch (e) { error.value = errorText(e); } finally { saving.value = false; }
     }
     async function removeJob(id: string) {
       try {
@@ -85,8 +131,8 @@ export default defineComponent({
       source.value = "";
       candidate.value = null;
       proposal.value = null;
-      selected.value = [];
-      if (id) await removeJob(id);
+      selected.value = []; addToNotes.value = false;
+      if (id && !pendingId.value) await removeJob(id);
     }
     async function start() {
       if (!file.value || processing.value || saving.value || props.disabled)
@@ -119,7 +165,8 @@ export default defineComponent({
         const timer = setTimeout(() => controller.abort(), 20000);
         let r: Response;
         try {
-          r = await fetch("/api/resume-extractions", {
+          if (!aiConsent.value) throw Error("请先确认将简历发送给AI服务进行识别");
+          r = await fetch("/api/resume-imports?filename=" + encodeURIComponent(f.name), {
             method: "POST",
             credentials: "same-origin",
             signal: controller.signal,
@@ -127,6 +174,7 @@ export default defineComponent({
               "Content-Type": type,
               "X-CSRF-Token": session.csrf || "",
               "X-File-Name": encodeURIComponent(f.name),
+              "X-AI-Consent": "true",
             },
             body: f,
           });
@@ -141,14 +189,20 @@ export default defineComponent({
           return;
         }
         jobId.value = myId;
-        const end = Date.now() + 85000;
+        const end = Date.now() + 130000;
         while (currentRun() && Date.now() < end) {
           const { job } = await api("/resume-extractions/" + myId);
           if (!currentRun() || jobId.value !== myId) return;
           if (job.state === "ready") {
             result.value = job.result;
             source.value = job.result.text;
-            regroup();
+            pendingId.value = job.result.draftId || "";
+            pendingRevision.value = job.result.draftRevision || 0;
+            if (job.result.ai) {
+              candidate.value = JSON.parse(JSON.stringify(job.result.ai.profile));
+              proposal.value = { profile: job.result.ai.profile, extras: job.result.ai.extras || [], evidence: normalizeEvidence(job.result.ai.evidence || []), warnings: job.result.warnings || [] };
+              groupedSource.value = source.value; selected.value = []; addToNotes.value = false;
+            } else throw Error("AI未返回可用语义结果，请重试；不会使用本机规则替代AI");
             notice.value = "识别完成，尚未写入个人资料或简历。请先核对原文。";
             return;
           }
@@ -167,47 +221,76 @@ export default defineComponent({
         if (currentRun()) processing.value = false;
       }
     }
+    async function savePending() {
+      if (!pendingId.value || !proposal.value || !candidate.value) return;
+      try {
+        const r = await api<{draft:any}>("/resume-imports/" + pendingId.value, "PUT", { revision: pendingRevision.value, sourceText: source.value, profile: candidate.value, extras: proposal.value?.extras || [] });
+        pendingRevision.value = r.draft.revision;
+      } catch (e) { error.value = errorText(e); throw e; }
+    }
+    async function deletePending() {
+      if (!pendingId.value || !confirm("删除这份待确认草稿？不会修改个人资料或简历。")) return;
+      try { await api("/resume-imports/" + pendingId.value, "DELETE", { revision: pendingRevision.value }); pendingId.value = ""; pendingRevision.value = 0; result.value = null; proposal.value = null; candidate.value = null; source.value = ""; selected.value = []; addToNotes.value = false; await restoreDrafts(); } catch (e) { error.value = errorText(e); }
+    }
+    async function chooseDraft(id:string) {
+      try { addToNotes.value=false; selected.value=[]; const r=await api<{draft:any}>("/resume-imports/"+id); const d=r.draft; pendingId.value=d.id; pendingRevision.value=d.revision; source.value=d.sourceText; groupedSource.value=d.sourceText; candidate.value=d.profile; proposal.value={profile:d.profile,extras:d.extras||[],evidence:normalizeEvidence(d.evidence||[]),warnings:d.warnings||[]}; result.value={text:d.sourceText,method:d.method||"待确认草稿",pages:[],warnings:d.warnings||[],ai:isAiMode(d.mode)?{profile:d.profile,extras:d.extras||[],evidence:normalizeEvidence(d.evidence||[]),provider:d.provider||"",model:d.model||"",mode:d.mode}:undefined}; } catch(e){error.value=errorText(e);}
+    }
     function applyProfile() {
       if (
         !candidate.value ||
         !props.onProfile ||
-        !selected.value.length ||
+        (!selected.value.length && !(addToNotes.value && extraInformation.value)) ||
         source.value !== groupedSource.value
       )
         return;
+      void savePending();
       const patch: Partial<Profile> = {};
       for (const key of selected.value as (keyof Profile)[]) {
         (patch as any)[key] = JSON.parse(JSON.stringify(candidate.value[key]));
       }
-      props.onProfile(patch);
+      props.onProfile(patch, addToNotes.value ? extraInformation.value : "");
       notice.value =
         "仅将已勾选字段写入当前草稿，未自动保存；请检查下方资料后点击保存。";
     }
+    async function confirmDestination() {
+      if (destination.value === "profile") {
+        if (!candidate.value || (!selected.value.length && !(addToNotes.value && extraInformation.value)) || source.value !== groupedSource.value) return;
+        await savePending();
+        const patch: Partial<Profile> = {};
+        for (const key of selected.value as (keyof Profile)[]) (patch as any)[key] = JSON.parse(JSON.stringify(candidate.value[key]));
+        if (props.onProfile) {
+          props.onProfile(patch, addToNotes.value ? extraInformation.value : "");
+          notice.value = "已放入当前个人资料草稿；尚未保存。请检查后单独点击个人资料保存。";
+        } else {
+          sessionStorage.setItem("resume-import-stage", JSON.stringify({ draftId: pendingId.value, fields: selected.value, extraNotes: addToNotes.value ? extraInformation.value : "" }));
+          window.location.hash = "#profile";
+          notice.value = "待确认资料已暂存，正在打开个人信息页；请检查并点击保存。";
+        }
+        return;
+      }
+      await savePending();
+      await createDocument();
+    }
     async function createDocument() {
       if (
+        !candidate.value ||
         !proposal.value ||
         saving.value ||
         props.disabled ||
         source.value !== groupedSource.value
       )
         return;
-      const document = proposal.value.document;
-      if (
-        !confirm("将核对的原文归类为一个全新简历版本，不覆盖现有版本。继续？")
-      )
-        return;
+      const document = fromProfile(candidate.value);
       saving.value = true;
       error.value = "";
       try {
-        const title =
-          (filename.value.replace(/\.[a-zA-Z0-9]+$/, "") || "识别导入").slice(
-            0,
-            90,
-          ) + " · 导入";
-        const r = await api("/resumes", "POST", {
-          title,
-          body: { document },
-        });
+        let finalDocument = document;
+        if (extraInformation.value) {
+          const placed = await api<{layout:{document:{sections:any[]}}}>("/ai/resume-layout", "POST", { document, extras: proposal.value.extras || [], prompt: "以下内容是已识别并保留原文的未匹配分类信息，请按分类决定合适的简历位置：\n" + extraInformation.value });
+          finalDocument = { ...document, sections: placed.layout.document.sections };
+        }
+        const title = (filename.value.replace(/\.[a-zA-Z0-9]+$/, "") || "识别导入").slice(0, 90) + " · 导入";
+        const r = await api("/resumes", "POST", { title, body: { document: finalDocument } });
         await props.onCreated?.(r.resume);
         notice.value =
           "已创建独立简历版本；原有版本未改动，可在简历工作室继续双击编辑。";
@@ -232,16 +315,11 @@ export default defineComponent({
               h("span", { class: "eyebrow" }, "RESUME INTAKE"),
               h("h2", "上传已有简历（可选）"),
             ]),
-            h(
-              "span",
-              { class: "local-badge" },
-              "本机解析 · 非AI · 不发送第三方",
-            ),
+            h("span", { class: "local-badge" }, "AI视觉/文本识别"),
           ]),
-          h(
-            "p",
-            "PDF / DOCX / PNG / JPEG，≤5MiB；PDF最多4页，图片≤1200万像素。没有简历也可以手动填写。",
-          ),
+          null,
+          h("label", { class:"ai-consent", "data-testid":"import-ai-consent" }, [h("input", { type:"checkbox", checked:aiConsent.value, onChange:(e:Event)=>aiConsent.value=(e.target as HTMLInputElement).checked }), "同意使用AI识别简历，结果仅保存为私有草稿。"]),
+          h("p", "PDF / DOCX / PNG / JPEG，≤5MiB。所有支持格式均提交AI进行语义识别与归类。"),
           h("div", { class: "import-upload" }, [
             h("input", {
               type: "file",
@@ -262,7 +340,7 @@ export default defineComponent({
                   !file.value ||
                   processing.value ||
                   saving.value ||
-                  props.disabled,
+                  props.disabled || !aiConsent.value,
                 onClick: start,
               },
               processing.value ? "正在识别…" : "上传并识别",
@@ -286,12 +364,12 @@ export default defineComponent({
             ? h(
                 "p",
                 { role: "status" },
-                "正在提取文字；扫描件使用本地中英文OCR。为其他服务保留余量，全站只运行一个识别任务。",
+                "正在提交给AI服务识别，完成后可核对并编辑。",
               )
             : null,
           result.value && proposal.value
             ? h("div", { class: "import-review" }, [
-                h("h3", "1 · 核对逐页识别证据"),
+                h("h3", "1 · 核对识别结果与原文"),
                 h(
                   "p",
                   { class: "import-meta" },
@@ -321,8 +399,8 @@ export default defineComponent({
                   "button",
                   { type: "button", onClick: regroup },
                   source.value !== groupedSource.value
-                    ? "原文已改变，请重新归类"
-                    : "按修正原文重新归类",
+                    ? "原文已改变：提交AI重新识别并归类"
+                    : "提交AI重新识别并归类",
                 ),
                 h(
                   "ul",
@@ -334,9 +412,13 @@ export default defineComponent({
                     ]),
                   ].map((w) => h("li", w)),
                 ),
-                props.onProfile
-                  ? h("div", [
-                      h("h3", "2 · 选择要写入个人资料的字段"),
+                h("fieldset", { class:"import-destination" }, [
+                  h("legend", "2 · 选择导入目的地"),
+                  h("label", [h("input", { type:"radio", name:"import-destination", "data-testid":"import-destination-profile", checked:destination.value==="profile", onChange:()=>destination.value="profile" }), "个人资料草稿"]),
+                  h("label", [h("input", { type:"radio", name:"import-destination", "data-testid":"import-destination-resume", checked:destination.value==="resume", onChange:()=>destination.value="resume" }), "新建独立简历版本"]),
+                ]),
+                h("div", [
+                      h("h3", "3 · 核对并编辑识别出的个人资料字段"),
                       h(
                         "p",
                         "默认不勾选。已勾选字段会替换当前同名字段；经历字段会替换该类全部条目，未勾选的一律保留。无法确认的姓名、城市、岗位不会猜测。",
@@ -361,30 +443,29 @@ export default defineComponent({
                                 labels[k],
                               ]),
                               typeof candidate.value?.[k] === "string"
-                                ? h("input", {
+                                ? h("div", [
+                                    h("input", {
                                     "aria-label": "识别" + labels[k],
                                     value: candidate.value[k] as string,
-                                    onInput: (e: Event) =>
-                                      ((candidate.value as any)[k] = (
-                                        e.target as HTMLInputElement
-                                      ).value),
-                                  })
+                                    onInput: (e: Event) => {
+                                      const value = (e.target as HTMLInputElement).value;
+                                      (candidate.value as any)[k] = value;
+                                      if (k === "name") { /* template is built when a destination is confirmed */ }
+                                    },
+                                  }),
+                                  !candidate.value[k] ? h("small", { class: "missing-warning", role: "status" }, "未识别到" + labels[k] + "，请补充或确认留空") : null,
+                                ])
                                 : h(
                                     "div",
                                     (candidate.value![k] as any[]).map((x, i) =>
-                                      h("label", { class: "field" }, [
-                                        h("span", x.title || labels[k]),
-                                        h("textarea", {
-                                          "aria-label":
-                                            "识别" + labels[k] + (i + 1),
-                                          value: x.detail,
-                                          rows: 3,
-                                          onInput: (e: Event) =>
-                                            (x.detail = (
-                                              e.target as HTMLTextAreaElement
-                                            ).value),
-                                        }),
+                                      h("div", [h("div", { class: "form-grid" }, [
+                                        h("label", { class: "field" }, [h("span", "标题"), h("input", { value: x.title, "aria-label": "识别" + labels[k] + "标题" + (i + 1), onInput: (e: Event) => (x.title = (e.target as HTMLInputElement).value) })]),
+                                        h("label", { class: "field" }, [h("span", "时间 / 阶段"), h("input", { value: x.period, "aria-label": "识别" + labels[k] + "时间" + (i + 1), onInput: (e: Event) => (x.period = (e.target as HTMLInputElement).value) })]),
                                       ]),
+                                      h("label", { class: "field" }, [
+                                        h("span", labels[k] + "内容"),
+                                        h("textarea", { "aria-label": "识别" + labels[k] + (i + 1), value: x.detail, rows: 3, onInput: (e: Event) => (x.detail = (e.target as HTMLTextAreaElement).value) }),
+                                      ])]),
                                     ),
                                   ),
                               h(
@@ -409,52 +490,18 @@ export default defineComponent({
                               "没有可安全映射的字段，完整原文仍可创建简历版本。",
                             ),
                           ]),
-                      h(
-                        "button",
-                        {
-                          class: "primary",
-                          type: "button",
-                          disabled:
-                            !selected.value.length ||
-                            source.value !== groupedSource.value ||
-                            saving.value ||
-                            props.disabled,
-                          onClick: applyProfile,
-                        },
-                        "将勾选字段写入草稿",
-                      ),
-                    ])
-                  : null,
-                h(
-                  "h3",
-                  props.onProfile
-                    ? "3 · 或创建独立简历版本"
-                    : "2 · 创建独立简历版本",
-                ),
-                h(
-                  "p",
-                  "按照已核对原文识别板块，未分类内容保留为原文，不复原原PDF排版，不补写经历。",
-                ),
-                h(
-                  "div",
-                  { class: "chips" },
-                  proposal.value.document.sections.map((s) =>
-                    h("span", { class: "chip" }, s.title),
-                  ),
-                ),
-                h(
-                  "button",
-                  {
-                    class: "primary",
-                    type: "button",
-                    disabled:
-                      saving.value ||
-                      props.disabled ||
-                      source.value !== groupedSource.value,
-                    onClick: createDocument,
-                  },
-                  saving.value ? "正在创建…" : "确认并创建简历版本",
-                ),
+
+                    ]),
+                extraInformation.value ? h("fieldset", { "data-testid":"import-other-information" }, [
+                  h("legend", "其他信息（网站暂无对应分类）"),
+                  h("textarea", { "aria-label":"未匹配信息", value:candidate.value?.notes || "", rows:5, onInput:(e:Event)=>{ if(candidate.value) { const value=(e.target as HTMLTextAreaElement).value; candidate.value.notes=value; if (proposal.value) proposal.value.extras=[{ title:"其他信息", content:value }].filter(x=>x.content.trim()); } } }),
+                  h("label", [h("input", { type:"checkbox", checked:addToNotes.value, onChange:(e:Event)=>addToNotes.value=(e.target as HTMLInputElement).checked }), destination.value === "resume" ? "新建简历将自动使用全部其他信息" : "添加到个人信息备注（保留已有备注）"]),
+                ]) : null,
+                h("h3", "4 · 确认导入"),
+                h("p", destination.value === "profile" ? "仅将勾选字段放入个人资料草稿；之后仍需在个人信息页单独保存。" : "将创建一个独立简历版本，现有版本保持不变。"),
+                h("p", { class:"notice" }, destination.value === "resume" ? "已知分类将按网站现有简历模板放置；未匹配信息会在创建时由AI自动安排到合适板块。" : "个人资料方向只处理下方有限分类勾选。"),
+                h("button", { type:"button", "data-testid":"import-save-review", disabled:saving.value || source.value!==groupedSource.value, onClick:savePending }, "保存识别结果与修改"),
+                h("button", { class:"primary", type:"button", "data-testid":"import-confirm", disabled:saving.value || props.disabled || !destination.value || source.value!==groupedSource.value || (destination.value === "profile" && (!selected.value.length && !(addToNotes.value && extraInformation.value))), onClick:confirmDestination }, saving.value ? "正在处理…" : destination.value==="profile" ? "确认放入个人资料草稿" : "确认并创建独立简历版本"),
               ])
             : null,
           error.value
@@ -463,10 +510,11 @@ export default defineComponent({
           notice.value
             ? h("p", { class: "notice", role: "status" }, notice.value)
             : null,
-          h(
-            "small",
-            "上传原件只临时存于服务器私有目录，解析完成/失败后清理；上传和后台模型任务有资源保护超时，识别完成后用户核对、修改、勾选、确认不设倒计时。当前结果仅在本页待确认，刷新或离页可能丢失；只有你确认导入个人资料或创建新版本后才持久保存。",
-          ),
+          h("div", { class:"pending-drafts" }, [
+            pendingDrafts.value.map((d:any) => h("button", { type:"button", "data-testid":"import-draft-open", "data-draft-id":d.id, onClick:()=>chooseDraft(d.id) }, "恢复待确认草稿 " + d.id.slice(0,8))),
+            pendingId.value ? h("button", { type:"button", "data-testid":"import-draft-delete", onClick:deletePending }, "删除待确认草稿") : null,
+          ]),
+          h("small", "待确认内容保存在账号私有的服务器草稿中，可刷新后恢复；草稿不会自动过期。只有确认放入个人资料草稿并另行点击资料保存，或确认创建独立版本后，才会写入对应资料/简历。"),
         ],
       );
   },
