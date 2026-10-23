@@ -228,3 +228,91 @@
 .housing-channel:hover { background: #f3eefb; }
 .housing-channel strong { font-size: 12px; color: #4b3b63; }
 .housing-channel small { font-size: 10px; color: #8b7d99; }
+
+/* 学习与刷题 */
+.study-subjects { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.study-subject { padding: 14px 16px; }
+.study-subject-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.study-subject-head h2 { margin: 0; font-size: 16px; }
+.study-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn.small { font-size: 11px; padding: 5px 10px; border-radius: 7px; }
+.study-versions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.study-version { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #f0eaf7; border-radius: 9px; padding: 6px 10px; }
+.study-version-open { flex: 1; display: flex; align-items: baseline; gap: 8px; border: 0; background: none; text-align: left; cursor: pointer; color: #4b3b63; }
+.study-version-open small { color: #9c8fae; font-size: 10px; }
+.study-practice { display: flex; flex-direction: column; gap: 10px; }
+.study-practice-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.study-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.study-progress { height: 5px; background: #f0eaf7; border-radius: 999px; overflow: hidden; }
+.study-progress-bar { height: 100%; background: #7460c9; transition: width .2s; }
+.study-question { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.study-question h2 { font-size: 16px; line-height: 1.7; margin: 0; }
+.study-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.study-tags span { font-size: 10px; background: #f3eefb; color: #7460c9; border-radius: 999px; padding: 2px 9px; }
+.study-options { display: flex; flex-direction: column; gap: 8px; }
+.study-option { text-align: left; border: 1px solid #e6def0; background: #fff; border-radius: 9px; padding: 10px 12px; font-size: 13px; color: #3f3353; cursor: pointer; }
+.study-option:hover:not(:disabled) { background: #faf8fd; }
+.study-option.correct { border-color: #2f9e8f; background: #eefaf7; }
+.study-option.wrong { border-color: #d9534f; background: #fdf1f0; }
+.study-feedback { font-size: 12px; border-radius: 8px; padding: 8px 12px; margin: 0; }
+.study-feedback.ok { background: #eefaf7; color: #2f7f74; }
+.study-feedback.bad { background: #fdf1f0; color: #b34a46; }
+.study-q-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* 知识卡片（正反面切换，不用 3D 变换避免拉伸） */
+.study-card { background: linear-gradient(135deg, #faf8fd, #f4eefc); border: 1px dashed #d9ccec; border-radius: 12px; padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; min-height: 120px; max-height: 320px; overflow-y: auto; scrollbar-width: none; }
+.study-card::-webkit-scrollbar { display: none; }
+.study-card.flipped { background: #fff; border: 1px solid #e6def0; }
+.study-card-hint { font-size: 10px; color: #9c8fae; letter-spacing: .04em; }
+.study-card-body small { font-size: 10px; color: #7460c9; }
+.study-card-body p { margin: 4px 0 0; font-size: 13px; line-height: 1.75; color: #3f3353; }
+.study-card-prompt { color: #8b7d99 !important; }
+.study-card details summary { font-size: 11px; color: #7460c9; cursor: pointer; margin-top: 8px; }
+/* 弹窗 */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(40,30,60,.35); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.modal { width: min(420px, 92vw); display: flex; flex-direction: column; gap: 10px; }
+.modal h2 { margin: 0; font-size: 16px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* 看板娘讲解面板 */
+.tutor-panel { position: fixed; right: 18px; bottom: 18px; width: 320px; background: #fff; border: 1px solid #e6def0; border-radius: 14px; box-shadow: 0 16px 40px rgba(60,40,90,.18); z-index: 55; display: flex; flex-direction: column; overflow: hidden; }
+.tutor-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; font-size: 12px; }
+.tutor-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+.tutor-bubble { margin: 0; font-size: 12px; line-height: 1.7; background: #f7f3fd; border-radius: 10px; padding: 9px 11px; color: #3f3353; }
+.tutor-input { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #f0eaf7; }
+.tutor-input input { flex: 1; border: 1px solid #e6def0; border-radius: 8px; padding: 6px 9px; font-size: 12px; }
+/* 白板 */
+.whiteboard { position: fixed; inset: 5vh 5vw; background: #fff; border-radius: 16px; box-shadow: 0 24px 60px rgba(40,30,60,.28); z-index: 70; display: flex; flex-direction: column; overflow: hidden; }
+.whiteboard-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f0eaf7; font-size: 12px; color: #4b3b63; }
+.whiteboard-canvas { flex: 1; width: 100%; height: 100%; display: block; }
+
+/* 看板娘 */
+.companion { position: fixed; z-index: 80; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.companion-fab { width: 52px; height: 52px; border-radius: 50%; border: 2px solid #fff; background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; font-size: 12px; cursor: pointer; box-shadow: 0 10px 26px rgba(80,60,120,.3); }
+.companion-panel { width: 300px; max-height: 60vh; background: #fff; border: 1px solid #e6def0; border-radius: 14px; box-shadow: 0 18px 44px rgba(60,40,90,.2); display: flex; flex-direction: column; overflow: hidden; }
+.companion-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; font-size: 12px; }
+.companion-head button { border: 0; background: transparent; color: #fff; cursor: pointer; font-size: 13px; }
+.companion-log { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; scrollbar-width: none; }
+.companion-log::-webkit-scrollbar { display: none; }
+.companion-bubble { margin: 0; font-size: 12px; line-height: 1.7; padding: 8px 11px; border-radius: 10px; max-width: 90%; }
+.companion-bubble.ai { background: #f7f3fd; color: #3f3353; align-self: flex-start; }
+.companion-bubble.me { background: #7460c9; color: #fff; align-self: flex-end; }
+.companion-error { margin: 0 12px 6px; font-size: 11px; color: #b34a46; }
+.companion-input { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #f0eaf7; }
+.companion-input input { flex: 1; border: 1px solid #e6def0; border-radius: 8px; padding: 6px 9px; font-size: 12px; }
+.companion-input button { border: 0; background: #7460c9; color: #fff; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+
+/* 看板娘团队（替换原型占位） */
+.companions { position: fixed; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.companions-row { display: flex; gap: 6px; align-items: center; }
+.companion-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 46px; padding: 5px 2px; border-radius: 12px; border: 1px solid #e6def0; background: rgba(255,255,255,.96); cursor: grab; box-shadow: 0 6px 18px rgba(60,40,90,.1); }
+.companion-chip.on { border-color: #7460c9; background: #f6f2fd; }
+.companion-chip.ghost { width: 26px; height: 26px; justify-content: center; font-size: 12px; color: #8b7d99; }
+.companion-face { font-size: 15px; color: #7460c9; }
+.companion-name { font-size: 10px; color: #5c4b6e; }
+.companion-settings { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: rgba(255,255,255,.97); border: 1px solid #e6def0; border-radius: 10px; font-size: 11px; color: #5c4b6e; }
+.companion-settings label { display: flex; align-items: center; gap: 6px; }
+.companion-chat { width: 290px; max-height: 52vh; background: #fff; border: 1px solid #e6def0; border-radius: 14px; box-shadow: 0 18px 44px rgba(60,40,90,.2); display: flex; flex-direction: column; overflow: hidden; }
+
+.settings-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #f0eaf7; font-size: 12px; color: #4b3b63; }
+.settings-row > span:first-child { width: 72px; color: #8b7d99; }
+.settings-row input[type=range] { flex: 1; }
+.settings-accent { display: flex; gap: 8px; }

@@ -9,6 +9,7 @@ import { createApplicationPlan } from "./application-plan.mjs";
 import { createDashboard } from "./dashboard.mjs";
 import { createDatasets } from "./datasets.mjs";
 import { createGeo } from "./geo.mjs";
+import { createStudy } from "./study.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
@@ -73,6 +74,8 @@ const datasets = createDatasets(db, dataDir, {
     salary: (input) => aiGateway.salary(null, input),
   },
 });
+// 学习与刷题：科目/版本/题库 + AI 讲题与出题
+const study = createStudy(db, { ai: aiGateway });
 // 地图与通勤：高德 REST 只在服务端调用，key 不落前端包
 const geo = createGeo(dataDir, {
   db,
@@ -439,6 +442,103 @@ const server = http.createServer(async (req, res) => {
           learning.save(s.user_id, questionMatch[1], await body(req)),
         );
       // 地图改为自绘瓦片后，前端不再需要高德 key；key 只留在服务端。
+      // ---- 学习与刷题 ----
+      if (p === "/api/study/subjects" && m === "GET")
+        return send(res, 200, { subjects: study.subjects(s.user_id), directions: study.catalogDirections() });
+      if (p === "/api/study/subjects" && m === "POST") {
+        const payload = await body(req);
+        return send(res, 201, { subject: study.createSubject(s.user_id, payload.name) });
+      }
+      {
+        const mm = p.match(/^\/api\/study\/subjects\/([a-z0-9]+)$/);
+        if (mm && m === "PUT") {
+          const payload = await body(req);
+          return send(res, 200, study.renameSubject(s.user_id, mm[1], payload.name));
+        }
+        if (mm && m === "DELETE") return send(res, 200, study.removeSubject(s.user_id, mm[1]));
+      }
+      {
+        const mm = p.match(/^\/api\/study\/subjects\/([a-z0-9]+)\/versions$/);
+        if (mm && m === "POST") {
+          const payload = await body(req);
+          let rows = Array.isArray(payload.questions) ? payload.questions : [];
+          if (!rows.length && payload.fromCatalog) rows = study.questionsFromCatalog(String(payload.fromCatalog || ""), Math.min(500, Number(payload.limit) || 120));
+          return send(res, 201, { version: study.createVersion(s.user_id, mm[1], { name: payload.name, source: payload.source || "平台面经题库", questions: rows }) });
+        }
+      }
+      {
+        const mm = p.match(/^\/api\/study\/versions\/([a-z0-9]+)$/);
+        if (mm && m === "PUT") {
+          const payload = await body(req);
+          return send(res, 200, study.renameVersion(s.user_id, mm[1], payload.name));
+        }
+        if (mm && m === "DELETE") return send(res, 200, study.removeVersion(s.user_id, mm[1]));
+      }
+      {
+        const mm = p.match(/^\/api\/study\/versions\/([a-z0-9]+)\/questions$/);
+        if (mm && m === "GET") {
+          const url = new URL(req.url, "http://x");
+          return send(res, 200, study.questions(s.user_id, mm[1], { type: String(url.searchParams.get("type") || "") }));
+        }
+      }
+      {
+        const mm = p.match(/^\/api\/study\/questions\/([a-z0-9]+)\/attempt$/);
+        if (mm && m === "POST") {
+          const payload = await body(req);
+          return send(res, 200, study.recordAttempt(s.user_id, mm[1], !!payload.correct));
+        }
+      }
+      {
+        const mm = p.match(/^\/api\/study\/questions\/([a-z0-9]+)\/simplify$/);
+        if (mm && m === "POST") {
+          const q = study.ownQuestion(s.user_id, mm[1]);
+          const r = await aiGateway.study(s.user_id, { kind: "simplify", question: q.stem, answer: q.answer }, undefined);
+          db.prepare("UPDATE study_questions SET simple_answer=? WHERE id=?").run(r.simple, q.id);
+          return send(res, 200, { simpleAnswer: r.simple });
+        }
+      }
+      {
+        const mm = p.match(/^\/api\/study\/versions\/([a-z0-9]+)\/generate$/);
+        if (mm && m === "POST") {
+          const payload = await body(req);
+          const v = study.ownVersion(s.user_id, mm[1]);
+          const all = study.questions(s.user_id, mm[1], {});
+          const items = all.questions.slice(0, 24).map((q) => ({ q: q.stem.slice(0, 200), a: (q.answer || "").slice(0, 200) }));
+          if (!items.length) throw failure(400, "这个版本还没有题目");
+          const want = String(payload.kind || "single");
+          const count = Math.min(10, Math.max(1, Number(payload.count) || 5));
+          const r = await aiGateway.study(s.user_id, {
+            kind: "generate", items,
+            single: want === "single" ? count : 0,
+            judge: want === "single" ? 0 : count,
+          }, undefined);
+          const created = study.createVersion(s.user_id, v.subject_id, {
+            name: (v.name + " · AI" + (want === "judge" ? "判断题" : "选择题") + " " + new Date().toLocaleDateString("zh-CN")),
+            source: "AI 生成",
+            questions: r.questions.map((q) => ({ ...q, tags: ["AI生成"], source: "AI 生成" })),
+          });
+          return send(res, 201, { version: created, generated: r.questions.length });
+        }
+      }
+      if (p === "/api/companion/chat" && m === "POST") {
+        const payload = await body(req);
+        const r = await aiGateway.chat(s.user_id, {
+          message: payload.message, page: payload.page,
+          history: Array.isArray(payload.history) ? payload.history.slice(-6) : [],
+        }, undefined);
+        return send(res, 200, r);
+      }
+      if (p === "/api/study/tutor" && m === "POST") {
+        const payload = await body(req);
+        const q = payload.questionId ? study.ownQuestion(s.user_id, String(payload.questionId)) : null;
+        const r = await aiGateway.study(s.user_id, {
+          kind: "tutor",
+          question: q ? q.stem : String(payload.question || "").slice(0, 800),
+          answer: q ? q.answer : String(payload.answer || "").slice(0, 800),
+          message: String(payload.message || "").slice(0, 300),
+        }, undefined);
+        return send(res, 200, r);
+      }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

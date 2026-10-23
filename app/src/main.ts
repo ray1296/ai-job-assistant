@@ -22,6 +22,8 @@ const Datasets = defineAsyncComponent(() => import("./datasets"));
 const CityMap = defineAsyncComponent(() => import("./map"));
 const Companies = defineAsyncComponent(() => import("./companies"));
 const Housing = defineAsyncComponent(() => import("./housing"));
+const Study = defineAsyncComponent(() => import("./study"));
+const Settings = defineAsyncComponent(() => import("./settings"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -271,10 +273,10 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
-      if (active.value === "knowledge" || active.value === "practice") {
+      if (active.value === "knowledge") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return h(active.value === "knowledge" ? Knowledge : Practice, { key: session.user.id + active.value });
+        return h(Knowledge, { key: session.user.id + active.value });
       }
       if (active.value === "jobs" || active.value === "plan") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
@@ -283,6 +285,18 @@ const app = defineComponent({
           key: session.user.id + active.value,
           onDirty: (v: boolean) => (dirty.value = v),
         });
+      }
+      // 学习与刷题：真实题库页面（科目 / 版本 / 刷题 / 知识卡片 / AI）
+      if (active.value === "practice") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Study, { key: session.user.id + "study" });
+      }
+      // 个性化设置：真实设置页
+      if (active.value === "settings") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Settings, { key: session.user.id + "settings" });
       }
       // 企业观察：真实数据页面，不再用 iframe 包原型（也避免重复出现第二套看板娘）
       if (active.value === "companies") {
