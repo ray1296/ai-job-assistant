@@ -1,0 +1,198 @@
+/* 手写补充样式：不参与 proto.css 的自动生成，避免被覆盖。
+   只包含"原型里没有、但我们的真实功能需要"的部分。 */
+
+/* 数据空间 */
+.proto-page .proto-cats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; justify-content: center; }
+.proto-page .card .proto-cats { justify-content: flex-start; }
+.proto-page .proto-ops { display: inline-flex; gap: 6px; }
+.proto-page .proto-ops .btn { padding: 3px 9px; font-size: 11px; }
+.proto-page .proto-table-scroll { overflow: auto; max-height: 420px; }
+.proto-page .table .tr { align-items: center; }
+
+/* ===== 深色可视化面板（还原原型"大屏"外观，去掉 iframe） ===== */
+.proto-page .dash-dark {
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(70,180,220,.18), transparent 60%),
+    linear-gradient(180deg, #0b1b2b 0%, #0a1622 100%);
+  border: 1px solid rgba(90,200,220,.25);
+  border-radius: 12px;
+  padding: 0 0 16px;
+  color: #cfe3f5;
+  overflow: hidden;
+}
+.proto-page .dash-dark-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid rgba(90,200,220,.18);
+  background: linear-gradient(90deg, rgba(20,60,90,.55), rgba(12,40,64,.25));
+}
+.proto-page .dash-dark-head h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 6px;
+  color: #6fe6d2;
+  text-shadow: 0 0 18px rgba(90,230,210,.45);
+  font-weight: 600;
+}
+.proto-page .dash-dark-head span { font-size: 11px; color: #7fa4c4; }
+.proto-page .dash-dark-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 18px 4px;
+}
+.proto-page .dash-dark-kpi {
+  background: linear-gradient(180deg, rgba(30,80,120,.35), rgba(14,40,62,.55));
+  border: 1px solid rgba(80,190,220,.22);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.proto-page .dash-dark-kpi span { font-size: 10px; color: #85a8c6; }
+.proto-page .dash-dark-kpi strong { font-size: 22px; color: #6fe6d2; font-weight: 600; text-shadow: 0 0 14px rgba(90,230,210,.35); }
+.proto-page .dash-dark-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 18px 0;
+}
+.proto-page .dash-panel {
+  background: linear-gradient(180deg, rgba(18,48,74,.55), rgba(10,28,44,.55));
+  border: 1px solid rgba(80,180,220,.20);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+}
+
+.proto-page .dash-panel h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #9fd8ea;
+  font-weight: 500;
+  letter-spacing: 1px;
+  position: relative;
+  padding-left: 10px;
+}
+.proto-page .dash-panel h4::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 2px;
+  width: 3px; height: 11px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #6fe6d2, #6fb7ff);
+}
+.proto-page .dash-dark-chart { flex: 1; min-height: 150px; }
+.proto-page .dash-dark-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; overflow: auto; max-height: 200px; }
+.proto-page .dash-dark-row {
+  display: grid;
+  grid-template-columns: 2.2fr 1.1fr .6fr .9fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 4px;
+  border-bottom: 1px dashed rgba(90,180,220,.12);
+  text-decoration: none;
+  color: #bcd4e8;
+  font-size: 11px;
+}
+.proto-page .dash-dark-row:hover { background: rgba(90,200,220,.08); }
+.proto-page .dash-dark-row .t { color: #e3f1ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proto-page .dash-dark-row .c { color: #8fb3cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proto-page .dash-dark-row .city { color: #6fe6d2; }
+.proto-page .dash-dark-row .s { color: #ffd166; text-align: right; }
+.proto-page .dash-dark-empty { color: #7392ad; font-size: 11px; }
+@media (max-width: 1000px) {
+  .proto-page .dash-dark-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proto-page .dash-dark-grid { grid-template-columns: 1fr; }
+  
+  .proto-page .dash-dark-list { grid-template-columns: 1fr; }
+  .proto-page .dash-dark-head h2 { font-size: 16px; letter-spacing: 3px; }
+}
+
+
+/* 大屏三列布局（左：Top5/学历；中：地图/数据浏览；右：省份薪资/词云） */
+.proto-page .dash-dark { padding-bottom: 18px; }
+.proto-page .dash-dark-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(360px, 1fr) 300px;
+  gap: 12px;
+  padding: 12px 16px 0;
+  align-items: start;
+}
+.proto-page .dash-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.proto-page .dash-col-mid .dash-map { min-height: 330px; }
+.proto-page .dash-panel.wide { min-height: 180px; }
+.proto-page .dash-cloud { position: relative; height: 210px; }
+.proto-page .dash-cloud canvas { width: 100%; height: 100%; display: block; }
+.proto-page .dash-cloud-tags { display: none; }
+@media (max-width: 1180px) {
+  .proto-page .dash-dark-grid { grid-template-columns: 1fr 1fr; }
+  .proto-page .dash-col-mid { grid-column: span 2; }
+}
+@media (max-width: 820px) {
+  .proto-page .dash-dark-grid { grid-template-columns: 1fr; }
+  .proto-page .dash-col-mid { grid-column: span 1; }
+}
+
+/* 大屏细节修正 */
+.proto-page .dash-cloud { overflow: hidden; }
+.proto-page .dash-dark-row .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
+.proto-page .dash-dark-list { max-height: 190px; }
+.proto-page .dash-dark-chart { min-height: 168px; }
+
+/* 大屏：三列等高 + 内部滚动 + 单列数据浏览 */
+.proto-page .dash-dark-grid { align-items: stretch; }
+.proto-page .dash-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.proto-page .dash-col > .dash-panel.grow { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.proto-page .dash-chart-fit { flex: 1 1 auto; min-height: 0; }
+.proto-page .dash-scroll { overflow-y: auto; scrollbar-width: thin; }
+.proto-page .dash-scroll::-webkit-scrollbar { width: 6px; }
+.proto-page .dash-scroll::-webkit-scrollbar-thumb { background: rgba(120,190,230,.35); border-radius: 3px; }
+.proto-page .dash-dark-list.single { display: flex; flex-direction: column; gap: 0; max-height: none; }
+.proto-page .dash-dark-row.single { grid-template-columns: minmax(0,2.4fr) minmax(0,1fr) .55fr .9fr; }
+.proto-page .dash-dark-row.single .t { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35; }
+.proto-page .dash-col-mid .dash-map { min-height: 300px; }
+
+.proto-page .dash-cloud canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.proto-page .dash-toolbar { display: flex; justify-content: flex-end; margin: 0 0 6px; }
+.proto-page .dash-toolbar .btn { font-size: 12px; padding: 6px 14px; }
+.proto-page .dash-dark:fullscreen { border-radius: 0; padding: 10px 16px 18px; overflow: auto; }
+.proto-page .dash-dark:fullscreen .dash-dark-grid { max-height: calc(100vh - 190px); }
+/* 高德 SDK 容器与信息窗 */
+.map-full .amap-host { position: absolute; inset: 0; }
+.amap-info { min-width: 180px; max-width: 260px; font-size: 12px; color: #3f3353; }
+.amap-info strong { display: block; font-size: 13px; margin-bottom: 4px; }
+.amap-info p { margin: 3px 0; color: #6b5c7d; }
+.amap-info a { display: inline-block; margin-top: 6px; color: #7460c9; }
+.amap-info-actions { display: flex; gap: 6px; margin-top: 8px; }
+.amap-info-actions button { flex: 1; border: 1px solid #dcd0ee; background: #faf8fd; color: #5c4b6e; border-radius: 7px; padding: 5px 4px; font-size: 11px; cursor: pointer; }
+
+/* 滚动条保留功能但隐藏显示 */
+.proto-page .dash-dark,
+.proto-page .dash-dark-grid,
+.proto-page .dash-scroll,
+.proto-page .dash-dark-list,
+.proto-page .dash-dark-list.single,
+.proto-page .dash-ai,
+.proto-page .dash-dark { scrollbar-width: none; -ms-overflow-style: none; }
+.proto-page .dash-scroll::-webkit-scrollbar,
+.proto-page .dash-dark::-webkit-scrollbar,
+.proto-page .dash-dark-list::-webkit-scrollbar,
+.proto-page .dash-dark-grid::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* 高德信息窗内容别被压扁 */
+.amap-info-content { width: 250px !important; max-width: 250px !important; padding: 10px 12px !important; }
+.amap-info-close { right: 8px !important; }
+.map-fallback { position: absolute; inset: 0; overflow: hidden; background: #eef1f5; }
+.map-fallback .fb-tile { position: absolute; width: 256px; height: 256px; user-select: none; pointer-events: none; }
+.map-fallback .fb-pin { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); transform: translate(-50%,-50%); cursor: pointer; z-index: 3; padding: 0; }
+.map-fallback .fb-pop { position: absolute; z-index: 6; width: 240px; background: #fff; border: 1px solid #e6def0; border-radius: 10px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(60,40,90,.18); font-size: 12px; color: #3f3353; }
+.map-fallback .fb-pop strong { display: block; margin-bottom: 4px; }
+.map-fallback .fb-pop p { margin: 3px 0; color: #6b5c7d; }
+.map-fallback .fb-pop a { color: #7460c9; }

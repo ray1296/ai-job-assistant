@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, onMounted, onUnmounted, nextTick } from "vue";
+import { defineComponent, h, ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { api, errorText } from "./api";
 import InlineEdit from "./inline-edit";
 import ResumeImport from "./resume-import";
@@ -33,8 +33,25 @@ export default defineComponent({
       redoStack = ref<string[]>([]),
       sectionName = ref(""),
       panel = ref(""),
-      decoration = ref(false),
+      decorStyle = ref<"minimal" | "tech" | "warm">("minimal"),
+      decorBusy = ref(false),
+      decorError = ref(""),
+      decoration = computed(() => !!doc.value?.decoration || !!doc.value?.decorationFooter),
+      // 勾选框只表示"我想让简历带装饰"，真正生成发生在点击 AI 审阅优化时
+      decorEnabled = ref(false),
+      decorSrc = computed(() =>
+        doc.value?.decoration
+          ? "/api/decoration-assets/" + doc.value.decoration.image + ".png"
+          : "",
+      ),
+      decorFooterSrc = computed(() =>
+        doc.value?.decorationFooter
+          ? "/api/decoration-assets/" + doc.value.decorationFooter.image + ".png"
+          : "",
+      ),
       aiPrompt = ref(""),
+      sectionBusy = ref(false),
+      sectionError = ref(""),
       layoutBusy = ref(false),
       layoutSuggestion = ref<any>(null);
     let saved = "";
@@ -86,6 +103,8 @@ export default defineComponent({
       doc.value = r?.body.document
         ? clone(r.body.document)
         : fromLegacy(r?.body.text || "");
+      // 已有装饰的版本，开关默认打开
+      decorEnabled.value = !!(doc.value.decoration || doc.value.decorationFooter);
       saved = snapshot();
       dirty.value = false;
       editing.value = false;
@@ -150,7 +169,8 @@ export default defineComponent({
       layoutBusy.value = true; error.value = ""; layoutSuggestion.value = null;
       const sent = JSON.stringify(doc.value);
       try {
-        const r = await api("/ai/resume-layout", "POST", { document: doc.value, prompt: aiPrompt.value });
+        // 外观建议是独立任务；/ai/resume-layout 只负责"未匹配信息放哪"，输出结构不同。
+        const r = await api("/ai/resume-appearance", "POST", { document: doc.value, prompt: aiPrompt.value }, { timeoutMs: 150000 });
         if (JSON.stringify(doc.value) !== sent) throw Error("文档已变更，请针对最新内容重新生成布局建议");
         layoutSource = sent; layoutSuggestion.value = r.layout;
       } catch (e) { error.value = errorText(e); }
@@ -159,8 +179,68 @@ export default defineComponent({
     function applyLayout() {
       const x = layoutSuggestion.value;
       if (!x || JSON.stringify(doc.value) !== layoutSource) { error.value = "文档已变更，请重新生成布局建议"; return; }
-      change(() => { doc.value.layout = { template: x.template, fontSize: x.fontSize, accent: x.accent }; });
+      // 不信任AI输出的取值：越界一律回落到当前值，避免出现 template-undefined。
+      const template = ["classic", "compact"].includes(x.template) ? x.template : doc.value.layout.template;
+      const fontSize = [13, 14, 15, 16].includes(x.fontSize) ? x.fontSize : doc.value.layout.fontSize;
+      const accent = ["purple", "navy", "charcoal"].includes(x.accent) ? x.accent : doc.value.layout.accent;
+      change(() => { doc.value.layout = { template, fontSize, accent }; });
       layoutSuggestion.value = null; notice.value = "已应用到本地草稿，请检查后保存";
+    }
+    // 一次生成两张装饰（页眉 + 页脚），都是极简纹理，只为不纯白
+    async function generateDecoration() {
+      if (!current.value || decorBusy.value) return;
+      decorBusy.value = true;
+      decorError.value = "";
+      notice.value = "正在生成装饰图（页眉 / 页脚各一张）…";
+      try {
+        const make = async (slot: "header" | "footer") => {
+          const r = await api(
+            "/ai/resume-decoration",
+            "POST",
+            {
+              document: doc.value,
+              style: decorStyle.value,
+              slot,
+              size: "1024x1024",
+              // 该上游只接受 png/jpeg/webp；写 b64_json 会被上游拒绝
+              outputFormat: "png",
+              accent: doc.value.layout.accent,
+            },
+            { timeoutMs: 150000 },
+          );
+          if (!r?.id) throw Error("生图未返回图片");
+          return { image: String(r.id), style: decorStyle.value };
+        };
+        const header = await make("header");
+        change(() => { doc.value.decoration = header; });
+        let footer: { image: string; style: "minimal" | "tech" | "warm" } | null = null;
+        try {
+          footer = await make("footer");
+          change(() => { doc.value.decorationFooter = footer; });
+        } catch (e) {
+          // 页脚失败不影响页眉，明确告诉用户
+          decorError.value = "页脚装饰生成失败：" + errorText(e) + "（页眉已生成）";
+        }
+        const count = footer ? 2 : 1;
+        notice.value =
+          "已生成 " + count + " 张装饰图并并入当前草稿；保存后长期保留。";
+      } catch (e) {
+        decorError.value = errorText(e);
+      } finally {
+        decorBusy.value = false;
+      }
+    }
+    function clearDecoration() {
+      decorError.value = "";
+      if (!doc.value.decoration && !doc.value.decorationFooter) {
+        notice.value = "已关闭生图装饰，简历为白板样式";
+        return;
+      }
+      change(() => {
+        doc.value.decoration = null;
+        doc.value.decorationFooter = null;
+      });
+      notice.value = "已移除生图装饰，简历恢复为白板样式";
     }
     async function save() {
       if (!current.value || busy.value || !flush()) return;
@@ -272,11 +352,76 @@ export default defineComponent({
       sectionName.value = "";
       panel.value = "";
     }
+    // 描述新板块：把需求交给AI，只追加一个新板块，现有板块一律不动。
+    async function generateSection() {
+      if (sectionBusy.value || !current.value) return;
+      const description = aiPrompt.value.trim();
+      if (!description) {
+        sectionError.value = "请先描述你想要的新板块";
+        return;
+      }
+      if (doc.value.sections.length >= 24) {
+        sectionError.value = "板块已达 24 个上限，请先合并或删除";
+        return;
+      }
+      sectionBusy.value = true;
+      sectionError.value = "";
+      try {
+        const r = await api<any>(
+          "/ai/resume-section",
+          "POST",
+          { document: doc.value, description },
+          { timeoutMs: 150000 },
+        );
+        const sec = r?.section;
+        if (!sec || !sec.title || !Array.isArray(sec.items) || !sec.items.length)
+          throw Error("AI未返回可用的板块");
+        change(() =>
+          doc.value.sections.push({
+            id: uid(),
+            title: String(sec.title).slice(0, 160),
+            items: sec.items.slice(0, 40).map((it: any) => ({
+              id: uid(),
+              title: String(it.title || "").slice(0, 240),
+              meta: String(it.meta || "").slice(0, 200),
+              content: String(it.content || "").slice(0, 12000),
+            })),
+          }),
+        );
+        aiPrompt.value = "";
+        panel.value = "";
+        notice.value = "已新增板块“" + String(sec.title) + "”，可在文档里继续双击修改。";
+      } catch (e) {
+        sectionError.value = errorText(e);
+      } finally {
+        sectionBusy.value = false;
+      }
+    }
     function move(i: number, delta: number) {
       if (i + delta < 0 || i + delta >= doc.value.sections.length) return;
       change(() => {
         const s = doc.value.sections.splice(i, 1)[0];
         doc.value.sections.splice(i + delta, 0, s);
+      });
+    }
+    const pages = computed(() => {
+      const breaks = new Set(doc.value.pageBreaks || []);
+      const groups: Section[][] = [];
+      for (const s of doc.value.sections) {
+        if (breaks.has(s.id) && groups.length && groups[groups.length - 1].length)
+          groups.push([]);
+        if (!groups.length) groups.push([]);
+        groups[groups.length - 1].push(s);
+      }
+      if (!groups.length) groups.push([]);
+      return groups;
+    });
+    function togglePageBreak(id: string) {
+      const cur = new Set(doc.value.pageBreaks || []);
+      if (cur.has(id)) cur.delete(id);
+      else cur.add(id);
+      change(() => {
+        doc.value.pageBreaks = [...cur];
       });
     }
     async function word() {
@@ -351,6 +496,21 @@ export default defineComponent({
                   onClick: () => move(index, 1),
                 },
                 "↓",
+              ),
+              h(
+                "button",
+                {
+                  title: (doc.value.pageBreaks || []).includes(s.id)
+                    ? "取消在此板块前换页"
+                    : "在此板块前换页（新增一页）",
+                  "aria-label": "换页-" + s.title,
+                  class: (doc.value.pageBreaks || []).includes(s.id)
+                    ? "page-break-on"
+                    : "",
+                  disabled: index === 0,
+                  onClick: () => togglePageBreak(s.id),
+                },
+                "换页",
               ),
               h(
                 "button",
@@ -440,6 +600,10 @@ export default defineComponent({
         ]),
         h(AiReview, {
           document: doc.value,
+          // 勾选了装饰时，点"AI 审阅优化"顺带生成，未勾选就只做内容审阅
+          onBefore: async () => {
+            if (decorEnabled.value && !decoration.value) await generateDecoration();
+          },
           disabled: busy.value || editing.value,
           onApply: (items: any[]) => {
             const targets: { object: any; key: string; suggestion: any }[] = [];
@@ -451,10 +615,17 @@ export default defineComponent({
               doc.value.sections.forEach((section, si) => section.items.forEach((item, ii) => {
                 for (const key of ["title", "meta", "content"]) scan(item, key, `sections.${si}.items.${ii}.${key}`);
               }));
-              const path = String(s.field).replace(/^document\./, "");
-              const exact = matches.filter(m => m.path === path);
-              const explicit = /^(?:header\.|sections(?:\.|\[))/.test(path);
-              const eligible = explicit ? exact : matches;
+              // AI 可能用 sections[0].items[1].content 这类方括号写法，统一成点号路径。
+              const path = String(s.field)
+                .replace(/^document\./, "")
+                .replace(/\[(\d+)\]/g, ".$1")
+                // AI 也常用 header/headline 这种斜杠写法
+                .replace(/^(header|sections)\//, "$1.");
+              const exact = matches.filter((m) => m.path === path);
+              const explicit = /^(?:header\.|sections\.)/.test(path);
+              // 明确路径但没命中时，只要原文唯一，仍允许按原文定位。
+              const eligible =
+                explicit && exact.length ? exact : matches;
               if (eligible.length !== 1) throw Error("原文已变化或出现多处相同文本，请明确定位后重新审阅");
               const target = eligible[0];
               if (targets.some(t => t.object === target.object && t.key === target.key)) throw Error("同一字段有多条建议，请逐条采纳");
@@ -529,19 +700,6 @@ export default defineComponent({
               "＋ 描述新板块，AI 帮你添加",
             ),
           ]),
-          h("label", { class: "decor-toggle" }, [
-            h("input", {
-              type: "checkbox",
-              checked: decoration.value,
-              onChange: (e: Event) => {
-                decoration.value = (e.target as HTMLInputElement).checked;
-                notice.value =
-                  "已保留本次生图偏好；当前未接生图，不会发起调用或产生费用";
-              },
-            }),
-            "生图装饰简历（可选，默认关闭）",
-          ]),
-          h("small", "AI与生图尚未接通；原有能力入口保留，未调用不会计费。"),
         ]),
         loading.value
           ? h("p", { role: "status" }, "正在读取你的文档…")
@@ -592,26 +750,52 @@ export default defineComponent({
                         },
                         "×",
                       ),
-                      panel.value.startsWith("ai-")
+                      panel.value === "ai-section"
                         ? h("div", [
-                            h("h3", "保留你的 AI 编辑需求"),
+                            h("h3", "描述新板块，AI 帮你添加"),
                             h(
                               "p",
-                              "统一AI网关与可确认修改将在后续批次接入。此处目前不生成内容，也不会伪造修改结果。",
+                              "用一句话说清要加什么（例如“加一个开源贡献板块，放我维护的 Vue 组件库”），AI 会生成一个板块并追加到简历末尾；现有板块不会被改写。",
                             ),
                             h("textarea", {
                               value: aiPrompt.value,
                               placeholder:
-                                "例如：增加开源贡献板块，保持事实不变…",
+                                "例如：增加开源贡献板块，写我维护的 Vue 组件库和 300+ star…",
                               "aria-label": "AI编辑需求",
+                              maxlength: 2000,
+                              rows: 4,
                               onInput: (e: Event) =>
                                 (aiPrompt.value = (
                                   e.target as HTMLTextAreaElement
                                 ).value),
                             }),
+                            h("div", { class: "panel-actions" }, [
+                              h(
+                                "button",
+                                {
+                                  class: "primary",
+                                  disabled:
+                                    sectionBusy.value ||
+                                    busy.value ||
+                                    editing.value ||
+                                    !aiPrompt.value.trim(),
+                                  onClick: generateSection,
+                                },
+                                sectionBusy.value
+                                  ? "AI正在撰写板块…"
+                                  : "AI 生成并添加板块",
+                              ),
+                            ]),
+                            sectionError.value
+                              ? h(
+                                  "p",
+                                  { class: "error", role: "alert" },
+                                  sectionError.value,
+                                )
+                              : null,
                             h(
                               "small",
-                              "你现在可以用“编辑 → 新增板块”手动完成文档调整。",
+                              "生成后仍可撤销（Ctrl/Cmd+Z）；事实请以你提供的描述为准。",
                             ),
                           ])
                         : panel.value === "file"
@@ -837,64 +1021,101 @@ export default defineComponent({
                     "重做",
                   ),
                 ]),
-                h("div", { class: "resume-desk single-document-desk" }, [
-                  h(
-                    "article",
-                    {
-                      class: [
-                        "resume-document",
-                        "paper",
-                        "template-" + doc.value.layout.template,
-                        "accent-" + doc.value.layout.accent,
-                      ],
-                      style: {
-                        "--resume-font": doc.value.layout.fontSize + "px",
+                h(
+                  "div",
+                  { class: "resume-desk single-document-desk" },
+                  pages.value.map((pageSections, pi) =>
+                    h(
+                      "article",
+                      {
+                        key: pi,
+                        class: [
+                          "resume-document",
+                          "paper",
+                          "template-" + doc.value.layout.template,
+                          "accent-" + doc.value.layout.accent,
+                        ],
+                        style: {
+                          "--resume-font": doc.value.layout.fontSize + "px",
+                        },
+                        "data-page": pi + 1,
+                        "aria-label": "简历文档 第" + (pi + 1) + "页",
                       },
-                      "aria-label": "简历文档",
-                    },
-                    [
-                      h("header", { class: "document-header" }, [
-                        edit(
-                          doc.value.header.name,
-                          "简历姓名",
-                          (v) => (doc.value.header.name = v),
-                          "h1",
-                          "双击填写你的姓名",
-                          false,
-                          120,
+                      [
+                        decoration.value && decorSrc.value
+                          ? h("div", { class: "decor-band", "aria-hidden": "true" }, [
+                              h("img", { src: decorSrc.value, alt: "" }),
+                            ])
+                          : null,
+                        pi === 0
+                          ? [
+                              h("header", { class: "document-header" }, [
+                                edit(
+                                  doc.value.header.name,
+                                  "简历姓名",
+                                  (v) => (doc.value.header.name = v),
+                                  "h1",
+                                  "双击填写你的姓名",
+                                  false,
+                                  120,
+                                ),
+                                edit(
+                                  doc.value.header.headline,
+                                  "简历求职意向",
+                                  (v) => (doc.value.header.headline = v),
+                                  "p",
+                                  "双击填写意向岗位 · 意向城市",
+                                  false,
+                                  400,
+                                ),
+                                edit(
+                                  doc.value.header.contact,
+                                  "简历联系方式",
+                                  (v) => (doc.value.header.contact = v),
+                                  "p",
+                                  "双击填写电话 / 邮箱",
+                                  false,
+                                  600,
+                                ),
+                              ]),
+                              edit(
+                                doc.value.header.summary,
+                                "简历个人简介",
+                                (v) => (doc.value.header.summary = v),
+                                "p",
+                                "双击填写个人简介（可留空）",
+                                true,
+                                8000,
+                              ),
+                            ]
+                          : h("header", { class: "document-header page-runner" }, [
+                              h(
+                                "span",
+                                { class: "page-runner-name" },
+                                doc.value.header.name || "简历",
+                              ),
+                              h(
+                                "span",
+                                { class: "page-runner-num" },
+                                "第 " +
+                                  (pi + 1) +
+                                  " 页 · 共 " +
+                                  pages.value.length +
+                                  " 页",
+                              ),
+                            ]),
+                        ...pageSections.map((s) =>
+                          section(s, doc.value.sections.indexOf(s)),
                         ),
-                        edit(
-                          doc.value.header.headline,
-                          "简历求职意向",
-                          (v) => (doc.value.header.headline = v),
-                          "p",
-                          "双击填写意向岗位 · 意向城市",
-                          false,
-                          400,
-                        ),
-                        edit(
-                          doc.value.header.contact,
-                          "简历联系方式",
-                          (v) => (doc.value.header.contact = v),
-                          "p",
-                          "双击填写电话 / 邮箱",
-                          false,
-                          600,
-                        ),
-                      ]),
-                      edit(
-                        doc.value.header.summary,
-                        "简历个人简介",
-                        (v) => (doc.value.header.summary = v),
-                        "p",
-                        "双击填写个人简介（可留空）",
-                        true,
-                        8000,
-                      ),
-                      ...doc.value.sections.map(section),
-                    ],
+                        pi === pages.value.length - 1 && decorFooterSrc.value
+                          ? h("div", { class: "decor-band decor-band-footer", "aria-hidden": "true" }, [
+                              h("img", { src: decorFooterSrc.value, alt: "" }),
+                            ])
+                          : null,
+                      ],
+                    ),
                   ),
-                ]),
+                ),
                 h("div", { class: "save-bar document-save" }, [
                   h(
                     "button",
@@ -926,6 +1147,66 @@ export default defineComponent({
                     "删除当前版本",
                   ),
                 ]),
+                // 生图装饰是独立的"外观"功能，特意与"描述新板块"分开摆放，避免两个功能挤在一起。
+                h("section", { class: "decor-panel", "aria-label": "简历页面装饰" }, [
+                  h("div", { class: "decor-panel-head" }, [
+                    h("h3", "生图装饰"),
+                    h("small", "给白板简历加一条低调的页面装饰带，不影响正文；可选，默认关闭。"),
+                  ]),
+            h("label", { class: "decor-toggle" }, [
+              h("input", {
+                type: "checkbox",
+                checked: decorEnabled.value,
+                disabled: decorBusy.value,
+                onChange: (e: Event) => {
+                  decorEnabled.value = (e.target as HTMLInputElement).checked;
+                  if (!decorEnabled.value) clearDecoration();
+                  else notice.value = "已开启；点右侧「AI 审阅优化」时会一并生成装饰图（页眉+页脚）";
+                },
+              }),
+              "让 AI 审阅时一并加生图装饰（默认关闭）",
+            ]),
+            decoration.value
+              ? h("div", { class: "decor-controls" }, [
+                  h(
+                    "span",
+                    { class: "decor-label" },
+                    decorBusy.value ? "正在生成装饰图…" : "装饰风格",
+                  ),
+                  h(
+                    "select",
+                    {
+                      "aria-label": "装饰风格",
+                      disabled: decorBusy.value,
+                      value: decorStyle.value,
+                      onChange: (e: Event) => {
+                        decorStyle.value = (e.target as HTMLSelectElement)
+                          .value as "minimal" | "tech" | "warm";
+                      },
+                    },
+                    [
+                      ["minimal", "极简（推荐）"],
+                      ["tech", "科技"],
+                      ["warm", "暖色"],
+                    ].map(([v, t]) => h("option", { value: v }, t)),
+                  ),
+                  h(
+                    "button",
+                    { disabled: decorBusy.value, onClick: () => void generateDecoration() },
+                    decorBusy.value ? "生成中…" : "重新生成",
+                  ),
+                  h(
+                    "button",
+                    {
+                      disabled: decorBusy.value || !decorSrc.value,
+                      onClick: () => clearDecoration(),
+                    },
+                    "移除装饰",
+                  ),
+                ])
+              : h("small", "勾选只是打开开关，不会立刻调用生图；点右侧「AI 审阅优化」时才会生成（页眉 + 页脚各一张）。"),
+            decorError.value ? h("small", { class: "decor-error", role: "alert" }, decorError.value) : null,
+                ]),
               ])
             : h("section", { class: "card empty" }, [
                 h("h2", "让你的故事落在纸上"),
@@ -949,7 +1230,7 @@ export default defineComponent({
         h(
           "p",
           { class: "privacy-note" },
-          "文档按账号保存；Word在浏览器本地生成，PDF使用浏览器打印另存。AI/生图未接通，不向第三方发送资料。",
+          "文档按账号保存；Word在浏览器本地生成，PDF用浏览器打印另存。AI与生图只在你主动点击时调用，不会后台发送资料。",
         ),
       ]);
   },

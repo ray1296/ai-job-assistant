@@ -20,6 +20,7 @@
 !/app/data/jobs-manifest.json
 !/app/data/learning-catalog.json
 !/app/data/learning-manifest.json
+!/app/data/housing-catalog.json
 **/uploads/
 **/private/
 **/*.log

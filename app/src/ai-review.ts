@@ -14,6 +14,8 @@ export default defineComponent({
   props: {
     document: { type: Object, required: true },
     onApply: { type: Function, required: true },
+    /** 审阅开始前的可选动作（例如按开关生成生图装饰） */
+    onBefore: { type: Function, required: false },
     disabled: Boolean,
   },
   setup(props) {
@@ -28,7 +30,10 @@ export default defineComponent({
       if (busy.value || props.disabled) return;
       busy.value = true; error.value = ""; notice.value = "";
       try {
-        const r = await api("/ai/resume-review", "POST", { document: props.document, prompt: prompt.value });
+        // 先执行可选的前置动作（生图装饰），再做内容审阅
+        if (props.onBefore) await props.onBefore();
+        // AI 审阅耗时远超 api() 的 12s 默认超时，必须显式放宽。
+        const r = await api("/ai/resume-review", "POST", { document: props.document, prompt: prompt.value }, { timeoutMs: 150000 });
         suggestions.value = r.suggestions;
         selected.value = [];
         notice.value = suggestions.value.length

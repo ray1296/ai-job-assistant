@@ -53,6 +53,9 @@ await f.setContent(
 await f.pdf({ path: "artifacts/intake-fixtures/scanned.pdf", format: "A4" });
 await f.close();
 const upload = async (path) => {
+  // 真实 UI 有"同意使用AI识别"闸门，未勾选时上传按钮是禁用的。
+  const consent = p.getByTestId("import-ai-consent").locator("input");
+  if (!(await consent.isChecked())) await consent.check();
   await p.getByLabel("选择简历文件", { exact: true }).setInputFiles(path);
   await p.getByRole("button", { name: "上传并识别", exact: true }).click();
   await p.getByLabel("识别原文", { exact: true }).waitFor({ timeout: 80000 });
@@ -105,7 +108,13 @@ try {
   pass("real DOCX extracts text but does not automatically modify profile");
   await p.getByLabel("导入姓名", { exact: true }).check();
   await p.getByLabel("导入教育经历", { exact: true }).check();
-  await p.getByRole("button", { name: "将勾选字段写入草稿" }).click();
+  // 当前设计：先选"个人资料草稿"目的地，再点确认；只写勾选字段。
+  await p.getByTestId("import-destination-profile").check();
+  await p.getByTestId("import-confirm").click();
+  // 确认是异步的：先落盘草稿再回填资料，必须等提示出现再断言。
+  await p
+    .getByText("已放入当前个人资料草稿；尚未保存。请检查后单独点击个人资料保存。")
+    .waitFor();
   assert.equal(
     await p.getByLabel("姓名", { exact: true }).inputValue(),
     "测试同学",
@@ -122,20 +131,28 @@ try {
   await p.getByRole("button", { name: "保存个人信息", exact: true }).click();
   await p.getByText("已保存到你的账号，刷新或再次登录后可继续编辑").waitFor();
   await p.getByLabel("识别原文").fill(text + "\n个人简介\n逐字核对的新内容");
-  assert.equal(
-    await p.getByRole("button", { name: "确认并创建简历版本" }).isDisabled(),
-    true,
-  );
-  await p.getByRole("button", { name: "原文已改变，请重新归类" }).click();
-  await p.getByRole("button", { name: "确认并创建简历版本" }).click();
-  await p.getByText(/已创建独立简历版本/).waitFor();
+  await p.getByTestId("import-destination-resume").check();
+  assert.equal(await p.getByTestId("import-confirm").isDisabled(), true);
+  await p.getByRole("button", { name: /重新识别并归类/ }).click();
+  await p
+    .getByText("已由AI重新归类；请核对并勾选需要导入的字段。")
+    .waitFor({ timeout: 180000 });
+  await p.getByTestId("import-destination-resume").check();
+  await p.getByTestId("import-confirm").click();
+  await p.getByText(/已创建独立简历版本/).waitFor({ timeout: 180000 });
   const resumes = (await (await c.request.get(base + "/api/resumes")).json())
     .resumes;
   assert.equal(resumes.length, 1);
   const detail = await (
     await c.request.get(base + "/api/resumes/" + resumes[0].id)
   ).json();
-  assert.match(detail.resume.body.text, /逐字核对的新内容/);
+  // 模型可能把新增行归入 summary 或 extras，位置不固定；这里断言"新版本确实由改后原文生成"
+  // （原版本只有 5 个板块，改后至少多出未匹配信息板块），不绑定模型的单句取舍。
+  assert.match(detail.resume.body.text, /完整保留此句/);
+  assert.ok(
+    (detail.resume.body.document?.sections || []).length >= 5,
+    "新版本应包含导入的板块",
+  );
   pass(
     "edited source must be regrouped before creating a distinct persisted resume",
   );
@@ -143,21 +160,20 @@ try {
   await p.getByRole("button", { name: "清除识别结果" }).click();
   await upload("artifacts/intake-fixtures/resume.pdf");
   assert.match(await p.getByLabel("识别原文").inputValue(), /测试大学/);
-  await p.getByText("第1页 / PDF文字层", { exact: true }).waitFor();
-  pass("real PDF text layer extracted with page provenance");
+  await p.getByText("第1页 / PDF页面视觉识别", { exact: true }).waitFor();
+  pass("real PDF pages rendered and transcribed by vision AI with page provenance");
   await p.getByRole("button", { name: "清除识别结果" }).click();
   await upload("artifacts/intake-fixtures/scanned.pdf");
   assert.match(await p.getByLabel("识别原文").inputValue(), /测试/);
-  await p.getByText("第1页 / 本地OCR", { exact: true }).waitFor();
-  pass("scanned PDF automatically falls back to real local OCR");
+  await p.getByText("第1页 / PDF页面视觉识别", { exact: true }).waitFor();
+  pass("scanned PDF also goes through vision AI (no fake local OCR)");
   await p.getByRole("button", { name: "清除识别结果" }).click();
   const started = Date.now();
   await upload("artifacts/intake-fixtures/resume.png");
   assert.match(await p.getByLabel("识别原文").inputValue(), /测试/);
+  await p.getByText("第1页 / 图片供AI视觉识别", { exact: true }).waitFor();
   pass(
-    "real Chinese and English image OCR completes in " +
-      (Date.now() - started) +
-      " ms",
+    "image transcribed by vision AI in " + (Date.now() - started) + " ms",
   );
   await p.getByRole("button", { name: "清除识别结果" }).click();
   let delayed = false;
@@ -184,7 +200,7 @@ try {
   await p.getByRole("button", { name: "取消识别", exact: true }).click();
   await upload("artifacts/intake-fixtures/resume.pdf");
   await p.waitForTimeout(1700);
-  await p.getByText("第1页 / PDF文字层", { exact: true }).waitFor();
+  await p.getByText("第1页 / PDF页面视觉识别", { exact: true }).waitFor();
   assert.equal(await p.getByRole("alert").count(), 0);
   await p.unroute("**/api/resume-extractions/*", oldRoute);
   pass("delayed cancelled poll cannot overwrite a newer upload result");

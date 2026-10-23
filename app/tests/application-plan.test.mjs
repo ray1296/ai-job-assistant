@@ -112,7 +112,7 @@ test("HTTP auth, CSRF, accounts, CAS races and durable deselection", async () =>
       [intent, "PUT", undefined],
       [intent, "DELETE", undefined],
       ["/api/ai/application-copy", "POST", { jobId: id }],
-      ["/api/job-intents", "PUT", { jobIds: [id] }],
+      ["/api/job-intents", "PUT", { jobIds: [id], expected: [] }],
     ]) {
       assert.equal(
         (await req({ cookie: a.cookie }, route, method, payload)).status,
@@ -200,13 +200,19 @@ test("HTTP auth, CSRF, accounts, CAS races and durable deselection", async () =>
     const actual = (await req(a, "/api/jobs/" + id)).data.job;
     assert.deepEqual(list.items.find((x) => x.job.id === id).job, actual);
     assert.equal(
-      (await req(a, "/api/job-intents", "PUT", { jobIds: [id, "bogus"] }))
+      (await req(a, "/api/job-intents", "PUT", { jobIds: [id, "bogus"], expected: [] }))
         .status,
       400,
     );
     assert.equal((await req(a, "/api/job-intents")).data.jobIds.length, 2);
+    const snapshot = (await req(a, "/api/job-intents")).data.jobIds;
+    // 基准过期必须 409，防止两个页面互相覆盖
     assert.equal(
-      (await req(a, "/api/job-intents", "PUT", { jobIds: [id] })).status,
+      (await req(a, "/api/job-intents", "PUT", { jobIds: [id], expected: [id] })).status,
+      409,
+    );
+    assert.equal(
+      (await req(a, "/api/job-intents", "PUT", { jobIds: [id], expected: snapshot })).status,
       200,
     );
     assert.deepEqual((await req(a, "/api/job-intents")).data.jobIds, [id]);

@@ -132,7 +132,9 @@ export default defineComponent({
       candidate.value = null;
       proposal.value = null;
       selected.value = []; addToNotes.value = false;
-      if (id && !pendingId.value) await removeJob(id);
+      // 服务端临时识别结果有名额上限（每账号4个），必须无条件释放；
+      // 待确认草稿存在 resume_imports 里，与这个临时 job 无关，删掉不影响恢复。
+      if (id) await removeJob(id);
     }
     async function start() {
       if (!file.value || processing.value || saving.value || props.disabled)
@@ -286,7 +288,7 @@ export default defineComponent({
       try {
         let finalDocument = document;
         if (extraInformation.value) {
-          const placed = await api<{layout:{document:{sections:any[]}}}>("/ai/resume-layout", "POST", { document, extras: proposal.value.extras || [], prompt: "以下内容是已识别并保留原文的未匹配分类信息，请按分类决定合适的简历位置：\n" + extraInformation.value });
+          const placed = await api<{layout:{document:{sections:any[]}}}>("/ai/resume-layout", "POST", { document, extras: proposal.value.extras || [], prompt: "以下内容是已识别并保留原文的未匹配分类信息，请按分类决定合适的简历位置：\n" + extraInformation.value }, { timeoutMs: 150000 });
           finalDocument = { ...document, sections: placed.layout.document.sections };
         }
         const title = (filename.value.replace(/\.[a-zA-Z0-9]+$/, "") || "识别导入").slice(0, 90) + " · 导入";

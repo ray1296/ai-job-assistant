@@ -6,6 +6,9 @@ import { createExtractionService } from "./resume-extraction.mjs";
 import { createResumeImports } from "./resume-import.mjs";
 import { createAiGateway, validateLayoutInput } from "./ai-gateway.mjs";
 import { createApplicationPlan } from "./application-plan.mjs";
+import { createDashboard } from "./dashboard.mjs";
+import { createDatasets } from "./datasets.mjs";
+import { createGeo } from "./geo.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
@@ -25,6 +28,24 @@ const extraction = createExtractionService(dataDir, (...args) =>
   resumeImports.recognize(...args),
 );
 const aiGateway = createAiGateway(dataDir);
+const DATASET_FIELDS = {
+  jobs: { title: "岗位名称", company: "公司", city: "城市", salary: "薪资", education: "学历", address: "详细地址", status: "投递状态", link: "链接", appliedAt: "投递时间", notes: "备注" },
+  companies: { name: "企业名称", industry: "行业", scale: "规模", city: "城市", address: "地址", website: "官网", notes: "备注" },
+  housing: { title: "房源标题", address: "地址", rent: "月租", area: "面积", layout: "户型", city: "城市", contact: "联系人", phone: "电话", notes: "备注" },
+  knowledge: { topic: "主题", question: "问题", answer: "答案", tags: "标签", source: "来源" },
+};
+const dashboardData = createDashboard();
+// AI 是否配置可用：读 ai-config.json（不落日志、不返回密钥）。
+function aiConfigured() {
+  try {
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(dataDir, "ai-config.json"), "utf8"),
+    );
+    return !!(cfg?.baseUrl && cfg?.apiKey && cfg?.model);
+  } catch {
+    return false;
+  }
+}
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
 fs.chmodSync(dbPath, 0o600);
@@ -44,6 +65,20 @@ const applicationPlan = createApplicationPlan(db, getJob);
 const learning = createLearning(db);
 const resumeImports = createResumeImports(db, dataDir, profileData);
 const applicationCopy = createApplicationCopy(dataDir);
+// 数据空间：依赖 db 与 aiGateway，必须在这两者之后创建
+const datasets = createDatasets(db, dataDir, {
+  ai: {
+    dataset: (input) => aiGateway.dataset(null, { ...input, fields: DATASET_FIELDS }),
+    salary: (input) => aiGateway.salary(null, input),
+  },
+});
+// 地图与通勤：高德 REST 只在服务端调用，key 不落前端包
+const geo = createGeo(dataDir, {
+  db,
+  intentJobIds: (userId) => applicationPlan.jobIds(userId),
+  getJob,
+  housingSets: (userId) => datasets.rowsForMap(userId, "housing", 120),
+});
 const stmt = {
   user: db.prepare(
     "SELECT id,email,password_hash,salt FROM users WHERE email=?",
@@ -199,7 +234,18 @@ const server = http.createServer(async (req, res) => {
   );
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+    // 高德 JS 地图需要放开它自己的脚本、瓦片与接口域名（只放行 amap.com / autonavi.com）
+    "default-src 'self'; " +
+      // 高德 JS SDK 2.0 内部使用 eval/Function 解析矢量数据，必须放开 'unsafe-eval'
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://webapi.amap.com https://*.amap.com; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob: https://*.amap.com https://*.is.autonavi.com https://*.autonavi.com; " +
+      "connect-src 'self' https://*.amap.com https://*.autonavi.com; " +
+      "font-src 'self' data: https://*.amap.com; " +
+      "media-src 'self' blob:; " +
+      // 高德 SDK 用 blob: Worker 做渲染，不显式声明 worker-src 会回退到 script-src 而被拦
+      "worker-src 'self' blob:; child-src 'self' blob:; " +
+      "frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
   );
   try {
     const url = new URL(req.url, "http://local"),
@@ -228,7 +274,8 @@ const server = http.createServer(async (req, res) => {
           learning: true,
           questionCount,
           localExtraction: true,
-          ai: false,
+          // 反映真实配置，而不是写死；此前写死 false 会误导排查。
+          ai: aiConfigured(),
           resumeDocument: 2,
         });
       if (p === "/api/auth/session" && m === "GET") {
@@ -390,6 +437,142 @@ const server = http.createServer(async (req, res) => {
           200,
           learning.save(s.user_id, questionMatch[1], await body(req)),
         );
+      // 地图改为自绘瓦片后，前端不再需要高德 key；key 只留在服务端。
+      if (p === "/api/geo/config" && m === "GET")
+        return send(res, 200, { configured: geo.hasKey, js: geo.js() });
+      if (p === "/api/geo/poi-detail" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        const id = String(url.searchParams.get("id") || "").slice(0, 40);
+        if (!id) throw failure(400, "缺少地点 id");
+        limited("poid:" + s.user_id, 60, 60000);
+        return send(res, 200, { poi: await geo.poiDetail(id) });
+      }
+      if (p === "/api/geo/subway-lines" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        limited("subline:" + s.user_id, 30, 60000);
+        return send(res, 200, await geo.subwayLines(String(url.searchParams.get("city") || "上海")));
+      }
+      if (p === "/api/geo/geocode" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        const address = String(url.searchParams.get("address") || "").slice(0, 120);
+        if (!address) throw failure(400, "请输入地址");
+        limited("geocode:" + s.user_id, 60, 60000);
+        const hit = await geo.geocode(address, String(url.searchParams.get("city") || ""), undefined);
+        return send(res, 200, { result: hit });
+      }
+      if (p === "/api/geo/layers" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        limited("geo:" + s.user_id, 60, 60000);
+        return send(res, 200, await geo.layers(s.user_id, url.searchParams.get("city") || "", undefined));
+      }
+      if (p === "/api/geo/nearby" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        limited("geo:" + s.user_id, 60, 60000);
+        const kind = url.searchParams.get("kind") || "hotel";
+        if (kind === "subway")
+          return send(res, 200, { pois: await geo.subway(url.searchParams.get("city") || "", undefined) });
+        const lng = Number(url.searchParams.get("lng"));
+        const lat = Number(url.searchParams.get("lat"));
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) throw failure(400, "缺少有效坐标");
+        const types = String(url.searchParams.get("types") || "100000").replace(/[^0-9|]/g, "").slice(0, 40) || "100000";
+        return send(res, 200, {
+          pois: await geo.around(lng, lat, Number(url.searchParams.get("radius") || 2000), types, undefined),
+        });
+      }
+      if (p === "/api/geo/route" && m === "POST") {
+        const x = await body(req);
+        limited("geo:" + s.user_id, 60, 60000);
+        const from = { lng: Number(x.from?.lng), lat: Number(x.from?.lat) };
+        const to = { lng: Number(x.to?.lng), lat: Number(x.to?.lat) };
+        if (![from.lng, from.lat, to.lng, to.lat].every(Number.isFinite)) throw failure(400, "起终点坐标无效");
+        return send(res, 200, {
+          route: await geo.route(String(x.mode || "drive"), from, to, String(x.city || ""), undefined),
+        });
+      }
+      if (p === "/api/geo/ai-assist" && m === "POST") {
+        const x = await body(req);
+        limited("geoai:" + s.user_id, 12, 600000);
+        const lng = Number(x.lng), lat = Number(x.lat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) throw failure(400, "请先在地图上选一个起点");
+        const radius = Math.min(Math.max(Number(x.radius) || 2000, 500), 20000);
+        const label = String(x.label || "所选位置").slice(0, 60);
+        const hotels = (await geo.around(lng, lat, radius, "100000", undefined)).slice(0, 10);
+        const housing = [];
+        for (const set of datasets.rowsForMap(s.user_id, "housing", 40)) {
+          const col = set.mapping?.address;
+          for (const row of set.rows.slice(0, 6)) {
+            const address = col ? row[col] : "";
+            if (!address) continue;
+            const pos = await geo.geocode(address, "", undefined).catch(() => null);
+            if (!pos) continue;
+            housing.push({
+              title: (set.mapping?.title && row[set.mapping.title]) || address,
+              address,
+              rent: (set.mapping?.rent && row[set.mapping.rent]) || "",
+              phone: (set.mapping?.phone && row[set.mapping.phone]) || "",
+              pos,
+            });
+          }
+        }
+        const jobs = [];
+        for (const id of applicationPlan.jobIds(s.user_id).slice(0, 4)) {
+          const job = getJob(id);
+          if (!job) continue;
+          const pos = await geo.geocode(job.address || job.city, job.city, undefined).catch(() => null);
+          if (!pos) continue;
+          const r = await geo.route("drive", { lng, lat }, pos, job.city, undefined).catch(() => null);
+          jobs.push({ title: job.title, company: job.company, minutes: r ? Math.round(r.duration / 60) : null, pos });
+        }
+        const payload = {
+          place: label,
+          radius,
+          need: String(x.need || "").slice(0, 300),
+          anchorType: x.anchorType === "housing" ? "housing" : "job",
+          hotels: hotels.map((h) => ({ name: h.name, distance: h.distance, tel: h.tel, address: h.address })),
+          housing: housing.map((h) => ({ title: h.title, rent: h.rent, address: h.address })),
+          jobs,
+        };
+        const ai = await aiGateway.geo(s.user_id, payload).catch((e) => ({ geo: { advice: "AI 暂时不可用：" + (e.message || ""), picks: [], tips: [] } }));
+        return send(res, 200, { advice: ai.geo?.advice || "", picks: ai.geo?.picks || [], tips: ai.geo?.tips || [], candidates: { hotels, housing, jobs } });
+      }
+      if (p === "/api/datasets" && m === "GET")
+        return send(res, 200, { datasets: datasets.list(s.user_id) });
+      if (p === "/api/datasets" && m === "POST") {
+        limited("dataset:" + s.user_id, 20, 600000);
+        const length = Number(req.headers["content-length"]);
+        if (!Number.isFinite(length) || length <= 0 || length > 8 * 1024 * 1024)
+          throw failure(413, "文件需小于 8MiB");
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        if (buffer.length !== length) throw failure(400, "上传不完整，请重新选择文件");
+        const rawName = String(req.headers["x-file-name"] || "未命名数据");
+        let name = rawName;
+        try { name = decodeURIComponent(rawName); } catch {}
+        name = name.replace(/[\x00-\x1f\x7f/\\]/g, "_").slice(0, 120);
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        const created = await datasets.create(s.user_id, {
+          category: String(req.headers["x-category"] || ""),
+          name,
+          buffer,
+          ext,
+        });
+        return send(res, 201, { dataset: created });
+      }
+      const datasetMatch = p.match(/^\/api\/datasets\/([a-f0-9]{24})$/);
+      if (datasetMatch && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        return send(res, 200, {
+          dataset: datasets.detail(s.user_id, datasetMatch[1], Number(url.searchParams.get("offset") || 0), Number(url.searchParams.get("limit") || 100)),
+        });
+      }
+      if (datasetMatch && m === "DELETE")
+        return send(res, 200, datasets.remove(s.user_id, datasetMatch[1]));
+      if (p === "/api/dashboard/summary" && m === "GET") {
+        limited("dash:" + req.socket.remoteAddress, 120);
+        const city = new URL(req.url, "http://x").searchParams.get("city") || "全国";
+        return send(res, 200, dashboardData.summary(city.slice(0, 20)));
+      }
       if (p === "/api/jobs" && m === "GET") {
         const allowed = [
           "q",
@@ -425,7 +608,7 @@ const server = http.createServer(async (req, res) => {
         return send(
           res,
           200,
-          applicationPlan.replaceIntents(s.user_id, x.jobIds),
+          applicationPlan.replaceIntents(s.user_id, x.jobIds, x.expected),
         );
       }
       const intentMatch = p.match(/^\/api\/job-intents\/([a-f0-9]{24})$/);
@@ -480,6 +663,63 @@ const server = http.createServer(async (req, res) => {
           await aiGateway.review(s.user_id, {
             document,
             prompt: typeof x.prompt === "string" ? x.prompt.slice(0, 1000) : "",
+          }),
+        );
+      }
+      const decorAsset = p.match(/^\/api\/decoration-assets\/([a-f0-9]{24})\.png$/);
+      if (decorAsset && m === "GET") {
+        const file = path.join(dataDir, "decoration-assets", decorAsset[1] + ".png");
+        let buf;
+        try {
+          buf = await fs.promises.readFile(file);
+        } catch {
+          throw failure(404, "装饰图不存在");
+        }
+        res.writeHead(200, {
+          "Content-Type": "image/png",
+          "Cache-Control": "private, max-age=86400",
+          "X-Content-Type-Options": "nosniff",
+        });
+        return res.end(buf);
+      }
+      if (p === "/api/ai/resume-decoration" && m === "POST") {
+        const x = await body(req);
+        const document = validateDocument(x.document);
+        limited("decor:" + s.user_id, 6, 600000);
+        const input = {
+          style: ["minimal", "tech", "warm"].includes(x.style) ? x.style : "minimal",
+          slot: x.slot === "footer" ? "footer" : "header",
+          size: /^[0-9]{3,4}x[0-9]{3,4}$/.test(String(x.size || "")) ? x.size : "1024x1024",
+          accentText: typeof x.accent === "string" ? x.accent.slice(0, 40) : "",
+          outputFormat: ["png", "jpeg", "webp"].includes(x.outputFormat) ? x.outputFormat : "png",
+          sectionCount: document.sections.length,
+        };
+        const result = await aiGateway.decorate(s.user_id, input);
+        return send(res, 200, result);
+      }
+      if (p === "/api/ai/resume-appearance" && m === "POST") {
+        const x = await body(req);
+        const document = validateDocument(x.document);
+        limited("appearance:" + s.user_id, 20, 600000);
+        return send(
+          res,
+          200,
+          await aiGateway.appearance(s.user_id, {
+            document,
+            prompt: typeof x.prompt === "string" ? x.prompt.slice(0, 1000) : "",
+          }),
+        );
+      }
+      if (p === "/api/ai/resume-section" && m === "POST") {
+        const x = await body(req);
+        const document = validateDocument(x.document);
+        limited("section:" + s.user_id, 12, 600000);
+        return send(
+          res,
+          200,
+          await aiGateway.section(s.user_id, {
+            document,
+            description: typeof x.description === "string" ? x.description.slice(0, 2000) : "",
           }),
         );
       }

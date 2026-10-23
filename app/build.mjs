@@ -20,5 +20,9 @@ await build({
 });
 await fs.copyFile("src/app.css", `${output}/assets/app.css`);
 await fs.copyFile("src/resume-studio.css", `${output}/assets/resume-studio.css`);
+await fs.copyFile("src/proto.css", `${output}/assets/proto.css`);
+await fs.copyFile("src/proto-extra.css", `${output}/assets/proto-extra.css`);
+await fs.copyFile("src/china.json", `${output}/assets/china.json`);
+await fs.copyFile("src/tagcanvas.min.js", `${output}/assets/tagcanvas.min.js`);
 await fs.copyFile("src/index.html", `${output}/index.html`);
 console.log("Built Vue shell with lazy profile/resume modules");

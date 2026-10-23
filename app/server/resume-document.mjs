@@ -52,6 +52,19 @@ export function validateDocument(v) {
       }),
     };
   });
+  const sectionIds = new Set(sections.map((s) => s.id));
+  const pageBreaks = (Array.isArray(v.pageBreaks) ? v.pageBreaks : [])
+    .filter((x) => typeof x === "string" && sectionIds.has(x));
+  const decorOf = (x) =>
+    x &&
+    typeof x === "object" &&
+    typeof x.image === "string" &&
+    /^[a-f0-9]{24}$/.test(x.image) &&
+    ["minimal", "tech", "warm"].includes(x.style)
+      ? { image: x.image, style: x.style }
+      : null;
+  const decoration = decorOf(v.decoration);
+  const decorationFooter = decorOf(v.decorationFooter);
   const layout = {
     template: ["classic", "compact"].includes(v.layout?.template)
       ? v.layout.template
@@ -63,7 +76,7 @@ export function validateDocument(v) {
       ? v.layout.accent
       : "purple",
   };
-  return { schemaVersion: 2, header, sections, layout };
+  return { schemaVersion: 2, header, sections, pageBreaks, decoration, decorationFooter, layout };
 }
 export function documentText(d) {
   return [

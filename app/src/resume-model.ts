@@ -14,6 +14,12 @@ export interface ResumeDocument {
   schemaVersion: 2;
   header: { name: string; headline: string; contact: string; summary: string };
   sections: Section[];
+  /** 板块 id 列表：这些板块前换页（多页/无限页数）。乱序与失效 id 会被忽略。 */
+  pageBreaks?: string[];
+  /** 生图装饰：服务端存图，文档内只保留引用；null 表示未启用。 */
+  decoration?: { image: string; style: "minimal" | "tech" | "warm" } | null;
+  /** 页脚装饰；与页眉装饰独立，一张简历通常 2 张 */
+  decorationFooter?: { image: string; style: "minimal" | "tech" | "warm" } | null;
   layout: {
     template: "classic" | "compact";
     fontSize: number;
@@ -46,6 +52,9 @@ export const blankDocument = (): ResumeDocument => ({
     "实习与工作经历",
     "荣誉与证书",
   ].map((title) => ({ id: uid(), title, items: [entry()] })),
+  pageBreaks: [],
+  decoration: null,
+  decorationFooter: null,
   layout: { template: "classic", fontSize: 14, accent: "purple" },
 });
 export function fromLegacy(text: string): ResumeDocument {

@@ -17,6 +17,9 @@ const Jobs = defineAsyncComponent(() => import("./jobs"));
 const Plan = defineAsyncComponent(() => import("./plan"));
 const Knowledge = defineAsyncComponent(() => import("./knowledge"));
 const Practice = defineAsyncComponent(() => import("./practice"));
+const Dashboard = defineAsyncComponent(() => import("./dashboard"));
+const Datasets = defineAsyncComponent(() => import("./datasets"));
+const CityMap = defineAsyncComponent(() => import("./map"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -279,6 +282,24 @@ const app = defineComponent({
           onDirty: (v: boolean) => (dirty.value = v),
         });
       }
+      // 城市与通勤地图：真实高德地图，不再用 iframe 包原型
+      if (active.value === "map") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(CityMap, { key: session.user.id + "map" });
+      }
+      // 我的数据空间：真实页面，不再用 iframe 包原型
+      if (active.value === "data") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Datasets, { key: session.user.id + "data" });
+      }
+      // 就业数据大屏：真实聚合页面，不再用 iframe 包原型
+      if (active.value === "dashboard") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Dashboard, { key: session.user.id + "dashboard" });
+      }
       if (active.value === "profile" || active.value === "resume") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
@@ -297,19 +318,6 @@ const app = defineComponent({
           class: "prototype-frame",
           src: "/preview/index.html#" + active.value,
           title: title.value + "外观参考",
-          onLoad: (e: Event) => {
-            if (
-              active.value === "dashboard" &&
-              dashboardMode.value === "career"
-            ) {
-              const f = e.target as HTMLIFrameElement;
-              f.contentDocument
-                ?.querySelector<HTMLButtonElement>(
-                  "[data-action=dashfocus][data-mode=career]",
-                )
-                ?.click();
-            }
-          },
           sandbox:
             "allow-scripts allow-same-origin allow-forms allow-modals allow-downloads",
         }),

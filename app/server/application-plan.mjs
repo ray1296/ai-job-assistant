@@ -99,15 +99,23 @@ export function createApplicationPlan(db, getJob) {
         );
       return { jobIds: jobIds(user) };
     },
-    replaceIntents(user, values) {
+    // 整体覆盖必须带"我看到的基准"。否则两个页面同时保存会互相吞掉对方的新增，
+    // 这就是典型的读-改-写丢更新。带 expected 后不匹配即 409，让调用方重新读取再提交。
+    replaceIntents(user, values, expected) {
       if (
         !Array.isArray(values) ||
         values.length > 107 ||
         values.some((id) => typeof id !== "string" || !getJob(id))
       )
         throw fail(400, "投递意向格式错误或包含不存在的岗位");
+      if (!Array.isArray(expected) || expected.some((id) => typeof id !== "string"))
+        throw fail(400, "缺少投递意向基准，请刷新后重试");
       const unique = [...new Set(values)];
+      const base = [...new Set(expected)].sort();
       return transaction(() => {
+        const now = jobIds(user).sort();
+        if (now.length !== base.length || now.some((id, i) => id !== base[i]))
+          throw fail(409, "投递意向已被其他页面修改，请刷新后重试");
         db.prepare("DELETE FROM job_intents WHERE user_id=?").run(user);
         const insert = db.prepare(
           "INSERT INTO job_intents(user_id,job_id,created_at) VALUES(?,?,?)",
