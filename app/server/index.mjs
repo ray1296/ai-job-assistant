@@ -9,6 +9,7 @@ import { createApplicationPlan } from "./application-plan.mjs";
 import { createDashboard } from "./dashboard.mjs";
 import { createDatasets } from "./datasets.mjs";
 import { createGeo } from "./geo.mjs";
+import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
@@ -438,6 +439,49 @@ const server = http.createServer(async (req, res) => {
           learning.save(s.user_id, questionMatch[1], await body(req)),
         );
       // 地图改为自绘瓦片后，前端不再需要高德 key；key 只留在服务端。
+      if (p === "/api/companies" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        const q = String(url.searchParams.get("q") || "").trim().toLowerCase();
+        const city = String(url.searchParams.get("city") || "").trim();
+        let list = loadCompanies();
+        if (q) list = list.filter((c) => [c.name, c.fullName, c.industry, c.directions].join(" ").toLowerCase().includes(q));
+        if (city) list = list.filter((c) => String(c.cities || "").includes(city));
+        return send(res, 200, {
+          total: list.length,
+          companies: list.map((c) => ({
+            id: c.id, name: c.name, industry: c.industry, scale: c.scale,
+            cities: c.cities, rating: c.rating, summary: c.summary, jobCount: c.jobCount,
+          })),
+        });
+      }
+      const companyMatch = p.match(/^\/api\/companies\/([a-z0-9-]+)$/);
+      if (companyMatch && m === "GET") {
+        const c = getCompany(companyMatch[1]);
+        if (!c) throw failure(404, "企业不存在");
+        return send(res, 200, { company: c });
+      }
+      if (p === "/api/housing" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        const city = String(url.searchParams.get("city") || "").trim();
+        const area = String(url.searchParams.get("area") || "").trim();
+        const q = String(url.searchParams.get("q") || "").trim();
+        const maxRent = Number(url.searchParams.get("maxRent") || 0);
+        let list = loadPlatformHousing(city);
+        if (area) list = list.filter((h) => String(h.businessArea || "").includes(area) || String(h.district || "").includes(area));
+        if (q) list = list.filter((h) => [h.title, h.community, h.address].join(" ").includes(q));
+        if (maxRent > 0) list = list.filter((h) => Number(h.rent || 0) <= maxRent);
+        const total = list.length;
+        const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+        const size = 24;
+        return send(res, 200, {
+          total,
+          page,
+          size,
+          cities: [...new Set(loadPlatformHousing("").map((h) => h.city))],
+          areas: [...new Set(loadPlatformHousing(city).map((h) => h.businessArea).filter(Boolean))].sort(),
+          items: list.slice((page - 1) * size, page * size),
+        });
+      }
       if (p === "/api/geo/config" && m === "GET")
         return send(res, 200, { configured: geo.hasKey, js: geo.js() });
       if (p === "/api/geo/poi-detail" && m === "GET") {

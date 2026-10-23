@@ -21,6 +21,7 @@
 !/app/data/learning-catalog.json
 !/app/data/learning-manifest.json
 !/app/data/housing-catalog.json
+!/app/data/companies-catalog.json
 **/uploads/
 **/private/
 **/*.log

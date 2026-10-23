@@ -20,6 +20,8 @@ const Practice = defineAsyncComponent(() => import("./practice"));
 const Dashboard = defineAsyncComponent(() => import("./dashboard"));
 const Datasets = defineAsyncComponent(() => import("./datasets"));
 const CityMap = defineAsyncComponent(() => import("./map"));
+const Companies = defineAsyncComponent(() => import("./companies"));
+const Housing = defineAsyncComponent(() => import("./housing"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -281,6 +283,18 @@ const app = defineComponent({
           key: session.user.id + active.value,
           onDirty: (v: boolean) => (dirty.value = v),
         });
+      }
+      // 企业观察：真实数据页面，不再用 iframe 包原型（也避免重复出现第二套看板娘）
+      if (active.value === "companies") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Companies, { key: session.user.id + "companies" });
+      }
+      // 租房与生活：真实数据页面
+      if (active.value === "housing") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Housing, { key: session.user.id + "housing" });
       }
       // 城市与通勤地图：真实高德地图，不再用 iframe 包原型
       if (active.value === "map") {
