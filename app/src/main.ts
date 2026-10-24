@@ -1,3 +1,8 @@
+try {
+  const sc = localStorage.getItem("zg.petScale");
+  if (sc) document.documentElement.style.setProperty("--pet-scale", sc);
+  if (localStorage.getItem("zg.petsHidden") === "1") document.body.classList.add("zg-pets-hidden");
+} catch {}
 try { if (!localStorage.getItem("kb-theme")) localStorage.setItem("kb-theme", "paper"); } catch {}
 import "vant/lib/index.css";
 import { createPinia } from "pinia";
@@ -449,9 +454,9 @@ const app = defineComponent({
         h("div", { style: { "--pet-offset": "0px" } }, [
           h(Live2DPet, { canvasId: "pet0", modelStart: 0, persona: "星野" }),
         ]),
-        h(PetFrame, { id: "pet1", persona: "知微", personaId: "zhiwei", model: "/live2d/live2d-widget-models/live2d-widget-model-shizuku/assets/shizuku.model.json", slot: 0 }),
-        h(PetFrame, { id: "pet2", persona: "砚舟", personaId: "yanzhou", model: "/live2d/live2d-widget-models/live2d-widget-model-koharu/assets/koharu.model.json", slot: 1 }),
-        h(PetFrame, { id: "pet3", persona: "栖迟", personaId: "qichi", model: "/live2d/live2d-widget-models/live2d-widget-model-haruto/assets/haruto.model.json", slot: 2 }),
+        h(PetFrame, { id: "pet1", persona: "知微", personaId: "zhiwei", avatar: "/assets/companions/b-3.png", model: "/live2d/live2d-widget-models/live2d-widget-model-shizuku/assets/shizuku.model.json", slot: 0 }),
+        h(PetFrame, { id: "pet2", persona: "砚舟", personaId: "yanzhou", avatar: "/assets/companions/a-2.png", model: "/live2d/live2d-widget-models/live2d-widget-model-koharu/assets/koharu.model.json", slot: 1 }),
+        h(PetFrame, { id: "pet3", persona: "栖迟", personaId: "qichi", avatar: "/assets/companions/a-1.jpg", model: "/live2d/live2d-widget-models/live2d-widget-model-haruto/assets/haruto.model.json", slot: 2 }),
         h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),

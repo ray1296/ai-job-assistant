@@ -47,6 +47,7 @@
     <!-- Live2D Canvas（点击/长按拖动） -->
     <div class="pet-canvas-wrap" ref="canvasWrap">
       <button class="pet-wardrobe" title="换装" @click.stop="nextModel">👗</button>
+      <img v-if="!modelReady" class="pet-loading-avatar" src="/assets/companions/b-1.png" alt="" />
       <canvas :id="canvasId" class="live2d-canvas" width="200" height="250" @click="handleClick" @mousedown="onPointerDown" @touchstart="onPointerDown"></canvas>
     </div>
 
@@ -315,6 +316,7 @@ function stopProactiveReview() {
 }
 
 const currentModelIndex = ref(props.modelStart || 0)
+const modelReady = ref(false)
 
 // 输入框尺寸：初始小小，随输入自适应宽度，宽到限度后变长（增高）
 const INPUT_MIN_W = 120   // 初始最小宽度
@@ -511,6 +513,7 @@ function initPet() {
 
 function loadModel(idx) {
   window.loadlive2d(props.canvasId, MODELS[idx])
+    setTimeout(() => { modelReady.value = true }, 700)
 }
 
 /* ===== 换装：点击按钮切换形象，记住用户选择 ===== */

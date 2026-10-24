@@ -7,6 +7,18 @@ export default defineComponent({
   setup() {
     const conf = ref<any>({ size: 1, voice: true, x: 18, y: 96 });
     const accent = ref("purple");
+    const scale = ref(Number(localStorage.getItem("zg.petScale") || 0.45));
+    const hidden = ref(localStorage.getItem("zg.petsHidden") === "1");
+    function setScale(v: number) {
+      scale.value = v;
+      document.documentElement.style.setProperty("--pet-scale", String(v));
+      try { localStorage.setItem("zg.petScale", String(v)); } catch {}
+    }
+    function setHidden(v: boolean) {
+      hidden.value = v;
+      document.body.classList.toggle("zg-pets-hidden", v);
+      try { localStorage.setItem("zg.petsHidden", v ? "1" : "0"); } catch {}
+    }
     const saved = ref(false);
     const health = ref<any>(null);
 
@@ -53,6 +65,24 @@ export default defineComponent({
               h("button", { class: "btn small", onClick: () => (conf.value = { ...conf.value, x: 18, y: 96 }) }, "重置到左上"),
             ]),
             h("p", { class: "muted" }, "看板娘可以拖动，单个 Agent 的聊天记录在各自气泡里；语音用的是浏览器内置 TTS，不需要额外 key。"),
+          ]),
+          h("section", { class: "card" }, [
+            h("h3", "看板娘（4 个 Agent）"),
+            h("label", { class: "settings-row" }, [
+              h("span", "整体缩放"),
+              h("input", { type: "range", min: "0.25", max: "1", step: "0.05", value: String(scale.value), onInput: (e: Event) => setScale(Number((e.target as HTMLInputElement).value)) }),
+              h("strong", scale.value.toFixed(2) + "×"),
+            ]),
+            h("label", { class: "settings-row" }, [
+              h("span", "显示看板娘"),
+              h("input", { type: "checkbox", checked: !hidden.value, onChange: (e: Event) => setHidden(!(e.target as HTMLInputElement).checked) }),
+              h("small", "关闭后四只全部隐藏，只保留圆盘入口"),
+            ]),
+            h("div", { class: "settings-row" }, [
+              h("span", "位置"),
+              h("button", { class: "btn small", onClick: () => { localStorage.removeItem("zg.petFrames.v2"); location.reload(); } }, "重置四只位置"),
+            ]),
+            h("p", { class: "muted" }, "四只分别是：星野（主看板娘，功能完整）、知微、砚舟、栖迟（隔离运行时，各自可换装、可单独拖动，双击把手进入拖动模式）。"),
           ]),
           h("section", { class: "card" }, [
             h("h3", "站点配色"),
