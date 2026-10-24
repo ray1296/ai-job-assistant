@@ -19,8 +19,7 @@ import {
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
 import CompanionsV3 from "./companions";
-import Live2DPet from "./orig/components/Live2DPet.vue";
-import PetFrame from "./pet-frame";
+import AgentPet, { PET_MODELS } from "./agent-pet";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -451,12 +450,15 @@ const app = defineComponent({
               ),
             ])
           : null,
-        h("div", { style: { "--pet-offset": "0px" } }, [
-          h(Live2DPet, { canvasId: "pet0", modelStart: 0, persona: "星野" }),
-        ]),
-        h(PetFrame, { id: "pet1", persona: "知微", personaId: "zhiwei", avatar: "/assets/companions/b-3.png", model: "/live2d/live2d-widget-models/live2d-widget-model-shizuku/assets/shizuku.model.json", slot: 0 }),
-        h(PetFrame, { id: "pet2", persona: "砚舟", personaId: "yanzhou", avatar: "/assets/companions/a-2.png", model: "/live2d/live2d-widget-models/live2d-widget-model-koharu/assets/koharu.model.json", slot: 1 }),
-        h(PetFrame, { id: "pet3", persona: "栖迟", personaId: "qichi", avatar: "/assets/companions/a-1.jpg", model: "/live2d/live2d-widget-models/live2d-widget-model-haruto/assets/haruto.model.json", slot: 2 }),
+        ...[
+          { id: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", slot: 0 },
+          { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", slot: 1 },
+          { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", slot: 2 },
+          { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg", slot: 3 },
+        ].map((a) => h(AgentPet, {
+          key: a.id, agentId: a.id, name: a.name, role: a.role,
+          avatar: a.avatar, slot: a.slot, models: PET_MODELS,
+        })),
         h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),

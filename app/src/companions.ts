@@ -137,7 +137,7 @@ export default defineComponent({
           class: "companions-form",
           style: { left: togglePos.value.x + "px", top: (togglePos.value.y + 40) + "px" },
           title: "切换看板娘形态（Live2D / 立绘）",
-          onClick: () => setForm(form.value === "live2d" ? "avatar" : "live2d"),
+          onClick: () => { const nf = form.value === "live2d" ? "avatar" : "live2d"; setForm(nf); window.dispatchEvent(new CustomEvent("zg:pet-skin", { detail: { skin: nf } })); },
         }, form.value === "live2d" ? "⇄ 立绘" : "⇄ Live2D"),
 
         h("button", {
@@ -146,20 +146,6 @@ export default defineComponent({
           onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),
           title: "单击显示/隐藏看板娘，按住可拖动",
         }, "✦"),
-
-        !collapsed.value && form.value === "avatar"
-          ? PERSONAS.map((p, i) =>
-              h("button", {
-                key: p.id,
-                class: "avatar-chip" + (activeId.value === p.id ? " on" : ""),
-                style: { left: positions.value[i].x + "px", top: positions.value[i].y + "px" },
-                onMousedown: (e: MouseEvent) => startDrag("chip", i, e),
-                title: p.name + " · " + p.role + "（可拖动）",
-              }, [
-                h("img", { src: p.avatar, alt: p.name, draggable: false }),
-                h("span", p.name),
-              ]))
-          : null,
 
         activeId.value
           ? h("div", { class: "companion-chat", style: { left: positions.value[0].x + "px", bottom: "170px" } }, [
