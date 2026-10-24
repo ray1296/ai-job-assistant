@@ -6,6 +6,7 @@
       <p>粘贴资料，自动生成知识点和题目</p>
     </div>
 
+    <AiStudyTools :questions="[]" />
     <div class="content-card">
       <!-- 类型选择 -->
       <div class="upload-type-toggle">
@@ -96,10 +97,10 @@
           <!-- AI智能识别 -->
           <div class="option-box">
             <div class="ai-recognize-box">
-              <van-button round plain type="success" size="small" :loading="aiRecognizeLoading" @click="handleAiRecognize">
-                🤖 AI智能识别
-              </van-button>
-              <span class="option-desc">输入≤50字，AI自动提取知识点</span>
+              <button type="button" class="zg-ai-btn" :disabled="aiRecognizeLoading" @click="handleAiRecognize">
+                🤖 {{ aiRecognizeLoading ? '识别中…' : 'AI 智能识别' }}
+              </button>
+              <span class="option-desc">输入≤3000字，AI自动提取知识点</span>
             </div>
             <div v-if="aiRecognizeResult.length" class="ai-recognize-result">
               <div class="ai-result-header">AI识别结果（点击应用到输入框）</div>
@@ -256,10 +257,10 @@
           <!-- AI智能识别题目 -->
           <div class="option-box">
             <div class="ai-recognize-box">
-              <van-button round plain type="success" size="small" :loading="aiQuestionRecognizeLoading" @click="handleAiQuestionRecognize">
+              <button type="button" class="zg-ai-btn" :disabled="aiQuestionRecognizeLoading" @click="handleAiQuestionRecognize">
                 🤖 AI智能识别题目
               </van-button>
-              <span class="option-desc">输入≤50字，AI生成1道{{ currentTypeLabel }}</span>
+              <span class="option-desc">输入≤3000字，AI生成1道{{ currentTypeLabel }}</span>
             </div>
             <div v-if="aiQuestionResult" class="ai-recognize-result">
               <div class="ai-result-header">AI识别结果（点击应用到输入框）</div>
@@ -361,6 +362,7 @@ import { useUserStore } from '../../stores/userStore'
 import { uploadKnowledge, uploadQuestions, parseFile, getVersionList, createVersion, renameVersion, deleteVersion } from '../../api/material'
 import { aiRecognize, aiGenerateQuiz, aiRecognizeQuestion } from '../../api/ai'
 import { askAI } from '../../utils/askAI'
+import AiStudyTools from '../../components/AiStudyTools.vue'
 
 defineOptions({ name: 'UploadCenter' })
 

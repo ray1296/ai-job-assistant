@@ -484,3 +484,8 @@ body:not(.show-live2d) .live2d-pet-container { display: none !important; }
 .companions-dial { position: fixed; width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff;
   background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; font-size: 18px; cursor: grab;
   box-shadow: 0 10px 26px rgba(80,60,120,.3); z-index: 5; touch-action: none; }
+
+.zg-ai-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid #2f9e8f;
+  background: #eefaf7; color: #23806f; font-size: 13px; padding: 7px 16px; cursor: pointer; }
+.zg-ai-btn:hover { background: #e2f6f1; }
+.zg-ai-btn:disabled { opacity: .6; cursor: not-allowed; }

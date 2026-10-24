@@ -775,6 +775,34 @@ const server = http.createServer(async (req, res) => {
           || "";
         return send(res, 200, { text: String(text).trim(), sentences: [] });
       }
+      if (p === "/api/material/upload-knowledge" && m === "POST") {
+        const payload = await body(req);
+        const subjectId = String(payload.subjectId || "");
+        const versionId = String(payload.versionId || "");
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        if (!items.length) throw failure(400, "没有可导入的知识点");
+        const rows = items.map((x) => ({
+          type: "short",
+          stem: String(x.title || x.content || x.stem || "").slice(0, 3000),
+          answer: String(x.content || x.answer || "").slice(0, 3000),
+          simpleAnswer: String(x.quickAnswer || "").slice(0, 800),
+          analysis: "",
+        })).filter((x) => x.stem);
+        const out = study.appendQuestions(s.user_id, versionId, rows, String(payload.title || "知识点导入"));
+        return send(res, 200, { appended: out.appended, message: "已导入 " + out.appended + " 个知识点" });
+      }
+      if (p === "/api/material/knowledge/list" && m === "GET") {
+        const url = new URL(req.url, "http://x");
+        const versionId = String(url.searchParams.get("versionId") || "");
+        if (!versionId) return send(res, 200, []);
+        const data = study.questions(s.user_id, versionId, {});
+        return send(res, 200, data.questions.map((q) => ({ id: q.id, title: q.stem, content: q.answer, quickAnswer: q.simpleAnswer })));
+      }
+      if (p === "/api/market/detail" || p.startsWith("/api/market/detail/")) throw failure(404, "题库合作社暂未开放");
+      if (p === "/api/user/profile" && m === "GET") {
+        const u2 = db.prepare("SELECT id,email FROM users WHERE id=?").get(s.user_id);
+        return send(res, 200, { id: u2.id, email: u2.email, nickname: String(u2.email || "").split("@")[0] });
+      }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

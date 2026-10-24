@@ -63,6 +63,8 @@ export function askAI(content, type, ref) {
   showToast({ message: `${type}已添加到AI对话`, duration: 1500 })
   // 通知看板娘（若当前页面挂载了 Live2DPet 则立即弹出输入框显示 chip）
   window.dispatchEvent(new CustomEvent('kaoshibang:ask-ai', { detail: { id } }))
+  // 我们的 AI 讲题：直接以题干触发
+  window.dispatchEvent(new CustomEvent('zg:tutor', { detail: { stem: text, answer: '' } }))
   return id
 }
 
