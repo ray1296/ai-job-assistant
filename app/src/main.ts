@@ -12,7 +12,7 @@ import {
   onErrorCaptured,
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
-import Companions from "./companions";
+import CompanionsV3 from "./companions";
 import Live2DPet from "./orig/components/Live2DPet.vue";
 import UploadView from "./orig/views/upload/index.vue";
 import ReviewList from "./orig/views/review/index.vue";
@@ -54,7 +54,7 @@ const pages = [
 ];
 const known = new Set(pages.map((p) => p[0]));
 const initialRaw = location.hash.slice(1);
-const initialReview = initialRaw.startsWith("review/") ? initialRaw.slice(7) : "";
+const initialReview = initialRaw.startsWith("review/") ? initialRaw.slice(7).split("?")[0] : "";
 const initial = initialReview ? "practice" : initialRaw;
 const app = defineComponent({
   setup() {
@@ -81,6 +81,7 @@ const app = defineComponent({
     onMounted(async () => {
       try {
         await loadSession();
+      try { (window as any).__zgCsrf = session.csrf || ""; } catch {}
       } catch (e) {
         notice.value = errorText(e);
       }
@@ -93,7 +94,7 @@ const app = defineComponent({
       window.addEventListener("hashchange", () => {
         const raw = location.hash.slice(1);
         if (raw.startsWith("review/")) {
-          reviewId.value = raw.slice(7);
+          reviewId.value = raw.slice(7).split("?")[0];
           active.value = "practice";
           return;
         }
@@ -444,7 +445,7 @@ const app = defineComponent({
               ),
             ])
           : null,
-        h(Live2DPet), h(Companions),
+        h(Live2DPet), h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),
           h(

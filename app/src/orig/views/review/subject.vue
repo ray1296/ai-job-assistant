@@ -4,6 +4,7 @@
     <div class="page-header subject-header" :style="{ background: headerGradient }">
       <span class="back-btn" @click="router.back()">←</span>
       <div class="subject-icon">{{ subject.icon }}</div>
+    <AiStudyTools :subject-id="subjectId" :version-id="versionId" :questions="allQuestions" @changed="loadData" />
       <h1>{{ subject.name }}</h1>
       <div class="stats-bar">
         <div class="stat-chip"><strong class="num-mono">{{ flashcards.length }}</strong> 卡片</div>
@@ -392,6 +393,7 @@ import { getWrongQuestions, removeWrongQuestion, addWrongQuestion as apiAddWrong
 import { getMarketDetail } from '../../api/market'
 import { askAI } from '../../utils/askAI'
 import { useTheme, cssVar } from '../../utils/theme'
+import AiStudyTools from '../../components/AiStudyTools.vue'
 import { showConfirmDialog, showToast } from 'vant'
 import {
   aiStudySummary, aiWrongSteps, aiShortMemo, aiSubjectLink, aiGeneratePage, aiPageSave

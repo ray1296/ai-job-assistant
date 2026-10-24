@@ -698,6 +698,83 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/question/stats/overview" && m === "GET") return send(res, 200, {});
       if (p === "/api/stats/overview" && m === "GET")
         return send(res, 200, { totalQuestions: 0, learnedQuestions: 0, correctRate: 0, studyDays: 0, todayQuestions: 0 });
+      if (p === "/api/ai/tts-aliyun" && m === "POST") {
+        const payload = await body(req);
+        const text = String(payload.text || "").slice(0, 800).trim();
+        if (!text) throw failure(400, "没有要朗读的文字");
+        let cfg2 = {};
+        try { cfg2 = JSON.parse(fs.readFileSync(path.join(dataDir, "ai-config.json"), "utf8")); } catch {}
+        const key = cfg2.aliyunKey || "";
+        if (!key) throw failure(503, "服务端未配置阿里云语音 key");
+        const r = await fetch("https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+          body: JSON.stringify({
+            model: cfg2.aliyunTtsModel || "qwen3-tts-flash",
+            input: { text, voice: String(payload.voice || cfg2.aliyunTtsVoice || "Cherry") },
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!r.ok) throw failure(502, "语音合成失败");
+        const j = await r.json();
+        const url = j?.output?.audio?.url;
+        if (!url) throw failure(502, "语音合成没有返回音频");
+        const audio = await fetch(url, { signal: AbortSignal.timeout(30000) });
+        if (!audio.ok) throw failure(502, "音频下载失败");
+        const buf = Buffer.from(await audio.arrayBuffer());
+        res.writeHead(200, { "Content-Type": audio.headers.get("content-type") || "audio/mpeg", "Content-Length": buf.length, "Cache-Control": "no-store" });
+        return res.end(buf);
+      }
+      if (p === "/api/ai/asr" && m === "POST") {
+        let cfg3 = {};
+        try { cfg3 = JSON.parse(fs.readFileSync(path.join(dataDir, "ai-config.json"), "utf8")); } catch {}
+        const key3 = cfg3.aliyunKey || "";
+        if (!key3) throw failure(503, "服务端未配置阿里云语音 key");
+        const chunks = [];
+        let size = 0;
+        for await (const ch of req) {
+          size += ch.length;
+          if (size > 8 * 1024 * 1024) throw failure(413, "录音太长，请控制在 30 秒内");
+          chunks.push(ch);
+        }
+        const audio = Buffer.concat(chunks);
+        if (!audio.length) throw failure(400, "没有收到录音");
+      const ct = String(req.headers["content-type"] || "audio/wav");
+        const ext = ct.includes("webm") ? "webm" : ct.includes("mp3") ? "mp3" : ct.includes("mp4") ? "m4a" : "wav";
+        const pol = await fetch("https://dashscope.aliyuncs.com/api/v1/uploads?action=getPolicy&model=fun-asr-flash", {
+          headers: { Authorization: "Bearer " + key3 }, signal: AbortSignal.timeout(20000),
+        }).then((r) => r.json());
+        const d = pol?.data;
+        if (!d?.upload_host) throw failure(502, "语音上传通道不可用");
+        const objKey = String(d.upload_dir || "") + "/asr-" + Date.now() + "." + ext;
+        const form = new FormData();
+        form.append("OSSAccessKeyId", d.oss_access_key_id);
+        form.append("Signature", d.signature);
+        form.append("policy", d.policy);
+        form.append("key", objKey);
+        form.append("success_action_status", "200");
+        if (d.x_oss_object_acl) form.append("x-oss-object-acl", d.x_oss_object_acl);
+        if (d.x_oss_forbid_overwrite) form.append("x-oss-forbid-overwrite", String(d.x_oss_forbid_overwrite));
+        form.append("file", new Blob([audio], { type: ct }), "voice." + ext);
+        const up = await fetch(d.upload_host, { method: "POST", body: form, signal: AbortSignal.timeout(60000) });
+        if (!up.ok) throw failure(502, "语音上传失败");
+        const gen = await fetch("https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + key3, "X-DashScope-OssResourceResolve": "enable" },
+          body: JSON.stringify({
+            model: cfg3.aliyunAsrModel || "qwen3-asr-flash",
+            input: { messages: [{ role: "user", content: [{ audio: "oss://" + objKey }] }] },
+            parameters: { format: ext === "m4a" ? "mp4" : ext },
+          }),
+          signal: AbortSignal.timeout(90000),
+        });
+        if (!gen.ok) throw failure(502, "语音识别失败");
+        const gj = await gen.json();
+        const text = gj?.output?.choices?.[0]?.message?.content?.[0]?.text
+          || gj?.output?.sentence?.text
+          || "";
+        return send(res, 200, { text: String(text).trim(), sentences: [] });
+      }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

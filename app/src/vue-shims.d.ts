@@ -3,3 +3,6 @@ declare module "*.vue" {
   const component: DefineComponent<{}, {}, any>;
   export default component;
 }
+
+interface Window { __zgCsrf?: string }
+interface Window { __map?: any }

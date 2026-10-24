@@ -350,3 +350,47 @@
 /* 学习页工具条按钮统一外观 */
 .study-page .toolbar a.btn, .study-upload .toolbar a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .study-page .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+
+/* 原项目页面依赖的主题变量（给一套与我们站点一致的浅色默认值） */
+:root {
+  --primary: #7460c9;
+  --primary-light: #efe9fb;
+  --success: #2f9e8f;
+  --warning: #e08a3c;
+  --danger: #d9534f;
+  --info: #3b82f6;
+  --bg: #f7f5fb;
+  --bg-card: #ffffff;
+  --bg-soft: #faf8fd;
+  --text: #3f3353;
+  --text-secondary: #6b5c7d;
+  --text-muted: #9c8fae;
+  --border: #ece5f3;
+  --shadow: 0 8px 24px rgba(60, 40, 90, .10);
+  --radius: 14px;
+  --radius-pill: 999px;
+  --card: #ffffff;
+  --card-bg: #ffffff;
+  --primary-dark: #5a4aa8;
+  --on-primary: #ffffff;
+  --text-light: #9c8fae;
+  --header-fg: #ffffff;
+  --warning-bg: #fdf3e6;
+  --danger-bg: #fdecec;
+  --success-bg: #eaf6f3;
+  --info-bg: #eaf1fd;
+}
+
+/* 看板娘团队 v3：各自独立拖动 */
+.companions-v3 { position: fixed; inset: 0; pointer-events: none; z-index: 82; }
+.companions-v3 > * { pointer-events: auto; }
+.avatar-chip { position: fixed; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 54px; padding: 4px; border-radius: 14px; border: 1px solid #e6def0; background: rgba(255,255,255,.97); cursor: grab; box-shadow: 0 8px 22px rgba(60,40,90,.14); touch-action: none; }
+.avatar-chip img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; object-position: 50% 20%; }
+.avatar-chip span { font-size: 10px; color: #5c4b6e; }
+.avatar-chip.on { border-color: #7460c9; box-shadow: 0 0 0 2px rgba(116,96,201,.25); }
+.companions-toggle { position: fixed; border: 1px solid #e6def0; background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 11px; color: #5c4b6e; cursor: grab; box-shadow: 0 6px 18px rgba(60,40,90,.12); touch-action: none; }
+.companion-chat { position: fixed; width: 300px; max-height: 46vh; background: #fff; border: 1px solid #e6def0; border-radius: 14px; box-shadow: 0 18px 44px rgba(60,40,90,.2); display: flex; flex-direction: column; overflow: hidden; }
+/* Live2D 按形态开关 */
+body:not(.show-live2d) .live2d-pet-container { display: none !important; }
+
+.avatar-chip img { -webkit-user-drag: none; user-select: none; }
