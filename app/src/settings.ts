@@ -1,5 +1,6 @@
 import { defineComponent, h, ref, onMounted } from "vue";
 import { api } from "./api";
+import { VOICE_LIBRARY } from "./orig/utils/edgeTTS.js";
 
 const STORE = "zg.companions.v2";
 
@@ -7,6 +8,16 @@ export default defineComponent({
   setup() {
     const conf = ref<any>({ size: 1, voice: true, x: 18, y: 96 });
     const accent = ref("purple");
+    const voiceLib = (VOICE_LIBRARY || []).slice(0, 40);
+    const PET_MODELS = [
+      "miku", "shizuku", "chitose", "koharu", "haru", "wanko", "vert", "nepgear_extra", "haruto", "histoire",
+    ];
+    const currentModel = ref(localStorage.getItem("live2d-pet-model") || "0");
+    function setModel(i: number, key: string) {
+      currentModel.value = String(i);
+      try { localStorage.setItem("live2d-pet-model", String(i)); localStorage.setItem("zg.petModel", key); } catch {}
+      flash("默认形象已保存：" + key);
+    }
     const scale = ref(Number(localStorage.getItem("zg.petScale") || 0.45));
     const hidden = ref(localStorage.getItem("zg.petsHidden") === "1");
     function setScale(v: number) {
@@ -84,6 +95,25 @@ export default defineComponent({
               h("button", { class: "btn small", onClick: () => { localStorage.removeItem("zg.petFrames.v2"); location.reload(); } }, "重置四只位置"),
             ]),
             h("div", { class: "settings-row" }, [h("span", "看板娘形象")]),
+            h("h3", { style: "margin-top:12px" }, "音色库（每个 agent 默认音色）"),
+            h("div", { class: "settings-voices" }, ["星野", "知微", "砚舟", "栖迟"].map((n) =>
+              h("div", { class: "settings-voice-row" }, [
+                h("strong", n),
+                h("select", {
+                  value: localStorage.getItem("zg.voice." + n) || (voiceLib[0]?.id || "Cherry"),
+                  onChange: (e: Event) => { localStorage.setItem("zg.voice." + n, (e.target as HTMLSelectElement).value); flash("已保存 " + n + " 的音色"); },
+                }, voiceLib.map((v: any) => h("option", { value: v.id || v.voice }, (v.emoji || "") + " " + (v.label || v.id) + (v.desc ? " · " + v.desc : "")))),
+              ]))),
+            h("h3", { style: "margin-top:12px" }, "看板娘形象（默认）"),
+            h("div", { class: "settings-models" }, PET_MODELS.map((m, i) =>
+              h("button", {
+                class: "settings-model" + (String(i) === currentModel.value ? " on" : ""),
+                onClick: () => setModel(i, m),
+                title: m,
+              }, [
+                h("img", { src: "/live2d/live2d-widget-models/live2d-widget-model-" + m + "/assets/" + m + ".model.png", alt: m, onError: (e: any) => { e.target.style.visibility = "hidden"; } }),
+                h("span", m),
+              ]))),
             h("div", { class: "settings-pets" }, [
               { n: "星野", v: ["Cherry", "Serena", "Ethan"] },
               { n: "知微", v: ["Cherry", "Serena", "Ethan"] },

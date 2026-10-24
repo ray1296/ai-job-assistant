@@ -553,3 +553,14 @@ body.zg-pets-hidden .agent-chip { display: none !important; }
 .settings-pet strong { color: #3f3353; font-size: 13px; }
 .settings-pet label { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #6b5c7d; }
 .settings-pet select { border: 1px solid #e6def0; border-radius: 6px; padding: 2px 4px; font-size: 11px; }
+
+.settings-models { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.settings-model { width: 68px; border: 1px solid #ece5f3; border-radius: 10px; background: #fff; padding: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.settings-model.on { border-color: #7460c9; box-shadow: 0 0 0 2px rgba(116,96,201,.2); }
+.settings-model img { width: 56px; height: 64px; object-fit: contain; }
+.settings-model span { font-size: 9px; color: #8b7d99; }
+
+.settings-voices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 8px 0; }
+.settings-voice-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.settings-voice-row strong { width: 36px; color: #3f3353; }
+.settings-voice-row select { flex: 1; border: 1px solid #e6def0; border-radius: 6px; padding: 3px 6px; font-size: 11px; }
