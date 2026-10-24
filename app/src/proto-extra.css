@@ -547,4 +547,9 @@ body.zg-pets-hidden .agent-chip { display: none !important; }
 .live2d-pet-container .pet-dialog { right: auto !important; left: 0 !important; max-width: 200px !important; }
 .live2d-pet-container .pet-input-box { width: 200px; }
 
-.agent-chip-role { font-size: 9px; color: #9c8fae; }
+
+.settings-pets { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
+.settings-pet { border: 1px solid #ece5f3; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.settings-pet strong { color: #3f3353; font-size: 13px; }
+.settings-pet label { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #6b5c7d; }
+.settings-pet select { border: 1px solid #e6def0; border-radius: 6px; padding: 2px 4px; font-size: 11px; }

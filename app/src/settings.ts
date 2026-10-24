@@ -28,6 +28,7 @@ export default defineComponent({
       try { health.value = await api<any>("/health", "GET", undefined, { timeoutMs: 8000 }); } catch {}
       applyAccent();
     });
+    function flash(msg: string) { saved.value = true; window.setTimeout(() => (saved.value = false), 1600); }
     function save() {
       try { localStorage.setItem(STORE, JSON.stringify(conf.value)); } catch {}
       try { localStorage.setItem("zg.accent", accent.value); } catch {}
@@ -83,12 +84,31 @@ export default defineComponent({
               h("button", { class: "btn small", onClick: () => { localStorage.removeItem("zg.petFrames.v2"); location.reload(); } }, "重置四只位置"),
             ]),
             h("div", { class: "settings-row" }, [h("span", "看板娘形象")]),
-            h("div", { class: "settings-row" }, ["星野", "知微", "砚舟", "栖迟"].map((n, i) =>
-              h("select", {
-                class: "map-input", style: "max-width:120px",
-                value: localStorage.getItem("zg.voice." + n) || ["Cherry", "Serena", "Ethan", "Cherry"][i],
-                onChange: (e: Event) => { localStorage.setItem("zg.voice." + n, (e.target as HTMLSelectElement).value); },
-              }, ["Cherry", "Serena", "Ethan", "Cherry"].map((v) => h("option", { value: v }, v))))),
+            h("div", { class: "settings-pets" }, [
+              { n: "星野", v: ["Cherry", "Serena", "Ethan"] },
+              { n: "知微", v: ["Cherry", "Serena", "Ethan"] },
+              { n: "砚舟", v: ["Cherry", "Serena", "Ethan"] },
+              { n: "栖迟", v: ["Cherry", "Serena", "Ethan"] },
+            ].map((p) =>
+              h("div", { class: "settings-pet" }, [
+                h("strong", p.n),
+                h("label", null, [
+                  h("span", "音色"),
+                  h("select", {
+                    value: localStorage.getItem("zg.voice." + p.n) || p.v[0],
+                    onChange: (e: Event) => { localStorage.setItem("zg.voice." + p.n, (e.target as HTMLSelectElement).value); flash("已保存 " + p.n + " 的音色"); },
+                  }, p.v.map((v) => h("option", { value: v }, v))),
+                ]),
+                h("label", null, [
+                  h("span", "形象"),
+                  h("select", {
+                    value: localStorage.getItem("zg.petModel." + p.n) || "默认",
+                    onChange: (e: Event) => { localStorage.setItem("zg.petModel." + p.n, (e.target as HTMLSelectElement).value); flash("已保存 " + p.n + " 的形象"); },
+                  }, ["默认", "静态立绘", "Live2D"].map((v) => h("option", { value: v }, v))),
+                ]),
+              ]),
+            )),
+            h("button", { class: "btn small", onClick: () => { location.reload(); } }, "应用并刷新"),
             h("p", { class: "muted" }, "四只分别是：星野（主看板娘，功能完整）、知微、砚舟、栖迟（隔离运行时，各自可换装、可单独拖动，双击把手进入拖动模式）。"),
           ]),
           h("section", { class: "card" }, [

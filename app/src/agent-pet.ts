@@ -10,6 +10,8 @@ export const PET_MODELS = [
   { url: "/live2d/live2d-widget-models/live2d-widget-model-haruto/assets/haruto.model.json", label: "春人" },
 ];
 
+const ROLE_SHORT: Record<string, string> = { "主理人": "主理", "学习助教": "学习", "求职顾问": "求职", "生活管家": "生活" };
+
 export default defineComponent({
   props: {
     agentId: { type: String, required: true },
@@ -57,8 +59,7 @@ export default defineComponent({
         title: props.name + " · " + props.role + "（单击对话，按住拖动）",
       }, [
         h("img", { src: props.avatar, alt: props.name, draggable: false }),
-        h("span", props.name),
-        h("span", { class: "agent-chip-role" }, props.role),
+        h("span", props.name + "·" + ROLE_SHORT[props.role] as any)
       ]);
   },
 });
