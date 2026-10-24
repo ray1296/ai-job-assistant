@@ -17,6 +17,14 @@
     </div>
     <p v-if="tip" class="ai-tip">{{ tip }}</p>
 
+    <div v-if="steps.length" class="ai-board">
+      <div class="ai-board-head">
+        <strong>板书</strong>
+        <label class="ai-voice"><input type="checkbox" v-model="speakOn" /> 语音朗读</label>
+        <button class="ai-btn" @click="speakCurrent">重听这一步</button>
+      </div>
+      <canvas ref="boardRef" class="ai-board-canvas"></canvas>
+    </div>
     <div v-if="steps.length" class="ai-steps">
       <ol>
         <li v-for="(s, i) in visibleSteps" :key="i">{{ s.text }}</li>
@@ -56,9 +64,73 @@ const stepIdx = ref(0);
 const waiting = ref(false);
 const ask = ref("");
 const scene = ref<any>(null);
+const boardRef = ref<HTMLCanvasElement | null>(null);
+const speakOn = ref(true);
+let audioEl: HTMLAudioElement | null = null;
 const threeHost = ref<HTMLElement | null>(null);
 
 const visibleSteps = computed(() => steps.value.slice(0, stepIdx.value + 1));
+
+watch(visibleSteps, () => { drawBoard(); speakCurrent(); }, { deep: true });
+
+function drawBoard() {
+  const cv = boardRef.value;
+  if (!cv) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth || 600, h = 220;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "#3f3353";
+  ctx.font = "500 14px system-ui, -apple-system, sans-serif";
+  let y = 26;
+  for (const st of visibleSteps.value) {
+    const text = String(st.text || "");
+    let line = "";
+    for (const ch of text) {
+      if (ctx.measureText(line + ch).width > w - 48) { ctx.fillText(line, 22, y); y += 22; line = ch; }
+      else line += ch;
+    }
+    if (line) { ctx.fillText(line, 22, y); y += 22; }
+    if (st.draw && st.draw !== "text") { drawMark(ctx, st.draw, 24, y, w); y += 54; }
+    y += 6;
+    if (y > h - 30) break;
+  }
+}
+function drawMark(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, w: number) {
+  ctx.strokeStyle = "#7460c9"; ctx.lineWidth = 2;
+  if (kind === "line" || kind === "arrow") {
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 160, y); ctx.stroke();
+    if (kind === "arrow") { ctx.beginPath(); ctx.moveTo(x + 160, y); ctx.lineTo(x + 148, y - 6); ctx.lineTo(x + 148, y + 6); ctx.closePath(); ctx.fill(); }
+  } else if (kind === "circle") { ctx.beginPath(); ctx.arc(x + 24, y, 18, 0, Math.PI * 2); ctx.stroke(); }
+  else if (kind === "box") { ctx.strokeRect(x, y - 18, 90, 40); }
+}
+async function speakCurrent() {
+  if (!speakOn.value) return;
+  const text = visibleSteps.value[visibleSteps.value.length - 1]?.text || "";
+  if (!text) return;
+  try {
+    const res = await fetch("/api/ai/tts-aliyun", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(window.__zgCsrf ? { "X-CSRF-Token": window.__zgCsrf } : {}) },
+      credentials: "same-origin",
+      body: JSON.stringify({ text, voice: "Cherry" }),
+    });
+    if (!res.ok) throw new Error("tts");
+    const blob = await res.blob();
+    audioEl?.pause();
+    audioEl = new Audio(URL.createObjectURL(blob));
+    void audioEl.play().catch(() => {});
+  } catch {
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(text.slice(0, 120));
+      u.lang = "zh-CN";
+      window.speechSynthesis.speak(u);
+    }
+  }
+}
 
 async function call(path: string, body: any) {
   const res = await fetch("/api" + path, {
@@ -209,4 +281,9 @@ onBeforeUnmount(() => { cancelAnimationFrame(raf); try { renderer?.dispose(); } 
 .ai-3d { margin-top: 10px; border: 1px solid #efe9f7; border-radius: 10px; overflow: hidden; }
 .ai-3d-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #faf8fd; font-size: 12px; }
 .ai-3d-host { width: 100%; height: 320px; }
+.ai-board { margin-top: 10px; border: 1px solid #efe9f7; border-radius: 10px; overflow: hidden; background: #fffdf8; }
+.ai-board-head { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #faf8fd; font-size: 12px; }
+.ai-board-head strong { color: #3f3353; }
+.ai-voice { display: flex; align-items: center; gap: 4px; color: #6b5c7d; }
+.ai-board-canvas { display: block; width: 100%; height: 220px; }
 </style>

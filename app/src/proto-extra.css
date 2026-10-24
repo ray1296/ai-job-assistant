@@ -394,3 +394,89 @@
 body:not(.show-live2d) .live2d-pet-container { display: none !important; }
 
 .avatar-chip img { -webkit-user-drag: none; user-select: none; }
+
+/* 原版复习页配色修正 */
+.subject-page .flash-card-front,
+.subject-page .flash-card-front * { color: #fff !important; }
+.subject-page .flash-card-back,
+.subject-page .flash-card-back-right { background: #ffffff !important; color: #3f3353 !important; }
+.subject-page .flash-card-back *,
+.subject-page .flash-card-back-right * { color: #3f3353 !important; }
+.subject-page .card-question-text { color: inherit !important; }
+.subject-page .q-type, .subject-page .card-type-badge { color: #fff !important; }
+.subject-page .subject-header h1, .subject-page .subject-header * { color: #fff !important; }
+
+.avatar-chip { z-index: 3; }
+.companions-toggle { z-index: 4; }
+
+
+
+/* 原项目页面：把 paper 主题变量限定在这几个页面内（不影响全站） */
+.subject-page, .review-page, .upload-page {
+  --primary: #2c3e6b;
+  --primary-light: #3d5285;
+  --primary-dark: #1e2d50;
+  --primary-bg: #eef1f8;
+  --on-primary: #ffffff;
+  --accent: #d97706;
+  --accent-light: #f59e0b;
+  --accent-bg: #fdf0dd;
+  --on-accent: #ffffff;
+  --success: #4d7c5f;
+  --success-bg: #eaf3ed;
+  --warning: #b45309;
+  --warning-bg: #fdf0dd;
+  --danger: #b91c1c;
+  --danger-bg: #fdecec;
+  --info: #5b6fa8;
+  --info-bg: #eef1f8;
+  --bg: #f7f4ec;
+  --bg-alt: #efeae0;
+  --card: #ffffff;
+  --card-alt: #f5f1e8;
+  --glass-card: rgba(255, 252, 246, 0.88);
+  --glass-header: rgba(44, 62, 107, 0.88);
+  --app-bg-color: #f7f4ec;
+  --text: #2d2a26;
+  --text-secondary: #6b6560;
+  --text-light: #9a948c;
+  --text-inverse: #ffffff;
+  --border: #e5e0d3;
+  --border-light: #eee9de;
+  --border-strong: #d5cfbf;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --btn-radius: 8px;
+  --chip-radius: 4px;
+  --shadow: 0 1px 3px rgba(45, 42, 38, 0.06);
+  --shadow-md: 0 2px 10px rgba(45, 42, 38, 0.08);
+  --shadow-lg: 0 6px 20px rgba(45, 42, 38, 0.12);
+  --header-bg: #2c3e6b;
+  --header-fg: #ffffff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: repeating-linear-gradient(90deg,
+  --header-grad-a: #2c3e6b;
+  --header-grad-b: #1e2d50;
+  --page-deco: none;
+  --font-display: 'STKaiti', 'KaiTi', 'Kaiti SC', 'FZKai-Z03S', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, 'JetBrains Mono', monospace;
+  --mask: rgba(45, 42, 38, 0.5);
+  --scrollbar: #d5cfbf;
+  --selection: #f3e2c2;
+  --qc-1-bg: #eef1f8; --qc-1-fg: #2c3e6b;
+  --qc-2-bg: #fdf0dd; --qc-2-fg: #b45309;
+  --qc-3-bg: #eaf3ed; --qc-3-fg: #4d7c5f;
+  --qc-4-bg: #f3eefc; --qc-4-fg: #7c5cbf;
+  --qc-5-bg: #efeae0; --qc-5-fg: #6b6560;
+  --wp-mask: linear-gradient(180deg,
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-md: 0 8px 24px rgba(45, 42, 38, .10);
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+.subject-page .ai-tools, .review-page .ai-tools { background: var(--card) !important; }

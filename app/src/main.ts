@@ -1,3 +1,4 @@
+try { if (!localStorage.getItem("kb-theme")) localStorage.setItem("kb-theme", "paper"); } catch {}
 import "vant/lib/index.css";
 import { createPinia } from "pinia";
 import Vant from "vant";

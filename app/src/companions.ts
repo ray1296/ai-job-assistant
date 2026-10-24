@@ -16,9 +16,10 @@ export default defineComponent({
   setup(props) {
     const saved = read();
     const positions = ref<any>(saved.positions || PERSONAS.map((_, i) => ({
-      x: Math.max(12, window.innerWidth - 260 + i * 0), y: Math.max(120, window.innerHeight - 300 + i * 56),
+      x: Math.max(12, window.innerWidth - 78),
+      y: Math.max(90, window.innerHeight - 520 + i * 78),
     })));
-    const togglePos = ref(saved.togglePos || { x: Math.max(12, window.innerWidth - 300), y: Math.max(80, window.innerHeight - 360) });
+    const togglePos = ref(saved.togglePos || { x: Math.max(12, window.innerWidth - 96), y: Math.max(90, window.innerHeight - 150) });
     const collapsed = ref(saved.collapsed ?? false);
     const voice = ref(saved.voice ?? true);
     const form = ref<"avatar" | "live2d">(saved.form || "live2d");
