@@ -548,6 +548,60 @@ const server = http.createServer(async (req, res) => {
         }, undefined);
         return send(res, 200, r);
       }
+      // ---- 兼容原项目接口（上传/版本/科目）----
+      if (p === "/api/subject/list" && m === "GET")
+        return send(res, 200, study.subjects(s.user_id).map((s) => ({ id: s.id, name: s.name, icon: "📚" })));
+      if (p === "/api/subject/create" && m === "POST") {
+        const payload = await body(req);
+        return send(res, 201, study.createSubject(s.user_id, payload.name));
+      }
+      {
+        const mm = p.match(/^\/api\/subject\/([a-z0-9]+)$/);
+        if (mm && (m === "DELETE" || m === "PUT")) {
+          if (m === "PUT") {
+            const payload = await body(req);
+            return send(res, 200, study.renameSubject(s.user_id, mm[1], payload.name));
+          }
+          return send(res, 200, study.removeSubject(s.user_id, mm[1]));
+        }
+      }
+      {
+        const mm = p.match(/^\/api\/version\/subject\/([a-z0-9]+)$/);
+        if (mm && m === "GET") {
+          const sub = study.subjects(s.user_id).find((x) => x.id === mm[1]);
+          return send(res, 200, sub ? sub.versions.map((v2) => ({ id: v2.id, name: v2.name, questionCount: v2.total, total: v2.total })) : []);
+        }
+      }
+      if (p === "/api/version/create" && m === "POST") {
+        const payload = await body(req);
+        const v2 = study.createVersion(s.user_id, String(payload.subjectId), { name: payload.name, questions: [], allowEmpty: true });
+        return send(res, 201, { id: v2.id, name: v2.name });
+      }
+      {
+        const mm = p.match(/^\/api\/version\/([a-z0-9]+)$/);
+        if (mm && m === "PUT") {
+          const payload = await body(req);
+          return send(res, 200, study.renameVersion(s.user_id, mm[1], payload.name));
+        }
+        if (mm && m === "DELETE") return send(res, 200, study.removeVersion(s.user_id, mm[1]));
+      }
+      if (p === "/api/material/parse-file" && m === "POST") {
+        const payload = await body(req);
+        const text = String(payload.text || "");
+        const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+        const questions = lines.map((line) => {
+          const parts = line.split(/\t|\|/);
+          return parts.length >= 2 ? { stem: parts[0], answer: parts.slice(1).join(" ") } : { stem: line, answer: "" };
+        }).filter((q) => q.stem.length > 1).slice(0, 500);
+        return send(res, 200, { fileName: payload.name, count: questions.length, questions });
+      }
+      if (p === "/api/material/upload-questions" && m === "POST") {
+        const payload = await body(req);
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        const rows = items.map((q) => ({ type: q.type || "short", stem: q.stem || q.question || "", answer: q.answer || "", options: q.options || [], analysis: q.analysis || "" }));
+        const out = study.appendQuestions(s.user_id, String(payload.versionId), rows, String(payload.title || "上传导入"));
+        return send(res, 200, { appended: out.appended, message: "已导入 " + out.appended + " 道题" });
+      }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

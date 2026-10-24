@@ -119,7 +119,7 @@ export function createStudy(db, options = {}) {
     ownSubject(userId, subjectId);
     const name = String(input?.name || "").trim().slice(0, 60) || "未命名版本";
     const rows = Array.isArray(input?.questions) ? input.questions : [];
-    if (!rows.length) throw fail(400, "这个版本里没有题目，请先选择要导入的题库或上传文件");
+    if (!rows.length && !input?.allowEmpty) throw fail(400, "这个版本里没有题目，请先选择要导入的题库或上传文件");
     if (rows.length > 2000) throw fail(400, "单个版本最多 2000 道题");
     const id = uid();
     const now = Date.now();

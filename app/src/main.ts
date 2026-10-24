@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import {
   createApp,
   defineComponent,
@@ -11,6 +12,7 @@ import {
 import { api, session, loadSession, errorText } from "./api";
 import Companions from "./companions";
 import Live2DPet from "./orig/components/Live2DPet.vue";
+import UploadView from "./orig/views/upload/index.vue";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -292,7 +294,7 @@ const app = defineComponent({
       if (active.value === "study-upload") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return h(StudyUpload, { key: session.user.id + "upload" });
+        return h(UploadView, { key: session.user.id + "upload" });
       }
       // 学习与刷题：真实题库页面（科目 / 版本 / 刷题 / 知识卡片 / AI）
       if (active.value === "practice") {
@@ -654,4 +656,6 @@ const app = defineComponent({
       ]);
   },
 });
-createApp(app).mount("#app");
+const app0 = createApp(app);
+app0.use(createPinia());
+app0.mount("#app");
