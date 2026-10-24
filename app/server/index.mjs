@@ -1271,6 +1271,19 @@ const server = http.createServer(async (req, res) => {
     const publicRoot = preview
       ? path.resolve(root, "../prototype/public")
       : path.resolve(process.env.CAREER_STATIC_DIR || path.join(root, "dist"));
+    // 原项目外壳（题库页）：/orig/ 下独立 SPA
+    if (!preview && (p === "/orig" || p.startsWith("/orig/"))) {
+      const origRoot = path.resolve(process.env.CAREER_STATIC_DIR || path.join(root, "dist"), "orig");
+      let rel = p.replace(/^\/orig\/?/, "");
+      if (!rel || !fs.existsSync(path.resolve(origRoot, rel)) || fs.statSync(path.resolve(origRoot, rel)).isDirectory()) rel = "index.html";
+      const file2 = path.resolve(origRoot, rel);
+      if (file2.startsWith(origRoot + path.sep) && fs.existsSync(file2)) {
+        res.setHeader("Content-Type", contentTypes[path.extname(file2)] || "application/octet-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        fs.createReadStream(file2).pipe(res);
+        return;
+      }
+    }
     // 大体积静态资源（Live2D 模型等）直接读 app/public，避免每次构建复制
     if (!preview && p.startsWith("/live2d/")) {
       const liveRoot = path.resolve(root, "public");
