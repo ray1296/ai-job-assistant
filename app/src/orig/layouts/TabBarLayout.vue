@@ -239,5 +239,5 @@ const userInitial = computed(() => userStore.userInfo.nickname?.charAt(0) || 'U'
 
 /* zg: no sidebar */
 .sidebar { display: none !important; }
-.app-layout .content-area { margin-left: 0 !important; padding: 0 !important; width: 100% !important; }
+.app-layout .content-area { margin-left: 0 !important; padding: 0 !important; width: 100% !important; max-width: none !important; }
 </style>
