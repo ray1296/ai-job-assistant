@@ -25,6 +25,7 @@ export default defineComponent({
     const form = ref<"avatar" | "live2d">(saved.form || "live2d");
     const activeId = ref("");
     const log = ref<{ role: "me" | "ai"; text: string }[]>([]);
+    const histories: Record<string, { role: "me" | "ai"; text: string }[]> = {};
     const msg = ref("");
     const busy = ref(false);
     const err = ref("");
@@ -50,9 +51,10 @@ export default defineComponent({
       } catch {}
     }
     function openChat(id: string) {
+      if (activeId.value) histories[activeId.value] = log.value.slice();
       activeId.value = id;
       const p = PERSONAS.find((x) => x.id === id)!;
-      log.value = [{ role: "ai", text: p.greet }];
+      log.value = histories[id] ? histories[id].slice() : [{ role: "ai", text: p.greet }];
       err.value = "";
     }
     async function send() {
@@ -144,13 +146,6 @@ export default defineComponent({
           onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),
           title: "单击显示/隐藏看板娘，按住可拖动",
         }, "✦"),
-
-        h("button", {
-          class: "companions-toggle",
-          style: { left: togglePos.value.x + "px", top: togglePos.value.y + "px" },
-          onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),
-          title: "拖动移动 / 点击收起展开",
-        }, collapsed.value ? "看板娘团队" : "收起"),
 
         !collapsed.value && form.value === "avatar"
           ? PERSONAS.map((p, i) =>
