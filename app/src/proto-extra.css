@@ -536,6 +536,9 @@ body.zg-pets-hidden .live2d-pet-container, body.zg-pets-hidden .pet-frame { disp
 body.zg-pets-hidden .live2d-pet-container,
 body.zg-pets-hidden .agent-chip { display: none !important; }
 
-.agent-chip { width: 132px; padding: 6px; border-radius: 14px; gap: 4px; }
-.agent-chip img { width: 120px; height: 150px; border-radius: 10px; object-fit: cover; object-position: 50% 18%; }
-.agent-chip span { font-size: 11px; }
+.agent-chip { width: 54px; padding: 4px; border-radius: 14px; gap: 2px; }
+.agent-chip img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; object-position: 50% 20%; }
+.agent-chip span { font-size: 10px; }
+
+.live2d-pet-container { width: 200px !important; height: 250px !important; right: auto !important; }
+.live2d-canvas { position: absolute !important; left: 0 !important; bottom: 0 !important; }
