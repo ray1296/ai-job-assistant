@@ -63,6 +63,8 @@ const initial = initialReview ? "practice" : initialRaw;
 const app = defineComponent({
   setup() {
     const reviewId = ref(initialReview);
+    const petSkin = ref((() => { try { return localStorage.getItem("zg.petSkin") || "live2d"; } catch { return "live2d"; } })());
+    window.addEventListener("zg:pet-skin", (ev: any) => { petSkin.value = ev?.detail?.skin === "avatar" ? "avatar" : "live2d"; });
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
       fog = ref(false),
@@ -451,7 +453,15 @@ const app = defineComponent({
               ),
             ])
           : null,
-        h(MainPet),
+        petSkin.value === "live2d" ? h(MainPet) : null,
+        petSkin.value === "avatar"
+          ? h("button", {
+              class: "agent-chip",
+              style: { left: "24px", top: (window.innerHeight - 190) + "px" },
+              onMousedown: (e: MouseEvent) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("zg:open-persona", { detail: { personaId: "xingye", persona: "星野" } })); },
+              title: "星野 · 主理人",
+            }, [h("img", { src: "/assets/companions/b-1.png", alt: "星野" }), h("span", "星野")])
+          : null,
         ...[
           { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", slot: 1 },
           { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", slot: 2 },
