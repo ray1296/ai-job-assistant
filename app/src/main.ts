@@ -310,15 +310,17 @@ const app = defineComponent({
       if (active.value === "study-upload") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return h(UploadView, { key: session.user.id + "upload" });
+        return h("iframe", { class: "orig-frame", src: "/orig/#/upload", title: "上传题库" });
       }
       // 学习与刷题：原项目 review 页面（科目列表 / 版本 / 复习）
       if (active.value === "practice") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return reviewId.value
-          ? h(SubjectReview, { key: session.user.id + "review" + reviewId.value })
-          : h(ReviewList, { key: session.user.id + "reviewlist" });
+        return h("iframe", {
+          class: "orig-frame",
+          title: "学习与刷题",
+          src: reviewId.value ? "/orig/#/review/" + reviewId.value : "/orig/#/review",
+        });
       }
       // 个性化设置：真实设置页
       if (active.value === "settings") {

@@ -128,13 +128,20 @@ export default defineComponent({
     return () =>
       h("div", { class: "companions-v3" }, [
         h("button", {
+          class: "companions-form",
+          style: { left: togglePos.value.x + "px", top: (togglePos.value.y + 40) + "px" },
+          title: "切换看板娘形态（Live2D / 立绘）",
+          onClick: () => setForm(form.value === "live2d" ? "avatar" : "live2d"),
+        }, form.value === "live2d" ? "⇄ 立绘" : "⇄ Live2D"),
+
+        h("button", {
           class: "companions-toggle",
           style: { left: togglePos.value.x + "px", top: togglePos.value.y + "px" },
           onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),
           title: "拖动移动 / 点击收起展开",
         }, collapsed.value ? "看板娘团队" : "收起"),
 
-        !collapsed.value
+        !collapsed.value && form.value === "avatar"
           ? PERSONAS.map((p, i) =>
               h("button", {
                 key: p.id,

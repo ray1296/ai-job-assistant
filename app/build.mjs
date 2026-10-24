@@ -16,8 +16,9 @@ const vuePlugin = {
     build.onLoad({ filter: /.*/, namespace: "vue" }, async (args) => {
       const source = await fs.readFile(args.path, "utf8");
       const { descriptor } = parse(source, { filename: args.path });
-      const id = Buffer.from(args.path).toString("base64").slice(0, 8);
-      // 编译 <style>（scoped/普通）并注入到页面，SFC 样式才不会丢
+      const id = Buffer.from(args.path).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
+      const hasScoped = (descriptor.styles || []).some((st) => st.scoped);
+
       const styles = (descriptor.styles || []).map((st) => {
         try {
           const r = compileStyle({ source: st.content, filename: args.path, id: "data-v-" + id, scoped: !!st.scoped });
@@ -27,12 +28,32 @@ const vuePlugin = {
       const inject = styles
         ? "\n;(function(){if(typeof document===\"undefined\")return;var s=document.createElement(\"style\");s.setAttribute(\"data-vue-sfc\",\"" + id + "\");s.textContent=" + JSON.stringify(styles) + ";document.head.appendChild(s);})();\n"
         : "";
-      if (!descriptor.script && !descriptor.scriptSetup) {
-        const tpl = compileTemplate({ source: descriptor.template?.content || "", filename: args.path, id, compilerOptions: { mode: "module" } });
-        return { contents: tpl.code + "\nexport default { render: render };" + inject, loader: "ts", resolveDir: path.dirname(args.path) };
+
+      let merged = "";
+      if (descriptor.scriptSetup) {
+        // <script setup> 必须内联模板，否则模板拿不到 setup 绑定
+        const sc = compileScript(descriptor, { id, inlineTemplate: true, templateOptions: { compilerOptions: { mode: "module" } } });
+        let body = sc.content;
+        if (hasScoped) {
+          body = body.replace(/export default/, "const __sfc_main =");
+          body += "\n__sfc_main.__scopeId = 'data-v-" + id + "';\nexport default __sfc_main;\n";
+        }
+        merged = body + inject;
+      } else {
+        let code = descriptor.script ? compileScript(descriptor, { id }).content : "export default {};";
+        let render = "export default { render: () => null };";
+        if (descriptor.template) {
+          const tpl = compileTemplate({ source: descriptor.template.content, filename: args.path, id, scoped: hasScoped, compilerOptions: { mode: "module" } });
+          render = tpl.code;
+        }
+        merged = code.replace(/export default/, "const __sfc_main =")
+          + "\n" + render.replace(/export (function|const) render/, "$1 __render")
+          + "\n__sfc_main.render = __render;\n"
+          + (hasScoped ? "__sfc_main.__scopeId = 'data-v-" + id + "';\n" : "")
+          + "export default __sfc_main;"
+          + inject;
       }
-      const script = compileScript(descriptor, { id, inlineTemplate: true, templateOptions: { compilerOptions: { mode: "module" } } });
-      return { contents: script.content + inject, loader: "ts", resolveDir: path.dirname(args.path) };
+      return { contents: merged, loader: "ts", resolveDir: path.dirname(args.path) };
     });
   },
 };
