@@ -512,21 +512,30 @@ const server = http.createServer(async (req, res) => {
             single: want === "single" ? count : 0,
             judge: want === "single" ? 0 : count,
           }, undefined);
-          const created = study.createVersion(s.user_id, v.subject_id, {
-            name: (v.name + " · AI" + (want === "judge" ? "判断题" : "选择题") + " " + new Date().toLocaleDateString("zh-CN")),
-            source: "AI 生成",
-            questions: r.questions.map((q) => ({ ...q, tags: ["AI生成"], source: "AI 生成" })),
-          });
-          return send(res, 201, { version: created, generated: r.questions.length });
+          const out = study.appendQuestions(s.user_id, mm[1], r.questions.map((q) => ({ ...q, source: "AI 生成" })), "AI 生成");
+          return send(res, 201, { appended: out.appended, version: v.name });
         }
       }
       if (p === "/api/companion/chat" && m === "POST") {
         const payload = await body(req);
+        const PEERS = ["星野", "知微", "砚舟", "栖迟"];
+        const persona = PEERS.includes(String(payload.persona || "")) ? String(payload.persona) : "星野";
         const r = await aiGateway.chat(s.user_id, {
-          message: payload.message, page: payload.page,
+          message: payload.message, page: payload.page, persona,
+          peers: PEERS.filter((x) => x !== persona),
           history: Array.isArray(payload.history) ? payload.history.slice(-6) : [],
         }, undefined);
-        return send(res, 200, r);
+        const m2 = String(r.reply || "").match(/@(星野|知微|砚舟|栖迟)/);
+        let handoff = null;
+        if (m2 && m2[1] !== persona) {
+          const r2 = await aiGateway.chat(s.user_id, {
+            message: payload.message, page: payload.page, persona: m2[1],
+            peers: PEERS.filter((x) => x !== m2[1]),
+            history: [],
+          }, undefined);
+          handoff = { to: m2[1], reply: String(r2.reply || "").replace(/^@\S+/, "").trim() };
+        }
+        return send(res, 200, { reply: String(r.reply || "").replace(/^@\S+/, "").trim(), handoff });
       }
       if (p === "/api/study/tutor" && m === "POST") {
         const payload = await body(req);

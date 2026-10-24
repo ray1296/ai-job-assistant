@@ -25,4 +25,8 @@ await fs.copyFile("src/proto-extra.css", `${output}/assets/proto-extra.css`);
 await fs.copyFile("src/china.json", `${output}/assets/china.json`);
 await fs.copyFile("src/tagcanvas.min.js", `${output}/assets/tagcanvas.min.js`);
 await fs.copyFile("src/index.html", `${output}/index.html`);
+// 看板娘立绘
+await fs.mkdir(`${output}/assets/companions`, { recursive: true });
+for (const f of await fs.readdir("public/assets/companions"))
+  await fs.copyFile("public/assets/companions/" + f, `${output}/assets/companions/` + f);
 console.log("Built Vue shell with lazy profile/resume modules");

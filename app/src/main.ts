@@ -24,6 +24,7 @@ const Companies = defineAsyncComponent(() => import("./companies"));
 const Housing = defineAsyncComponent(() => import("./housing"));
 const Study = defineAsyncComponent(() => import("./study"));
 const Settings = defineAsyncComponent(() => import("./settings"));
+const StudyUpload = defineAsyncComponent(() => import("./study-upload"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -285,6 +286,11 @@ const app = defineComponent({
           key: session.user.id + active.value,
           onDirty: (v: boolean) => (dirty.value = v),
         });
+      }
+      if (active.value === "study-upload") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(StudyUpload, { key: session.user.id + "upload" });
       }
       // 学习与刷题：真实题库页面（科目 / 版本 / 刷题 / 知识卡片 / AI）
       if (active.value === "practice") {

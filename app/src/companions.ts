@@ -3,10 +3,10 @@ import { api, errorText } from "./api";
 
 const STORE = "zg.companions.v2";
 const PERSONAS = [
-  { id: "guide", name: "小光", role: "主理人", icon: "✦", greet: "我是小光。卡住了就问我，讲题、选岗位、看企业都行。" },
-  { id: "study", name: "小习", role: "学习助教", icon: "✎", greet: "我是小习，负责陪你把题刷明白。哪道题不懂？" },
-  { id: "job", name: "小职", role: "求职顾问", icon: "◎", greet: "我是小职。简历、岗位、面试节奏都可以问我。" },
-  { id: "life", name: "小住", role: "生活管家", icon: "⌂", greet: "我是小住。租房、通勤、城市生活的事找我。" },
+  { id: "guide", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", greet: "我是星野。卡住了就问我，讲题、选岗位、看企业都行。" },
+  { id: "study", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", greet: "我是知微，负责陪你把题刷明白。哪道题不懂？" },
+  { id: "job", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", greet: "我是砚舟。简历、岗位、面试节奏都可以问我。" },
+  { id: "life", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg", greet: "我是栖迟。租房、通勤、城市生活的事找我。" },
 ];
 
 export default defineComponent({
@@ -20,6 +20,22 @@ export default defineComponent({
     const msg = ref("");
     const busy = ref(false);
     const err = ref("");
+    const listening = ref(false);
+    let recog: any = null;
+    function toggleAsr() {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SR) { err.value = "当前浏览器不支持语音识别（建议 Chrome / Edge）"; return; }
+      if (listening.value) { recog?.stop(); listening.value = false; return; }
+      recog = new SR();
+      recog.lang = "zh-CN"; recog.interimResults = false; recog.maxAlternatives = 1;
+      recog.onresult = (ev: any) => {
+        const text = ev?.results?.[0]?.[0]?.transcript || "";
+        if (text) { msg.value = text; void send(); }
+      };
+      recog.onerror = () => { err.value = "没听清，再说一遍？"; listening.value = false; };
+      recog.onend = () => { listening.value = false; };
+      try { recog.start(); listening.value = true; } catch { listening.value = false; }
+    }
     const save = () => { try { localStorage.setItem(STORE, JSON.stringify(conf.value)); } catch {} };
     const persona = () => PERSONAS.find((p) => p.id === activeId.value) || PERSONAS[0];
 
@@ -46,13 +62,19 @@ export default defineComponent({
       busy.value = true; err.value = "";
       try {
         const r = await api<any>("/companion/chat", "POST", {
-          message: "（你现在扮演" + persona().name + "，" + persona().role + "）" + content,
+          message: content,
+          persona: persona().name,
           page: props.page,
           history: log.value.slice(-6).map((x) => ({ role: x.role, text: x.text })),
         }, { timeoutMs: 120000 });
         const reply = r.reply || "……我再想想。";
         log.value.push({ role: "ai", text: reply });
-        speak(reply);
+        if (r.handoff?.reply) {
+          log.value.push({ role: "ai", text: "【" + r.handoff.to + "】" + r.handoff.reply });
+          speak(r.handoff.reply);
+        } else {
+          speak(reply);
+        }
       } catch (e) { err.value = errorText(e); }
       finally { busy.value = false; }
     }
@@ -82,7 +104,7 @@ export default defineComponent({
               onClick: () => openChat(p.id),
               title: p.name + " · " + p.role + "（可拖动）",
             }, [
-              h("span", { class: "companion-face" }, p.icon),
+              h("img", { class: "companion-face", src: p.avatar, alt: p.name, draggable: false }),
               h("span", { class: "companion-name" }, p.name),
             ])),
           h("button", {
@@ -109,7 +131,7 @@ export default defineComponent({
         activeId.value
           ? h("div", { class: "companion-chat", style: { transform: "scale(" + conf.value.size + ")", transformOrigin: "top left" } }, [
               h("header", { class: "companion-head" }, [
-                h("span", persona().icon + " " + persona().name + " · " + persona().role),
+                h("span", persona().name + " · " + persona().role),
                 h("button", { onClick: () => { activeId.value = ""; window.speechSynthesis?.cancel(); } }, "×"),
               ]),
               h("div", { class: "companion-log" }, log.value.map((x) => h("p", { class: "companion-bubble " + (x.role === "me" ? "me" : "ai") }, x.text))),
@@ -121,6 +143,7 @@ export default defineComponent({
                   onInput: (e: Event) => (msg.value = (e.target as HTMLInputElement).value),
                   onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void send(); },
                 }),
+                h("button", { class: "companion-mic" + (listening.value ? " on" : ""), title: "语音输入", onClick: toggleAsr }, listening.value ? "●" : "🎤"),
                 h("button", { disabled: busy.value, onClick: () => void send() }, "发送"),
               ]),
             ])

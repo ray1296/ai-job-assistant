@@ -17,9 +17,9 @@ const TYPES = ["single", "judge", "short", "blank"];
 const uid = () => randomUUID().replace(/-/g, "").slice(0, 24);
 
 const SCHEMA = [
-  "CREATE TABLE IF NOT EXISTS study_subjects(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,created_at INTEGER NOT NULL);",
+  "CREATE TABLE IF NOT EXISTS study_subjects(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,is_system INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);",
   "CREATE INDEX IF NOT EXISTS study_subjects_owner ON study_subjects(user_id,created_at);",
-  "CREATE TABLE IF NOT EXISTS study_versions(id TEXT PRIMARY KEY,subject_id TEXT NOT NULL REFERENCES study_subjects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,source TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL);",
+  "CREATE TABLE IF NOT EXISTS study_versions(id TEXT PRIMARY KEY,subject_id TEXT NOT NULL REFERENCES study_subjects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,source TEXT NOT NULL DEFAULT '',is_system INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);",
   "CREATE INDEX IF NOT EXISTS study_versions_owner ON study_versions(subject_id,created_at);",
   "CREATE TABLE IF NOT EXISTS study_questions(id TEXT PRIMARY KEY,version_id TEXT NOT NULL REFERENCES study_versions(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,seq INTEGER NOT NULL,type TEXT NOT NULL,stem TEXT NOT NULL,options TEXT NOT NULL DEFAULT '[]',answer TEXT NOT NULL DEFAULT '',analysis TEXT NOT NULL DEFAULT '',simple_answer TEXT NOT NULL DEFAULT '',source TEXT NOT NULL DEFAULT '',tags TEXT NOT NULL DEFAULT '[]',difficulty TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL);",
   "CREATE INDEX IF NOT EXISTS study_questions_version ON study_questions(version_id,seq);",
@@ -30,6 +30,33 @@ const SCHEMA = [
 export function createStudy(db, options = {}) {
   const ai = options.ai || null;
   db.exec(SCHEMA);
+  // 老库补字段
+  for (const [table, col] of [["study_subjects", "is_system"], ["study_versions", "is_system"]]) {
+    const cols = db.prepare("PRAGMA table_info(" + table + ")").all().map((c) => c.name);
+    if (!cols.includes(col)) db.exec("ALTER TABLE " + table + " ADD COLUMN " + col + " INTEGER NOT NULL DEFAULT 0");
+  }
+  // 首次进入时把平台面经题库灌进来（所有用户都有，只读）
+  const SYSTEM_SUBJECT = "平台面经题库";
+  function ensureSystemLibrary(userId) {
+    const has = db.prepare("SELECT id FROM study_subjects WHERE user_id=? AND is_system=1").get(userId);
+    if (has) return has.id;
+    const sid = "sys" + uid().slice(0, 21);
+    const now = Date.now();
+    db.prepare("INSERT INTO study_subjects(id,user_id,name,is_system,created_at) VALUES(?,?,?,1,?)").run(sid, userId, SYSTEM_SUBJECT, now);
+    const stmt = insertQ();
+    for (const d of catalogDirections()) {
+      const vid = "sys" + uid().slice(0, 21);
+      db.prepare("INSERT INTO study_versions(id,subject_id,user_id,name,source,is_system,created_at) VALUES(?,?,?,?,?,1,?)")
+        .run(vid, sid, userId, d.name + " · 面经", "平台面经题库", now);
+      const rows = questionsFromCatalog(d.name, 200);
+      rows.forEach((q, i) => {
+        stmt.run(uid(), vid, userId, i + 1, q.type, q.stem,
+          JSON.stringify(q.options || []), q.answer || "", q.analysis || "", q.simpleAnswer || "",
+          q.source || "", JSON.stringify(q.tags || []), q.difficulty || "", now);
+      });
+    }
+    return sid;
+  }
 
   const ownSubject = (userId, id) => {
     const s = db.prepare("SELECT * FROM study_subjects WHERE id=? AND user_id=?").get(id, userId);
@@ -48,13 +75,15 @@ export function createStudy(db, options = {}) {
   };
 
   function subjects(userId) {
-    const list = db.prepare("SELECT * FROM study_subjects WHERE user_id=? ORDER BY created_at DESC").all(userId);
+    ensureSystemLibrary(userId);
+    const list = db.prepare("SELECT * FROM study_subjects WHERE user_id=? ORDER BY is_system DESC, created_at DESC").all(userId);
     const versions = db.prepare("SELECT v.*, (SELECT COUNT(*) FROM study_questions q WHERE q.version_id=v.id) AS total FROM study_versions v WHERE v.user_id=? ORDER BY v.created_at DESC").all(userId);
     return list.map((s) => ({
       id: s.id,
       name: s.name,
+      isSystem: !!s.is_system,
       createdAt: s.created_at,
-      versions: versions.filter((v) => v.subject_id === s.id).map((v) => ({ id: v.id, name: v.name, total: v.total, createdAt: v.created_at })),
+      versions: versions.filter((v) => v.subject_id === s.id).map((v) => ({ id: v.id, name: v.name, total: v.total, isSystem: !!v.is_system, createdAt: v.created_at })),
     }));
   }
 
@@ -66,14 +95,16 @@ export function createStudy(db, options = {}) {
     return { id, name: n };
   }
   function renameSubject(userId, id, name) {
-    ownSubject(userId, id);
+    const sub = ownSubject(userId, id);
+    if (sub.is_system) throw fail(403, "平台题库是只读的，可以另建自己的科目");
     const n = String(name || "").trim();
     if (!n || n.length > 60) throw fail(400, "科目名称需为 1-60 字");
     db.prepare("UPDATE study_subjects SET name=? WHERE id=?").run(n, id);
     return { ok: true };
   }
   function removeSubject(userId, id) {
-    ownSubject(userId, id);
+    const sub = ownSubject(userId, id);
+    if (sub.is_system) throw fail(403, "平台题库是只读的，不能删除");
     const versions = db.prepare("SELECT id FROM study_versions WHERE subject_id=?").all(id);
     for (const v of versions) db.prepare("DELETE FROM study_questions WHERE version_id=?").run(v.id);
     db.prepare("DELETE FROM study_versions WHERE subject_id=?").run(id);
@@ -119,14 +150,16 @@ export function createStudy(db, options = {}) {
   }
 
   function renameVersion(userId, id, name) {
-    ownVersion(userId, id);
+    const v = ownVersion(userId, id);
+    if (v.is_system) throw fail(403, "平台题库是只读的");
     const n = String(name || "").trim();
     if (!n || n.length > 60) throw fail(400, "版本名称需为 1-60 字");
     db.prepare("UPDATE study_versions SET name=? WHERE id=?").run(n, id);
     return { ok: true };
   }
   function removeVersion(userId, id) {
-    ownVersion(userId, id);
+    const v = ownVersion(userId, id);
+    if (v.is_system) throw fail(403, "平台题库是只读的");
     db.prepare("DELETE FROM study_questions WHERE version_id=?").run(id);
     db.prepare("DELETE FROM study_versions WHERE id=?").run(id);
     return { ok: true };
@@ -157,6 +190,33 @@ export function createStudy(db, options = {}) {
         correct: stat.get(q.id)?.ok || 0,
       })),
     };
+  }
+
+  function appendQuestions(userId, versionId, rows, sourceLabel) {
+    const v = ownVersion(userId, versionId);
+    const list = (Array.isArray(rows) ? rows : []).slice(0, 50);
+    if (!list.length) throw fail(400, "没有可追加的题目");
+    const max = db.prepare("SELECT COALESCE(MAX(seq),0) AS m FROM study_questions WHERE version_id=?").get(versionId).m;
+    const now = Date.now();
+    const stmt = insertQ();
+    db.exec("BEGIN");
+    try {
+      list.forEach((q, i) => {
+        const type = TYPES.includes(q.type) ? q.type : "short";
+        stmt.run(uid(), versionId, userId, max + i + 1, type,
+          String(q.stem || "").slice(0, 4000),
+          JSON.stringify(Array.isArray(q.options) ? q.options.slice(0, 8) : []),
+          String(q.answer || "").slice(0, 4000),
+          String(q.analysis || "").slice(0, 4000),
+          String(q.simpleAnswer || "").slice(0, 2000),
+          String(q.source || sourceLabel || "AI 生成").slice(0, 300),
+          JSON.stringify(Array.isArray(q.tags) ? q.tags.slice(0, 10) : ["AI生成"]),
+          String(q.difficulty || "").slice(0, 20),
+          now);
+      });
+      db.exec("COMMIT");
+    } catch (e) { db.exec("ROLLBACK"); throw e; }
+    return { appended: list.length, version: v.name };
   }
 
   function recordAttempt(userId, questionId, correct) {
@@ -194,7 +254,7 @@ export function createStudy(db, options = {}) {
   return {
     subjects, createSubject, renameSubject, removeSubject,
     createVersion, renameVersion, removeVersion,
-    questions, recordAttempt, questionsFromCatalog, catalogDirections,
+    questions, recordAttempt, appendQuestions, questionsFromCatalog, catalogDirections, ensureSystemLibrary,
     ownQuestion, ownVersion, ai,
   };
 }

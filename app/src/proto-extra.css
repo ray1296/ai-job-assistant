@@ -316,3 +316,27 @@
 .settings-row > span:first-child { width: 72px; color: #8b7d99; }
 .settings-row input[type=range] { flex: 1; }
 .settings-accent { display: flex; gap: 8px; }
+
+.study-badge { font-size: 10px; background: #eef7f5; color: #2f7f74; border-radius: 999px; padding: 3px 9px; }
+.tutor-steps { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.tutor-steps li { font-size: 12px; line-height: 1.7; color: #3f3353; }
+
+.upload-step { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.upload-modes { display: flex; gap: 8px; }
+.upload-drop { border: 1px dashed #d9ccec; border-radius: 12px; padding: 18px; text-align: center; background: #faf8fd; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.upload-drop small { color: #8b7d99; font-size: 11px; }
+.upload-preview { display: flex; flex-direction: column; gap: 6px; }
+.upload-actions { display: flex; gap: 10px; align-items: center; }
+
+.companion-face { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; object-position: 50% 22%; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(60,40,90,.18); }
+.companion-mic { border: 1px solid #e6def0; background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.companion-mic.on { background: #fdecec; border-color: #e08a8a; color: #c05555; }
+
+.three-backdrop { position: fixed; inset: 0; background: rgba(40,30,60,.35); display: flex; align-items: center; justify-content: center; z-index: 90; }
+.three-panel { width: min(760px, 92vw); height: min(560px, 80vh); background: #fff; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(40,30,60,.28); }
+.three-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f0eaf7; font-size: 12px; }
+.three-head strong { color: #3f3353; }
+.three-head .muted { margin-left: auto; font-size: 11px; color: #9c8fae; }
+.three-host { flex: 1; min-height: 0; }
+.three-host canvas { display: block; }

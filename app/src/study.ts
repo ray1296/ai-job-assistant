@@ -1,5 +1,6 @@
 import { defineComponent, h, ref, computed, onMounted } from "vue";
 import { api, errorText } from "./api";
+import ThreeView from "./three-view";
 
 type Q = {
   id: string; type: "single" | "judge" | "short" | "blank";
@@ -35,10 +36,14 @@ export default defineComponent({
     const tutorNeedCanvas = ref(false);
     const tutorNeed3d = ref(false);
     const tutorInput = ref("");
+    const tutorStepIdx = ref(0);
+    const tutorAllSteps = ref<any[]>([]);
+    const tutorWaiting = ref(false);
     const tutorBusy = ref(false);
     const canvasRef = ref<HTMLCanvasElement | null>(null);
     const autoPlay = ref(true);
     const speakOn = ref(true);
+    const threeSpec = ref<any>(null);
 
     // 上传/新建弹窗
     const dialog = ref<"" | "subject" | "version">("");
@@ -194,8 +199,9 @@ export default defineComponent({
       busy.value = true;
       try {
         const r = await api<any>("/study/versions/" + version.value.id + "/generate", "POST", { kind, count: 5 }, { timeoutMs: 180000 });
+        await openVersion({ ...version.value });
         await loadSubjects();
-        flash("已生成 " + r.generated + " 道" + (kind === "single" ? "选择题" : "判断题") + "，查看「" + r.version.name + "」");
+        flash("已向当前版本追加 " + r.appended + " 道" + (kind === "single" ? "选择题" : "判断题"));
       } catch (e) { error.value = errorText(e); }
       finally { busy.value = false; }
     }
@@ -208,13 +214,31 @@ export default defineComponent({
           questionId: current.value.id, message,
         }, { timeoutMs: 180000 });
         tutorText.value = r.reply || "";
-        tutorSteps.value = r.steps || [];
+        tutorAllSteps.value = r.steps || [];
+        tutorStepIdx.value = 0;
+        tutorSteps.value = tutorAllSteps.value.slice(0, 1);
+        tutorWaiting.value = tutorAllSteps.value.length > 1;
         tutorNeedCanvas.value = !!r.needCanvas || tutorSteps.value.length > 0;
         tutorNeed3d.value = !!r.need3d;
+        if (r.scene) threeSpec.value = r.scene;
         if (tutorNeedCanvas.value) openDrawer();
         else speak(tutorText.value);
       } catch (e) { error.value = errorText(e); }
       finally { tutorBusy.value = false; }
+    }
+
+    function nextTutorStep() {
+      if (tutorStepIdx.value + 1 >= tutorAllSteps.value.length) {
+        tutorWaiting.value = false;
+        tutorSteps.value = tutorAllSteps.value;
+        speak("这一步就讲完了，还有哪里不懂可以直接问我。");
+        return;
+      }
+      tutorStepIdx.value += 1;
+      tutorSteps.value = tutorAllSteps.value.slice(0, tutorStepIdx.value + 1);
+      tutorWaiting.value = tutorStepIdx.value + 1 < tutorAllSteps.value.length;
+      if (drawerOpen.value) openDrawer();
+      speak(tutorAllSteps.value[tutorStepIdx.value]?.text || "");
     }
 
     function speak(text: string) {
@@ -317,8 +341,10 @@ export default defineComponent({
         h("header", { class: "study-subject-head" }, [
           h("h2", s.name),
           h("div", { class: "study-actions" }, [
-            h("button", { class: "btn small", onClick: () => void renameSubject(s) }, "重命名"),
-            h("button", { class: "btn small", onClick: () => void deleteSubject(s) }, "删除"),
+            s.isSystem
+              ? h("span", { class: "study-badge" }, "平台题库")
+              : h("button", { class: "btn small", onClick: () => void renameSubject(s) }, "重命名"),
+            s.isSystem ? null : h("button", { class: "btn small", onClick: () => void deleteSubject(s) }, "删除"),
             h("button", { class: "btn small primary", onClick: () => openVersionDialog(s.id) }, "＋ 版本"),
           ]),
         ]),
@@ -329,10 +355,12 @@ export default defineComponent({
                   h("strong", v.name),
                   h("small", v.total + " 道题"),
                 ]),
-                h("div", { class: "study-actions" }, [
-                  h("button", { class: "btn small", onClick: () => void renameVersion(v) }, "改名"),
-                  h("button", { class: "btn small", onClick: () => void deleteVersion(v) }, "删除"),
-                ]),
+                v.isSystem
+                  ? h("span", { class: "study-badge" }, "只读")
+                  : h("div", { class: "study-actions" }, [
+                      h("button", { class: "btn small", onClick: () => void renameVersion(v) }, "改名"),
+                      h("button", { class: "btn small", onClick: () => void deleteVersion(v) }, "删除"),
+                    ]),
               ])))
           : h("p", { class: "muted" }, "还没有版本，点右上角「＋ 版本」导入题库。"),
       ]);
@@ -424,6 +452,7 @@ export default defineComponent({
           h("button", { class: "btn", onClick: prev, disabled: idx.value === 0 }, "上一题"),
           h("button", { class: "btn primary", onClick: next, disabled: idx.value + 1 >= filtered.value.length }, "下一题"),
           h("button", { class: "btn", onClick: () => void askTutor() }, "✦ 让看板娘讲题"),
+          h("button", { class: "btn", onClick: () => void askTutor("请用 3D 模型演示这个知识点") }, "▣ 3D 演示"),
         ]),
       ]));
       return h("div", { class: "study-practice" }, body);
@@ -437,7 +466,14 @@ export default defineComponent({
               h("button", { class: "btn small", onClick: () => { tutorOpen.value = false; window.speechSynthesis?.cancel(); } }, "×"),
             ]),
             h("div", { class: "tutor-body" }, [
-              h("p", { class: "tutor-bubble" }, tutorBusy.value ? "让我想想……" : tutorText.value || "点「让看板娘讲题」，我给你讲这道题。"),
+              h("p", { class: "tutor-bubble" }, tutorBusy.value ? "让我想想……" : tutorText.value || "点「让看板娘讲题」，我一步一步给你讲。"),
+              tutorSteps.value.length
+                ? h("ol", { class: "tutor-steps" }, tutorSteps.value.map((st: any, i: number) =>
+                    h("li", { key: i }, st.text)))
+                : null,
+              tutorWaiting.value
+                ? h("button", { class: "btn small primary", onClick: nextTutorStep }, "懂了，继续")
+                : null,
               tutorNeedCanvas.value ? h("button", { class: "btn small", onClick: openDrawer }, "▣ 打开白板") : null,
             ]),
             h("div", { class: "tutor-input" }, [
@@ -479,7 +515,7 @@ export default defineComponent({
         ]),
         version.value ? null : h("div", { class: "toolbar" }, [
           h("button", { class: "btn primary", onClick: openSubjectDialog }, "＋ 新建科目"),
-          h("button", { class: "btn", onClick: openSubjectDialog }, "⬆ 上传题库"),
+          h("a", { class: "btn", href: "#study-upload" }, "⬆ 上传题库"),
           h("button", { class: "btn", onClick: () => void loadSubjects() }, "刷新"),
         ]),
         error.value ? h("p", { class: "error", role: "alert" }, error.value) : null,
@@ -499,6 +535,7 @@ export default defineComponent({
 
         tutorPanel(),
         drawer(),
+        threeSpec.value ? h(ThreeView, { spec: threeSpec.value, onClose: () => (threeSpec.value = null) }) : null,
         dialog.value ? dialogBox() : null,
       ]);
   },
