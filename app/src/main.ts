@@ -1,5 +1,6 @@
 import "vant/lib/index.css";
 import { createPinia } from "pinia";
+import Vant from "vant";
 import {
   createApp,
   defineComponent,
@@ -14,6 +15,8 @@ import { api, session, loadSession, errorText } from "./api";
 import Companions from "./companions";
 import Live2DPet from "./orig/components/Live2DPet.vue";
 import UploadView from "./orig/views/upload/index.vue";
+import ReviewList from "./orig/views/review/index.vue";
+import SubjectReview from "./orig/views/review/subject.vue";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -50,9 +53,12 @@ const pages = [
   ["admin", "管理中心", "⊞"],
 ];
 const known = new Set(pages.map((p) => p[0]));
-const initial = location.hash.slice(1);
+const initialRaw = location.hash.slice(1);
+const initialReview = initialRaw.startsWith("review/") ? initialRaw.slice(7) : "";
+const initial = initialReview ? "practice" : initialRaw;
 const app = defineComponent({
   setup() {
+    const reviewId = ref(initialReview);
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
       fog = ref(false),
@@ -85,8 +91,15 @@ const app = defineComponent({
         }
       });
       window.addEventListener("hashchange", () => {
-        const id = location.hash.slice(1);
+        const raw = location.hash.slice(1);
+        if (raw.startsWith("review/")) {
+          reviewId.value = raw.slice(7);
+          active.value = "practice";
+          return;
+        }
+        const id = raw;
         if (!known.has(id) || id === active.value) return;
+        reviewId.value = "";
         go(id);
       });
     });
@@ -297,11 +310,13 @@ const app = defineComponent({
         if (!session.user) return loginPrompt();
         return h(UploadView, { key: session.user.id + "upload" });
       }
-      // 学习与刷题：真实题库页面（科目 / 版本 / 刷题 / 知识卡片 / AI）
+      // 学习与刷题：原项目 review 页面（科目列表 / 版本 / 复习）
       if (active.value === "practice") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return h(Study, { key: session.user.id + "study" });
+        return reviewId.value
+          ? h(SubjectReview, { key: session.user.id + "review" + reviewId.value })
+          : h(ReviewList, { key: session.user.id + "reviewlist" });
       }
       // 个性化设置：真实设置页
       if (active.value === "settings") {
@@ -659,4 +674,5 @@ const app = defineComponent({
 });
 const app0 = createApp(app);
 app0.use(createPinia());
+app0.use(Vant);
 app0.mount("#app");

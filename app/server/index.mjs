@@ -63,6 +63,8 @@ CREATE INDEX IF NOT EXISTS resumes_owner ON resumes(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS job_intents(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,job_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,job_id));
 CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
 PRAGMA user_version=1;`);
+db.exec("CREATE TABLE IF NOT EXISTS study_favorites(user_id TEXT NOT NULL, question_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,question_id));");
+db.exec("CREATE TABLE IF NOT EXISTS study_wrong(user_id TEXT NOT NULL, question_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,question_id));");
 const applicationPlan = createApplicationPlan(db, getJob);
 const learning = createLearning(db);
 const resumeImports = createResumeImports(db, dataDir, profileData);
@@ -633,6 +635,69 @@ const server = http.createServer(async (req, res) => {
         const r = await aiGateway.study(s.user_id, { kind: "generate", items, single: 5, judge: 0 }, undefined);
         return send(res, 200, { questions: r.questions });
       }
+      // ---- 复习页（原项目 review 页）----
+      {
+        const mm = p.match(/^\/api\/material\/subject\/([a-z0-9]+)$/);
+        if (mm && m === "GET") {
+          const url = new URL(req.url, "http://x");
+          const versionId = String(url.searchParams.get("versionId") || "");
+          const subs = study.subjects(s.user_id);
+          const sub = subs.find((x) => x.id === mm[1]);
+          if (!sub) throw failure(404, "科目不存在");
+          const ver = sub.versions.find((v2) => v2.id === versionId) || sub.versions[0];
+          if (!ver) throw failure(404, "这个科目还没有版本");
+          const data = study.questions(s.user_id, ver.id, {});
+          const questions = data.questions.map((q) => ({
+            id: q.id,
+            type: q.type === "single" ? "choice" : q.type === "blank" ? "code_fill" : q.type,
+            stem: q.stem,
+            options: q.options,
+            answer: q.type === "single"
+              ? String.fromCharCode(65 + Math.max(0, (q.options || []).indexOf(q.answer)))
+              : q.answer,
+            analysis: q.analysis,
+            simpleAnswer: q.simpleAnswer,
+            tags: q.tags,
+          }));
+          return send(res, 200, {
+            subject: { id: sub.id, name: sub.name, versionId: ver.id, versionName: ver.name },
+            versions: sub.versions,
+            questions,
+            flashcards: questions.filter((q) => q.type === "short").map((q) => ({ id: q.id, front: q.stem, back: q.answer })),
+            knowledgePoints: [],
+            totalQuestions: questions.length,
+          });
+        }
+      }
+      if (p === "/api/question/favorites/list" && m === "GET") {
+        const rows = db.prepare("SELECT question_id FROM study_favorites WHERE user_id=?").all(s.user_id);
+        return send(res, 200, rows.map((r) => ({ id: r.question_id })));
+      }
+      {
+        const mm = p.match(/^\/api\/question\/([a-z0-9]+)\/favorite$/);
+        if (mm && m === "POST") {
+          const has = db.prepare("SELECT 1 FROM study_favorites WHERE user_id=? AND question_id=?").get(s.user_id, mm[1]);
+          if (has) db.prepare("DELETE FROM study_favorites WHERE user_id=? AND question_id=?").run(s.user_id, mm[1]);
+          else db.prepare("INSERT INTO study_favorites(user_id,question_id,created_at) VALUES(?,?,?)").run(s.user_id, mm[1], Date.now());
+          return send(res, 200, { favorited: !has });
+        }
+      }
+      if (p === "/api/exam/wrong-questions" && m === "GET")
+        return send(res, 200, db.prepare("SELECT question_id AS id FROM study_wrong WHERE user_id=?").all(s.user_id));
+      {
+        const mm = p.match(/^\/api\/exam\/wrong-questions\/([a-z0-9]+)$/);
+        if (mm && m === "POST") {
+          db.prepare("INSERT OR IGNORE INTO study_wrong(user_id,question_id,created_at) VALUES(?,?,?)").run(s.user_id, mm[1], Date.now());
+          return send(res, 200, { ok: true });
+        }
+        if (mm && m === "DELETE") {
+          db.prepare("DELETE FROM study_wrong WHERE user_id=? AND question_id=?").run(s.user_id, mm[1]);
+          return send(res, 200, { ok: true });
+        }
+      }
+      if (p === "/api/question/stats/overview" && m === "GET") return send(res, 200, {});
+      if (p === "/api/stats/overview" && m === "GET")
+        return send(res, 200, { totalQuestions: 0, learnedQuestions: 0, correctRate: 0, studyDays: 0, todayQuestions: 0 });
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

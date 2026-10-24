@@ -31,4 +31,13 @@ export const aiRecognize = (text: string) => post("/ai/recognize", { text });
 export const aiRecognizeQuestion = (type: string, text: string) => post("/ai/recognize-question", { type, text });
 export const aiGenerateQuiz = (items: any[]) => post("/ai/generate-quiz", { items });
 
+export const aiStudySummary = (subjectName: string, questions: any[]) => chat("请用 150 字总结「" + subjectName + "」的重点：" + JSON.stringify(questions).slice(0, 1500));
+export const aiWrongSteps = (subjectName: string, wrongQuestions: any[]) => chat("请分步讲解这些错题（" + subjectName + "）：" + JSON.stringify(wrongQuestions).slice(0, 1500));
+export const aiShortMemo = (subjectName: string, items: any[]) => chat("请为「" + subjectName + "」编 5 条记忆口诀：" + JSON.stringify(items).slice(0, 1200));
+export const aiSubjectLink = (subjects: any[]) => chat("这些科目之间有什么关联？" + JSON.stringify(subjects).slice(0, 800));
+export const aiGeneratePage = async (subjectName: string, questions: any[], wrongQuestions: any[]) => {
+  const r = await chat("请为「" + subjectName + "」写一份 HTML 复习报告（只要正文片段）。题目：" + JSON.stringify(questions).slice(0, 1200));
+  return { code: 200, data: { html: "<div>" + String((r as any).data?.reply || "") + "</div>" } };
+};
+export const aiPageSave = () => Promise.resolve({ code: 200, data: { ok: true } });
 export default { aiChat, aiWrongReview, aiRagAsk, aiAgentRun, aiRecognize, aiRecognizeQuestion, aiGenerateQuiz };
