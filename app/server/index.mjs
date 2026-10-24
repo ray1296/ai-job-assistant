@@ -602,6 +602,37 @@ const server = http.createServer(async (req, res) => {
         const out = study.appendQuestions(s.user_id, String(payload.versionId), rows, String(payload.title || "上传导入"));
         return send(res, 200, { appended: out.appended, message: "已导入 " + out.appended + " 道题" });
       }
+      if (p === "/api/ai/recognize" && m === "POST") {
+        const payload = await body(req);
+        const text = String(payload.text || "").slice(0, 2000);
+        if (!text.trim()) throw failure(400, "请先输入内容");
+        let items = [];
+        try {
+          const r = await aiGateway.chat(s.user_id, {
+            message: "请把下面内容拆成知识点，只输出JSON数组，每项形如 {title,content,quickAnswer}，不要输出其他文字：\n" + text,
+            page: "upload",
+          }, undefined);
+          const m2 = String(r.reply || "").match(/\[[\s\S]*\]/);
+          if (m2) items = JSON.parse(m2[0]).slice(0, 12);
+        } catch {}
+        if (!Array.isArray(items) || !items.length) {
+          items = text.split(/[\n。；]/).map((x) => x.trim()).filter(Boolean).slice(0, 8)
+            .map((line) => ({ title: line.slice(0, 24), content: line, quickAnswer: "" }));
+        }
+        return send(res, 200, { items });
+      }
+      if (p === "/api/ai/recognize-question" && m === "POST") {
+        const payload = await body(req);
+        const text = String(payload.text || "").slice(0, 2000);
+        return send(res, 200, { question: { type: payload.type || "single", stem: text, options: [], answer: "", analysis: "" } });
+      }
+      if (p === "/api/ai/generate-quiz" && m === "POST") {
+        const payload = await body(req);
+        const items = (Array.isArray(payload.items) ? payload.items : []).slice(0, 20)
+          .map((x) => ({ q: String(x.title || x.stem || x.content || "").slice(0, 200), a: String(x.content || x.answer || "").slice(0, 200) }));
+        const r = await aiGateway.study(s.user_id, { kind: "generate", items, single: 5, judge: 0 }, undefined);
+        return send(res, 200, { questions: r.questions });
+      }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
         const q = String(url.searchParams.get("q") || "").trim().toLowerCase();

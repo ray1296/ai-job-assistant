@@ -355,12 +355,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter } from '../../router'
 import { showToast, showConfirmDialog } from 'vant'
-import { useUserStore } from '../stores/userStore'
-import { uploadKnowledge, uploadQuestions, parseFile, getVersionList, createVersion, renameVersion, deleteVersion } from '../api/material'
-import { aiRecognize, aiGenerateQuiz, aiRecognizeQuestion } from '../api/ai'
-import { askAI } from '../utils/askAI'
+import { useUserStore } from '../../stores/userStore'
+import { uploadKnowledge, uploadQuestions, parseFile, getVersionList, createVersion, renameVersion, deleteVersion } from '../../api/material'
+import { aiRecognize, aiGenerateQuiz, aiRecognizeQuestion } from '../../api/ai'
+import { askAI } from '../../utils/askAI'
 
 defineOptions({ name: 'UploadCenter' })
 

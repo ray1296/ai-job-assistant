@@ -1,3 +1,4 @@
+import "vant/lib/index.css";
 import { createPinia } from "pinia";
 import {
   createApp,
