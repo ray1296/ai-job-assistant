@@ -82,6 +82,13 @@ export default defineComponent({
               h("span", "位置"),
               h("button", { class: "btn small", onClick: () => { localStorage.removeItem("zg.petFrames.v2"); location.reload(); } }, "重置四只位置"),
             ]),
+            h("div", { class: "settings-row" }, [h("span", "看板娘形象")]),
+            h("div", { class: "settings-row" }, ["星野", "知微", "砚舟", "栖迟"].map((n, i) =>
+              h("select", {
+                class: "map-input", style: "max-width:120px",
+                value: localStorage.getItem("zg.voice." + n) || ["Cherry", "Serena", "Ethan", "Cherry"][i],
+                onChange: (e: Event) => { localStorage.setItem("zg.voice." + n, (e.target as HTMLSelectElement).value); },
+              }, ["Cherry", "Serena", "Ethan", "Cherry"].map((v) => h("option", { value: v }, v))))),
             h("p", { class: "muted" }, "四只分别是：星野（主看板娘，功能完整）、知微、砚舟、栖迟（隔离运行时，各自可换装、可单独拖动，双击把手进入拖动模式）。"),
           ]),
           h("section", { class: "card" }, [

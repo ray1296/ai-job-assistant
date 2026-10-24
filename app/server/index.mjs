@@ -524,27 +524,77 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/companion/chat" && m === "POST") {
         const payload = await body(req);
         const PEERS = ["星野", "知微", "砚舟", "栖迟"];
-        const persona = PEERS.includes(String(payload.persona || "")) ? String(payload.persona) : "星野";
-        const personaName = String(payload.persona || "星野");
+        const personaName = PEERS.includes(String(payload.persona || "")) ? String(payload.persona) : "星野";
         const agentIdMap = { "星野": "xingye", "知微": "zhiwei", "砚舟": "yanzhou", "栖迟": "qichi" };
-        const ctx = agents.context(agentIdMap[personaName] || "xingye");
-        const r = await aiGateway.chat(s.user_id, {
-          message: payload.message, page: payload.page, persona,
-          system: ctx.system,
-          peers: PEERS.filter((x) => x !== persona),
-          history: Array.isArray(payload.history) ? payload.history.slice(-6) : [],
-        }, undefined);
-        const m2 = String(r.reply || "").match(/@(星野|知微|砚舟|栖迟)/);
+        const agentId = agentIdMap[personaName] || "xingye";
+        const ctx = agents.context(agentId);
+        const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
+        const messages = [
+          { role: "system", content: ctx.system + "\n可用工具：" + TOOLS.map((t) => t.name + "（" + t.description + "）").join("；") + "\n需要数据时直接调用工具，不要编造。" },
+          ...history.map((h) => ({ role: h.role === "me" ? "user" : "assistant", content: String(h.text || "").slice(0, 500) })),
+          { role: "user", content: String(payload.message || "").slice(0, 800) },
+        ];
+        // 提示词驱动的工具路由（不依赖模型原生 function calling）
+        const toolTable = TOOLS.map((t) => "- " + t.name + "：" + t.description + "；参数 " + JSON.stringify(t.inputSchema.properties || {})).join("\n");
+        let reply = "";
+        let used = [];
+        try {
+          // 先做确定性路由（关键词 + 数据命中），命中就不必让模型判断
+          const msg0 = String(payload.message || "");
+          const companies = loadCompanies();
+          const hitCompany = companies.find((c) => msg0.includes(c.name));
+          let direct = null;
+          if (hitCompany) direct = { tool: "company_review", args: { name: hitCompany.name } };
+          else if (/租房|房租|租金|合租/.test(msg0)) direct = { tool: "find_housing", args: {} };
+          else if (/岗位|招聘|职位|工作机会/.test(msg0)) direct = { tool: "search_jobs", args: { keyword: msg0.slice(0, 12) } };
+          if (direct) {
+            const result = callTool(direct.tool, direct.args, { study, userId: s.user_id });
+            used.push(direct.tool);
+            const answer = await aiGateway.chat(s.user_id, {
+              message: "用户问题：" + msg0 + "\n\n已调用工具 " + direct.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
+                "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
+              persona: personaName, system: ctx.system,
+            }, undefined);
+            return send(res, 200, { reply: String(answer.reply || "").trim(), handoff: null, tools: used });
+          }
+          const route = await aiGateway.chat(s.user_id, {
+            message: "用户问题：" + String(payload.message || "") + "\n\n可用工具：\n" + toolTable +
+              "\n\n如果需要查询真实数据才能回答，只输出 JSON：{\"tool\":\"工具名\",\"args\":{...}}；如果不需要工具，只输出 {\"tool\":null}。不要输出其他内容。",
+            persona: "工具路由",
+            system: "你是工具路由判定器，只输出 JSON。",
+          }, undefined);
+          const mroute = String(route.reply || "").match(/\{[\s\S]*\}/);
+          const decision = mroute ? JSON.parse(mroute[0]) : { tool: null };
+          if (decision.tool) {
+            const result = callTool(decision.tool, decision.args || {}, { study, userId: s.user_id });
+            used.push(decision.tool);
+            const answer = await aiGateway.chat(s.user_id, {
+              message: "用户问题：" + String(payload.message || "") + "\n\n已调用工具 " + decision.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
+                "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
+              persona: personaName,
+              system: ctx.system,
+            }, undefined);
+            reply = String(answer.reply || "").trim();
+          } else {
+            const plain = await aiGateway.chat(s.user_id, {
+              message: String(payload.message || ""), persona: personaName, system: ctx.system,
+              history: Array.isArray(payload.history) ? payload.history.slice(-6) : [],
+            }, undefined);
+            reply = String(plain.reply || "").trim();
+          }
+        } catch (e) {
+          reply = "我这会儿有点忙，稍后再问我一次？";
+        }
+        const m2 = reply.match(/@(星野|知微|砚舟|栖迟)/);
         let handoff = null;
-        if (m2 && m2[1] !== persona) {
+        if (m2 && m2[1] !== personaName) {
           const r2 = await aiGateway.chat(s.user_id, {
             message: payload.message, page: payload.page, persona: m2[1],
-            peers: PEERS.filter((x) => x !== m2[1]),
-            history: [],
+            peers: PEERS.filter((x) => x !== m2[1]), history: [],
           }, undefined);
           handoff = { to: m2[1], reply: String(r2.reply || "").replace(/^@\S+/, "").trim() };
         }
-        return send(res, 200, { reply: String(r.reply || "").replace(/^@\S+/, "").trim(), handoff });
+        return send(res, 200, { reply: reply.replace(/^@\S+/, "").trim(), handoff, tools: used });
       }
       if (p === "/api/study/tutor" && m === "POST") {
         const payload = await body(req);
