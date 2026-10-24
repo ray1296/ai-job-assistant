@@ -5,7 +5,7 @@ type Msg = { role: string; content?: string; text?: string };
 async function chat(message: string, history: Msg[] = [], opts: any = {}) {
   const r = await api<any>("/companion/chat", "POST", {
     message,
-    persona: opts.persona || "星野",
+    persona: opts.persona || (window as any).__zgPersona || "星野",
     page: location.hash.replace(/^#/, ""),
     history: history.slice(-6).map((m) => ({ role: m.role === "user" ? "me" : "ai", text: m.content || m.text || "" })),
   }, { timeoutMs: 150000 });

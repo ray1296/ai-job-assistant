@@ -445,7 +445,15 @@ const app = defineComponent({
               ),
             ])
           : null,
-        h(Live2DPet), h(CompanionsV3),
+        ...[
+          { id: "pet0", persona: "星野", model: 0, left: 0 },
+          { id: "pet1", persona: "知微", model: 2, left: 220 },
+          { id: "pet2", persona: "砚舟", model: 4, left: 440 },
+          { id: "pet3", persona: "栖迟", model: 6, left: 660 },
+        ].map((p) => h("div", { key: p.id, style: { "--pet-offset": p.left + "px" } }, [
+          h(Live2DPet, { canvasId: p.id, modelStart: p.model, persona: p.persona }),
+        ])),
+        h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),
           h(
