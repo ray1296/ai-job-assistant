@@ -29,6 +29,7 @@ export default defineComponent({
     const flipped = ref(false);
     const answered = ref(0);
     const correctCount = ref(0);
+    const pickerSubject = ref<any>(null);
     const drawerOpen = ref(false);
     const tutorOpen = ref(false);
     const tutorText = ref("");
@@ -339,7 +340,7 @@ export default defineComponent({
     const subjectCard = (s: any) =>
       h("article", { class: "card study-subject" }, [
         h("header", { class: "study-subject-head" }, [
-          h("h2", s.name),
+          h("h2", { class: "study-subject-title", onClick: () => (pickerSubject.value = s) }, s.name),
           h("div", { class: "study-actions" }, [
             s.isSystem
               ? h("span", { class: "study-badge" }, "平台题库")
@@ -537,6 +538,23 @@ export default defineComponent({
         drawer(),
         threeSpec.value ? h(ThreeView, { spec: threeSpec.value, onClose: () => (threeSpec.value = null) }) : null,
         dialog.value ? dialogBox() : null,
+        pickerSubject.value
+          ? h("div", { class: "modal-backdrop", onClick: (e: Event) => { if (e.target === e.currentTarget) pickerSubject.value = null; } }, [
+              h("div", { class: "modal card" }, [
+                h("h2", "选择「" + pickerSubject.value.name + "」的版本"),
+                h("div", { class: "study-versions" }, pickerSubject.value.versions.map((v: any) =>
+                  h("div", { class: "study-version" }, [
+                    h("button", {
+                      class: "study-version-open",
+                      onClick: () => { const target = v; pickerSubject.value = null; void openVersion(target); },
+                    }, [h("strong", v.name), h("small", v.total + " 道题")]),
+                  ]))),
+                h("div", { class: "modal-actions" }, [
+                  h("button", { class: "btn", onClick: () => (pickerSubject.value = null) }, "取消"),
+                ]),
+              ]),
+            ])
+          : null,
       ]);
   },
 });

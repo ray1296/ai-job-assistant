@@ -10,6 +10,7 @@ import {
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
 import Companions from "./companions";
+import Live2DPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -41,6 +42,7 @@ const pages = [
   ["plan", "投递意向与方案", "↗"],
   ["chat", "AI协作空间", "✧"],
   ["community", "互助社区 · 心愿池", "☷"],
+  ["study-upload", "上传题库", "⬆"],
   ["settings", "个性化设置", "⚙"],
   ["admin", "管理中心", "⊞"],
 ];
@@ -424,7 +426,7 @@ const app = defineComponent({
               ),
             ])
           : null,
-        h(Companions),
+        h(Live2DPet), h(Companions),
         h("main", { class: "page-content" }, [
           content(),
           h(

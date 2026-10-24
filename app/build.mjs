@@ -2,6 +2,27 @@ import { build } from "esbuild";
 import fs from "node:fs/promises";
 const output = process.env.BUILD_OUT_DIR || "dist";
 await fs.mkdir(`${output}/assets`, { recursive: true });
+import { parse, compileScript, compileTemplate } from "@vue/compiler-sfc";
+import path from "node:path";
+
+// 支持 .vue 单文件组件（为了直接复用原项目的页面）
+const vuePlugin = {
+  name: "vue",
+  setup(build) {
+    build.onResolve({ filter: /\.vue$/ }, (args) => ({
+      path: path.resolve(args.resolveDir, args.path),
+      namespace: "vue",
+    }));
+    build.onLoad({ filter: /.*/, namespace: "vue" }, async (args) => {
+      const source = await fs.readFile(args.path, "utf8");
+      const { descriptor } = parse(source, { filename: args.path });
+      const id = Buffer.from(args.path).toString("base64").slice(0, 8);
+      const script = compileScript(descriptor, { id, inlineTemplate: true, templateOptions: { compilerOptions: { mode: "module" } } });
+      return { contents: script.content, loader: "ts", resolveDir: path.dirname(args.path) };
+    });
+  },
+};
+
 await build({
   entryPoints: ["src/main.ts"],
   bundle: true,
@@ -12,6 +33,8 @@ await build({
   chunkNames: "[name]-[hash]",
   minify: true,
   sourcemap: false,
+  plugins: [vuePlugin],
+  loader: { ".png": "dataurl", ".jpg": "dataurl", ".css": "css" },
   define: {
     __VUE_OPTIONS_API__: "false",
     __VUE_PROD_DEVTOOLS__: "false",

@@ -15,6 +15,7 @@
 **/data/
 !/app/data/
 /app/data/*
+!/app/public/
 !/app/data/jobs-catalog.json
 !/app/data/jobs-identities.json
 !/app/data/jobs-manifest.json

@@ -13,7 +13,7 @@ export default defineComponent({
   props: { page: { type: String, default: "" } },
   setup(props) {
     const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch { return {}; } })();
-    const conf = ref<any>({ size: 1, voice: true, x: 16, y: Math.max(120, window.innerHeight - 210), ...saved });
+    const conf = ref<any>({ size: 1, voice: true, x: Math.max(16, window.innerWidth - 230), y: Math.max(120, window.innerHeight - 320), ...saved });
     const collapsed = ref(false);
     const activeId = ref("");
     const log = ref<{ role: "me" | "ai"; text: string }[]>([]);

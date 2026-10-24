@@ -230,7 +230,9 @@
 .housing-channel small { font-size: 10px; color: #8b7d99; }
 
 /* 学习与刷题 */
-.study-subjects { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.study-subjects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.study-subject-title { cursor: pointer; }
+.study-subject-title:hover { color: #7460c9; }
 .study-subject { padding: 14px 16px; }
 .study-subject-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .study-subject-head h2 { margin: 0; font-size: 16px; }
@@ -340,3 +342,11 @@
 .three-head .muted { margin-left: auto; font-size: 11px; color: #9c8fae; }
 .three-host { flex: 1; min-height: 0; }
 .three-host canvas { display: block; }
+
+/* Live2D 看板娘固定在左下角 */
+.live2d-pet-container { position: fixed !important; left: 12px !important; bottom: 56px !important; top: auto !important; right: auto !important; z-index: 85 !important; }
+.live2d-pet-container > .pet-canvas-wrap { position: relative; }
+
+/* 学习页工具条按钮统一外观 */
+.study-page .toolbar a.btn, .study-upload .toolbar a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.study-page .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }

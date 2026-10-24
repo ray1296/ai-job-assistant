@@ -1044,6 +1044,17 @@ const server = http.createServer(async (req, res) => {
     const publicRoot = preview
       ? path.resolve(root, "../prototype/public")
       : path.resolve(process.env.CAREER_STATIC_DIR || path.join(root, "dist"));
+    // 大体积静态资源（Live2D 模型等）直接读 app/public，避免每次构建复制
+    if (!preview && p.startsWith("/live2d/")) {
+      const liveRoot = path.resolve(root, "public");
+      const liveFile = path.resolve(liveRoot, p.replace(/^\//, ""));
+      if (liveFile.startsWith(liveRoot + path.sep) && fs.existsSync(liveFile) && fs.statSync(liveFile).isFile()) {
+        res.setHeader("Content-Type", contentTypes[path.extname(liveFile)] || "application/octet-stream");
+        res.setHeader("Cache-Control", "public,max-age=86400");
+        fs.createReadStream(liveFile).pipe(res);
+        return;
+      }
+    }
     const relative = preview ? name.slice("/preview".length) : name;
     let file = path.resolve(
       publicRoot,
