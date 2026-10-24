@@ -489,3 +489,10 @@ body:not(.show-live2d) .live2d-pet-container { display: none !important; }
   background: #eefaf7; color: #23806f; font-size: 13px; padding: 7px 16px; cursor: pointer; }
 .zg-ai-btn:hover { background: #e2f6f1; }
 .zg-ai-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.pet-frame { position: fixed; z-index: 84; width: 220px; background: transparent; }
+.pet-frame-handle { height: 20px; line-height: 20px; font-size: 10px; color: #6b5c7d; text-align: center; background: rgba(255,255,255,.85); border: 1px solid #e6def0; border-radius: 8px 8px 0 0; cursor: grab; user-select: none; }
+.pet-frame-body { display: block; width: 220px; height: 300px; border: 0; background: transparent; }
+.pet-frame-chat { width: 100%; border: 1px solid #e6def0; border-top: 0; border-radius: 0 0 8px 8px; background: #fff; color: #5c4b6e; font-size: 11px; padding: 4px 0; cursor: pointer; }
+
+.live2d-pet-container { left: 12px !important; }

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>pet</title>
+<style>
+  html,body{margin:0;padding:0;background:transparent;overflow:hidden;}
+  #pet{display:block;width:220px;height:300px;}
+</style>
+</head>
+<body>
+<canvas id="pet" width="220" height="300"></canvas>
+<script>
+  const params = new URLSearchParams(location.search);
+  const model = params.get("model") || "/live2d/live2d-widget-models/live2d-widget-model-miku/assets/miku.model.json";
+  const s = document.createElement("script");
+  s.src = "/live2d/js/l2d.js";
+  s.onload = () => {
+    try {
+      window.loadlive2d("pet", model);
+      // 随机动作，避免静止
+      setInterval(() => { try { window.randomExpression && window.randomExpression(); } catch (e) {} }, 8000);
+    } catch (e) { document.body.dataset.error = String(e); }
+  };
+  document.head.appendChild(s);
+</script>
+</body>
+</html>

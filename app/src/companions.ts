@@ -118,7 +118,11 @@ export default defineComponent({
       window.addEventListener("mouseup", up, { once: true });
     }
 
-    onMounted(() => { if (form.value === "live2d") document.body.classList.add("show-live2d"); });
+    onMounted(() => {
+      window.addEventListener("zg:open-persona", (ev: any) => {
+        const id = ev?.detail?.personaId;
+        if (id) { collapsed.value = false; openChat(id); }
+      }); if (form.value === "live2d") document.body.classList.add("show-live2d"); });
     function setForm(f: "avatar" | "live2d") {
       form.value = f;
       document.body.classList.toggle("show-live2d", f === "live2d");

@@ -15,6 +15,7 @@ import {
 import { api, session, loadSession, errorText } from "./api";
 import CompanionsV3 from "./companions";
 import Live2DPet from "./orig/components/Live2DPet.vue";
+import PetFrame from "./pet-frame";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -445,14 +446,12 @@ const app = defineComponent({
               ),
             ])
           : null,
-        ...[
-          { id: "pet0", persona: "星野", model: 0, left: 0 },
-          { id: "pet1", persona: "知微", model: 2, left: 220 },
-          { id: "pet2", persona: "砚舟", model: 4, left: 440 },
-          { id: "pet3", persona: "栖迟", model: 6, left: 660 },
-        ].map((p) => h("div", { key: p.id, style: { "--pet-offset": p.left + "px" } }, [
-          h(Live2DPet, { canvasId: p.id, modelStart: p.model, persona: p.persona }),
-        ])),
+        h("div", { style: { "--pet-offset": "0px" } }, [
+          h(Live2DPet, { canvasId: "pet0", modelStart: 0, persona: "星野" }),
+        ]),
+        h(PetFrame, { id: "pet1", persona: "知微", personaId: "zhiwei", model: "/live2d/live2d-widget-models/live2d-widget-model-shizuku/assets/shizuku.model.json", slot: 0 }),
+        h(PetFrame, { id: "pet2", persona: "砚舟", personaId: "yanzhou", model: "/live2d/live2d-widget-models/live2d-widget-model-koharu/assets/koharu.model.json", slot: 1 }),
+        h(PetFrame, { id: "pet3", persona: "栖迟", personaId: "qichi", model: "/live2d/live2d-widget-models/live2d-widget-model-haruto/assets/haruto.model.json", slot: 2 }),
         h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),
