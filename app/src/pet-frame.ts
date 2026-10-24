@@ -23,6 +23,13 @@ export default defineComponent({
     avatar: { type: String, default: "" },
   },
   setup(props) {
+    if (typeof window !== "undefined") {
+      window.addEventListener("message", (ev: MessageEvent) => {
+        if (ev?.data?.type === "zg-pet-click") {
+          window.dispatchEvent(new CustomEvent("zg:open-persona", { detail: { personaId: props.personaId, persona: props.persona } }));
+        }
+      });
+    }
     const saved = read()[props.id] || {};
     const pos = ref(saved.pos || { x: Math.max(8, 150 + props.slot * 150), y: Math.max(80, window.innerHeight - 260) });
     const modelUrl = ref(saved.model || props.model);
@@ -35,7 +42,6 @@ export default defineComponent({
       write(all);
     };
     function startDrag(e: MouseEvent) {
-      if (!dragMode.value) return;
       e.preventDefault();
       const sx = e.clientX, sy = e.clientY;
       const ox = pos.value.x, oy = pos.value.y;
@@ -50,10 +56,9 @@ export default defineComponent({
       h("div", { class: "pet-frame" + (dragMode.value ? " dragging" : ""), style: { left: pos.value.x + "px", top: pos.value.y + "px", display: hidden.value ? "none" : "block" } }, [
         h("div", {
           class: "pet-frame-handle",
-          onDblclick: () => (dragMode.value = !dragMode.value),
           onMousedown: startDrag,
-          title: "双击进入/退出拖动模式",
-        }, (dragMode.value ? "✥ 拖动中 " : "⠿ ") + (props.persona || "看板娘")),
+          title: "按住拖动",
+        }, "⠿ " + (props.persona || "看板娘")),
         !loaded.value && props.avatar
           ? h("img", { class: "pet-frame-placeholder", src: props.avatar, alt: props.persona })
           : null,
@@ -62,7 +67,9 @@ export default defineComponent({
           src: "/live2d-pet.html?model=" + encodeURIComponent(modelUrl.value),
           title: props.persona || "pet",
           scrolling: "no",
-          onLoad: () => window.setTimeout(() => (loaded.value = true), 600),
+          onLoad: () => {
+        window.setTimeout(() => (loaded.value = true), 600);
+      },
         }),
         h("div", { class: "pet-frame-tools" }, [
           h("select", {

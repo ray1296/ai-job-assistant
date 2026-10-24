@@ -498,7 +498,8 @@ body:not(.show-live2d) .live2d-pet-container { display: none !important; }
 
 /* 四只看板娘统一缩小到 45%，左下角排开 */
 .live2d-pet-container { transform: scale(var(--pet-scale, .45)); transform-origin: left bottom; }
-.pet-frame { transform: scale(var(--pet-scale, .45)); transform-origin: left top; }
+.pet-frame { transform: none; }
+.pet-frame-body { width: 220px; height: 300px; transform: scale(var(--pet-scale, .45)); transform-origin: left top; margin-bottom: calc(-300px * (1 - var(--pet-scale, .45))); }
 
 .pet-frame.dragging .pet-frame-body { pointer-events: none; }
 .pet-frame-placeholder { position: absolute; left: 40px; top: 20px; width: 140px; height: 220px; object-fit: cover; border-radius: 10px; opacity: .9; z-index: 1; }
