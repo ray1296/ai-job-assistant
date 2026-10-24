@@ -15,9 +15,6 @@ import {
 import { api, session, loadSession, errorText } from "./api";
 import CompanionsV3 from "./companions";
 import Live2DPet from "./orig/components/Live2DPet.vue";
-import UploadView from "./orig/views/upload/index.vue";
-import ReviewList from "./orig/views/review/index.vue";
-import SubjectReview from "./orig/views/review/subject.vue";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));

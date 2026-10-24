@@ -386,7 +386,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter } from '../../router'
+import { useRoute, useRouter } from "vue-router"
 import { getSubjectReview } from '../../api/material'
 import { getFavoriteList, toggleFavorite } from '../../api/question'
 import { getWrongQuestions, removeWrongQuestion, addWrongQuestion as apiAddWrongQuestion } from '../../api/exam'

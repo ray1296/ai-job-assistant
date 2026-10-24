@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onActivated } from 'vue'
-import { useRouter } from '../../router'
+import { useRouter } from "vue-router"
 import { showConfirmDialog, showToast } from 'vant'
 import { useUserStore } from '../../stores/userStore'
 import { useStatsStore } from '../../stores/statsStore'

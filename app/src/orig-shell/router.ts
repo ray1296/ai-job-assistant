@@ -12,4 +12,4 @@ const routes = [
   { path: "/:pathMatch(.*)*", redirect: "/review" },
 ];
 
-export default createRouter({ history: createWebHashHistory("/orig/"), routes });
+export default createRouter({ history: createWebHashHistory(), routes });
