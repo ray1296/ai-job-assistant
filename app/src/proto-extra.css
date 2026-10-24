@@ -540,5 +540,9 @@ body.zg-pets-hidden .agent-chip { display: none !important; }
 .agent-chip img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; object-position: 50% 20%; }
 .agent-chip span { font-size: 10px; }
 
-.live2d-pet-container { width: 200px !important; height: 250px !important; right: auto !important; }
-.live2d-canvas { position: absolute !important; left: 0 !important; bottom: 0 !important; }
+.live2d-pet-container { width: 200px !important; right: auto !important; }
+
+/* 输入框/气泡限定在看板娘宽度内，避免跑出屏幕 */
+.live2d-pet-container .pet-input-box,
+.live2d-pet-container .pet-dialog { right: auto !important; left: 0 !important; max-width: 200px !important; }
+.live2d-pet-container .pet-input-box { width: 200px; }
