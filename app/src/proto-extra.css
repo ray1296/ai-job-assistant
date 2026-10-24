@@ -530,3 +530,12 @@ body.zg-pets-hidden .live2d-pet-container, body.zg-pets-hidden .pet-frame { disp
   background: rgba(255,255,255,.97); box-shadow: 0 8px 22px rgba(60,40,90,.14); cursor: grab; flex-direction: column; align-items: center; gap: 2px; }
 .agent-chip img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; object-position: 50% 20%; }
 .agent-chip span { font-size: 10px; color: #5c4b6e; }
+
+.live2d-pet-container { width: 200px; }
+/* 圆盘统一控制显隐 */
+body.zg-pets-hidden .live2d-pet-container,
+body.zg-pets-hidden .agent-chip { display: none !important; }
+
+.agent-chip { width: 132px; padding: 6px; border-radius: 14px; gap: 4px; }
+.agent-chip img { width: 120px; height: 150px; border-radius: 10px; object-fit: cover; object-position: 50% 18%; }
+.agent-chip span { font-size: 11px; }

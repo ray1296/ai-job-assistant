@@ -114,7 +114,10 @@ export default defineComponent({
         window.removeEventListener("mouseup", up);
         if (moved) save();
         else if (kind === "chip") openChat(PERSONAS[index].id);
-        else { window.dispatchEvent(new CustomEvent("zg:pets-toggle")); }
+        else {
+          document.body.classList.toggle("zg-pets-hidden");
+          window.dispatchEvent(new CustomEvent("zg:pets-toggle"));
+        }
       };
       window.addEventListener("mousemove", move);
       window.addEventListener("mouseup", up, { once: true });

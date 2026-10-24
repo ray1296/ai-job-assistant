@@ -11,6 +11,7 @@ import { createDatasets } from "./datasets.mjs";
 import { createGeo } from "./geo.mjs";
 import { createStudy } from "./study.mjs";
 import { createAgents } from "./agents.mjs";
+import { TOOLS, callTool } from "./tools.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
@@ -825,6 +826,27 @@ const server = http.createServer(async (req, res) => {
           const r2 = agents.read(mm[1]);
           return send(res, 200, { memory: r2?.memory || "" });
         }
+      }
+      // ---- MCP（JSON-RPC 2.0）----
+      if (p === "/api/mcp" && m === "POST") {
+        const payload = await body(req);
+        const id = payload?.id ?? null;
+        const method = String(payload?.method || "");
+        const reply = (result) => send(res, 200, { jsonrpc: "2.0", id, result });
+        if (method === "initialize")
+          return reply({ protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "zhuguang-agent", version: "1.0.0" } });
+        if (method === "tools/list") return reply({ tools: TOOLS });
+        if (method === "tools/call") {
+          const name = String(payload?.params?.name || "");
+          const args = payload?.params?.arguments || {};
+          return reply({ content: [{ type: "text", text: JSON.stringify(callTool(name, args, { study, userId: s.user_id })) }] });
+        }
+        return send(res, 200, { jsonrpc: "2.0", id, error: { code: -32601, message: "Method not found" } });
+      }
+      if (p === "/api/agents/tools" && m === "GET") return send(res, 200, { tools: TOOLS });
+      if (p === "/api/agents/tool-call" && m === "POST") {
+        const payload = await body(req);
+        return send(res, 200, { result: callTool(String(payload.name || ""), payload.arguments || {}, { study, userId: s.user_id }) });
       }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");
