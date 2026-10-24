@@ -10,6 +10,7 @@ import { createDashboard } from "./dashboard.mjs";
 import { createDatasets } from "./datasets.mjs";
 import { createGeo } from "./geo.mjs";
 import { createStudy } from "./study.mjs";
+import { createAgents } from "./agents.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
@@ -78,6 +79,7 @@ const datasets = createDatasets(db, dataDir, {
 });
 // 学习与刷题：科目/版本/题库 + AI 讲题与出题
 const study = createStudy(db, { ai: aiGateway });
+const agents = createAgents(dataDir);
 // 地图与通勤：高德 REST 只在服务端调用，key 不落前端包
 const geo = createGeo(dataDir, {
   db,
@@ -522,8 +524,12 @@ const server = http.createServer(async (req, res) => {
         const payload = await body(req);
         const PEERS = ["星野", "知微", "砚舟", "栖迟"];
         const persona = PEERS.includes(String(payload.persona || "")) ? String(payload.persona) : "星野";
+        const personaName = String(payload.persona || "星野");
+        const agentIdMap = { "星野": "xingye", "知微": "zhiwei", "砚舟": "yanzhou", "栖迟": "qichi" };
+        const ctx = agents.context(agentIdMap[personaName] || "xingye");
         const r = await aiGateway.chat(s.user_id, {
           message: payload.message, page: payload.page, persona,
+          system: ctx.system,
           peers: PEERS.filter((x) => x !== persona),
           history: Array.isArray(payload.history) ? payload.history.slice(-6) : [],
         }, undefined);
@@ -802,6 +808,23 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/user/profile" && m === "GET") {
         const u2 = db.prepare("SELECT id,email FROM users WHERE id=?").get(s.user_id);
         return send(res, 200, { id: u2.id, email: u2.email, nickname: String(u2.email || "").split("@")[0] });
+      }
+      if (p === "/api/agents" && m === "GET") return send(res, 200, { agents: agents.list() });
+      {
+        const mm = p.match(/^\/api\/agents\/([a-z0-9]+)$/);
+        if (mm && m === "GET") return send(res, 200, agents.read(mm[1]));
+        if (mm && m === "PUT") return send(res, 200, agents.update(mm[1], await body(req)));
+      }
+      {
+        const mm = p.match(/^\/api\/agents\/([a-z0-9]+)\/memory$/);
+        if (mm && m === "POST") {
+          const payload = await body(req);
+          return send(res, 200, agents.remember(mm[1], String(payload.text || "")));
+        }
+        if (mm && m === "GET") {
+          const r2 = agents.read(mm[1]);
+          return send(res, 200, { memory: r2?.memory || "" });
+        }
       }
       if (p === "/api/companies" && m === "GET") {
         const url = new URL(req.url, "http://x");

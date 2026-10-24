@@ -20,8 +20,9 @@ export default defineComponent({
     name: { type: String, required: true },
     role: { type: String, default: "" },
     avatar: { type: String, required: true },
-    models: { type: Array as any, required: true },
+    models: { type: Array as any, default: () => PET_MODELS },
     slot: { type: Number, default: 0 },
+    only: { type: String, default: "" },
   },
   setup(props) {
     const saved = read()[props.agentId] || {};
@@ -29,8 +30,8 @@ export default defineComponent({
       x: Math.max(8, 30 + props.slot * 210),
       y: Math.max(80, window.innerHeight - 330),
     });
-    const modelUrl = ref(saved.model || (props.models as any[])[0]?.url || "");
-    const skin = ref(skinNow());
+    const modelUrl = ref(saved.model || (props.models as any[])?.[0]?.url || "");
+    const skin = ref(props.only === "avatar" ? "avatar" : skinNow());
     const live = ref(false);
     const snapshot = ref(saved.snapshot || "");
     const hidden = ref(false);
@@ -55,6 +56,7 @@ export default defineComponent({
     }
     function setSkin(next: string) {
       if (next === "avatar") { capture(); live.value = false; }
+      if (props.only === "avatar") next = "avatar";
       skin.value = next;
       persist();
     }
@@ -115,9 +117,9 @@ export default defineComponent({
           h("select", {
             class: "agent-pet-select",
             value: modelUrl.value,
-            onChange: (e: Event) => { modelUrl.value = (e.target as HTMLSelectElement).value; snapshot.value = ""; live.value = true; persist(); },
+            onChange: (e: Event) => { modelUrl.value = (e.target as HTMLSelectElement).value; if (props.only !== "avatar") { snapshot.value = ""; live.value = true; } persist(); },
           }, (props.models as any[]).map((m: any) => h("option", { value: m.url }, m.label))),
-          h("button", { class: "agent-pet-btn", title: "切换形态", onClick: () => setSkin(skin.value === "live2d" ? "avatar" : "live2d") }, skin.value === "live2d" ? "立绘" : "Live2D"),
+          props.only === "avatar" ? null : h("button", { class: "agent-pet-btn", title: "切换形态", onClick: () => setSkin(skin.value === "live2d" ? "avatar" : "live2d") }, skin.value === "live2d" ? "立绘" : "Live2D"),
           h("button", { class: "agent-pet-btn", onClick: openChat }, "聊"),
           h("button", { class: "agent-pet-btn", onClick: () => (hidden.value = true) }, "藏"),
         ]),
