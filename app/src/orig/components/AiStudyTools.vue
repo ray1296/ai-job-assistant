@@ -5,15 +5,10 @@
       <span class="ai-tools-hint">讲题一次一步，懂了再继续</span>
     </div>
     <div class="ai-tools-row">
-      <select v-model="pickedId" class="ai-select">
-        <option value="">选择一道题…</option>
-        <option v-for="q in questions.slice(0, 100)" :key="q.id" :value="q.id">{{ q.stem.slice(0, 30) }}</option>
-      </select>
-      <button class="ai-btn" :disabled="!pickedId || busy" @click="tutor(false)">分步讲题</button>
-      <button class="ai-btn" :disabled="!pickedId || busy" @click="tutor(true)">3D 演示</button>
       <button class="ai-btn" :disabled="busy" @click="generate('single')">生成选择题</button>
       <button class="ai-btn" :disabled="busy" @click="generate('judge')">生成判断题</button>
       <button class="ai-btn" :disabled="busy || !questions.length" @click="simplifyAll">批量简化答案</button>
+      <span class="ai-tools-hint">在知识点/题目上点「问问AI」即可讲题（自动选择气泡 / 画布 / 3D）</span>
     </div>
     <p v-if="tip" class="ai-tip">{{ tip }}</p>
 
@@ -48,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, watch, nextTick } from "vue";
+import { ref, computed, onBeforeUnmount, onMounted, watch, nextTick } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
@@ -57,6 +52,7 @@ const emit = defineEmits<{ (e: "changed"): void }>();
 
 const questions = computed(() => props.questions || []);
 const pickedId = ref("");
+const askQuestion = ref<any>(null);
 const busy = ref(false);
 const tip = ref("");
 const steps = ref<any[]>([]);
@@ -172,17 +168,19 @@ async function generate(kind: string) {
   finally { busy.value = false; }
 }
 
-async function tutor(with3d: boolean) {
+async function tutor(with3d = false) {
   if (busy.value) return;
   busy.value = true; tip.value = "AI 正在备课…"; steps.value = []; scene.value = null;
   try {
     const r = await call("/study/tutor", {
-      questionId: pickedId.value,
+      question: askQuestion.value?.stem || "",
+      answer: askQuestion.value?.answer || "",
       message: with3d ? "请用 3D 模型演示这个知识点" : "",
     });
     steps.value = r.steps || [];
     stepIdx.value = 0; waiting.value = steps.value.length > 1;
     if (r.scene) scene.value = r.scene;
+    else if (r.need3d) scene.value = { shape: "graph", text: "AI 选择用 3D 辅助讲解" };
     tip.value = r.reply || "";
   } catch (e: any) { tip.value = "失败：" + e.message; }
   finally { busy.value = false; }
@@ -258,6 +256,12 @@ watch(scene, async (v) => {
   buildScene(v);
   const loop = () => { raf = requestAnimationFrame(loop); ctrl.update(); renderer.render(sc, cam); };
   loop();
+});
+onMounted(() => {
+  window.addEventListener("zg:tutor", (ev: any) => {
+    askQuestion.value = { stem: ev.detail?.stem || "", answer: ev.detail?.answer || "" };
+    void tutor(false);
+  });
 });
 onBeforeUnmount(() => { cancelAnimationFrame(raf); try { renderer?.dispose(); } catch {} });
 </script>

@@ -343,9 +343,6 @@
 .three-host { flex: 1; min-height: 0; }
 .three-host canvas { display: block; }
 
-/* Live2D 看板娘固定在左下角 */
-.live2d-pet-container { position: fixed !important; left: 12px !important; bottom: 56px !important; top: auto !important; right: auto !important; z-index: 85 !important; }
-.live2d-pet-container > .pet-canvas-wrap { position: relative; }
 
 /* 学习页工具条按钮统一外观 */
 .study-page .toolbar a.btn, .study-upload .toolbar a.btn { text-decoration: none; display: inline-flex; align-items: center; }
@@ -483,3 +480,7 @@ body:not(.show-live2d) .live2d-pet-container { display: none !important; }
 @media (max-width: 900px) { .orig-frame { top: 130px; height: calc(100vh - 130px); } }
 
 .companions-form { position: fixed; border: 1px solid #e6def0; background: #fff; border-radius: 999px; padding: 5px 10px; font-size: 11px; color: #5c4b6e; cursor: pointer; z-index: 4; box-shadow: 0 6px 18px rgba(60,40,90,.12); }
+
+.companions-dial { position: fixed; width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff;
+  background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; font-size: 18px; cursor: grab;
+  box-shadow: 0 10px 26px rgba(80,60,120,.3); z-index: 5; touch-action: none; }

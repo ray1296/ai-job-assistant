@@ -2,8 +2,8 @@
   <div class="page review-page">
     <!-- 头部 -->
     <div class="page-header review-header">
-      <h1>复习中心</h1>
-      <p>选个科目，开始冲刺</p>
+      <h1>知识冲刺</h1>
+      <p>选一个岗位方向，直接开始刷题</p>
       <div class="stats-bar" v-if="subjects.length">
         <div class="stat-chip"><strong>{{ subjects.length }}</strong> 科目</div>
         <div class="stat-chip"><strong class="num-mono">{{ stats?.questions || 0 }}</strong> 题目</div>

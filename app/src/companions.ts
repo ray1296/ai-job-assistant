@@ -135,6 +135,13 @@ export default defineComponent({
         }, form.value === "live2d" ? "⇄ 立绘" : "⇄ Live2D"),
 
         h("button", {
+          class: "companions-dial",
+          style: { left: togglePos.value.x + "px", top: togglePos.value.y + "px" },
+          onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),
+          title: "单击显示/隐藏看板娘，按住可拖动",
+        }, "✦"),
+
+        h("button", {
           class: "companions-toggle",
           style: { left: togglePos.value.x + "px", top: togglePos.value.y + "px" },
           onMousedown: (e: MouseEvent) => startDrag("toggle", 0, e),

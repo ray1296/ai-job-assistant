@@ -38,30 +38,45 @@ export function createStudy(db, options = {}) {
   // 首次进入时把平台面经题库灌进来（所有用户都有，只读）
   const SYSTEM_SUBJECT = "平台面经题库";
   function ensureSystemLibrary(userId) {
-    const has = db.prepare("SELECT id FROM study_subjects WHERE user_id=? AND is_system=1").get(userId);
-    if (has) return has.id;
-    const sid = "sys" + uid().slice(0, 21);
+    // 迁移：旧结构（一个"平台面经题库"科目装 6 个方向版本）删除后重建
+    const legacy = db.prepare("SELECT id FROM study_subjects WHERE user_id=? AND name=?").get(userId, "平台面经题库");
+    if (legacy) {
+      const vs = db.prepare("SELECT id FROM study_versions WHERE subject_id=?").all(legacy.id);
+      for (const v of vs) db.prepare("DELETE FROM study_questions WHERE version_id=?").run(v.id);
+      db.prepare("DELETE FROM study_versions WHERE subject_id=?").run(legacy.id);
+      db.prepare("DELETE FROM study_subjects WHERE id=?").run(legacy.id);
+    }
+    // 每个岗位方向 = 一个科目；平台数据 = 该科目下的一个只读版本
+    const byDir = new Map(
+      db.prepare("SELECT id, name FROM study_subjects WHERE user_id=? AND is_system=1").all(userId).map((r) => [r.name, r.id]),
+    );
     const now = Date.now();
-    db.prepare("INSERT INTO study_subjects(id,user_id,name,is_system,created_at) VALUES(?,?,?,1,?)").run(sid, userId, SYSTEM_SUBJECT, now);
-    const stmt = insertQ();
     for (const d of catalogDirections()) {
+      let sid = byDir.get(d.name);
+      if (!sid) {
+        sid = "sys" + uid().slice(0, 21);
+        db.prepare("INSERT INTO study_subjects(id,user_id,name,is_system,created_at) VALUES(?,?,?,1,?)").run(sid, userId, d.name, now);
+      }
+      const exists = db.prepare("SELECT id FROM study_versions WHERE subject_id=? AND is_system=1 AND name=?").get(sid, "平台题库");
+      if (exists) continue;
       const vid = "sys" + uid().slice(0, 21);
       db.prepare("INSERT INTO study_versions(id,subject_id,user_id,name,source,is_system,created_at) VALUES(?,?,?,?,?,1,?)")
-        .run(vid, sid, userId, d.name + " · 面经", "平台面经题库", now);
+        .run(vid, sid, userId, "平台题库", "平台面经题库", now);
       const rows = questionsFromCatalog(d.name, 200);
+      const stmt = insertQ();
       rows.forEach((q, i) => {
         stmt.run(uid(), vid, userId, i + 1, q.type, q.stem,
           JSON.stringify(q.options || []), q.answer || "", q.analysis || "", q.simpleAnswer || "",
           q.source || "", JSON.stringify(q.tags || []), q.difficulty || "", now);
       });
     }
-    return sid;
+    return null;
   }
 
   const ownSubject = (userId, id) => {
-    const s = db.prepare("SELECT * FROM study_subjects WHERE id=? AND user_id=?").get(id, userId);
-    if (!s) throw fail(404, "科目不存在");
-    return s;
+    const s2 = db.prepare("SELECT * FROM study_subjects WHERE id=? AND user_id=?").get(id, userId);
+    if (!s2) throw fail(404, "科目不存在");
+    return s2;
   };
   const ownVersion = (userId, id) => {
     const v = db.prepare("SELECT * FROM study_versions WHERE id=? AND user_id=?").get(id, userId);

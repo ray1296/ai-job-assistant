@@ -236,4 +236,8 @@ const userInitial = computed(() => userStore.userInfo.nickname?.charAt(0) || 'U'
     max-width: 1080px;
   }
 }
+
+/* zg: no sidebar */
+.sidebar { display: none !important; }
+.app-layout .content-area { margin-left: 0 !important; padding: 0 !important; width: 100% !important; }
 </style>

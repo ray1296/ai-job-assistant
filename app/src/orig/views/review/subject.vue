@@ -1358,14 +1358,11 @@ function goMarketDetail() {
 /* ==================== 问问AI ==================== */
 // 卡片 → 问AI（带上正反面内容，让AI讲解；chip 点击跳回具体卡片）
 function askCardAI(card) {
-  const front = card.front || card.question || ''
-  const back = card.quickAnswer || card.quick_answer || card.fullAnswer || card.full_answer || card.back || ''
-  const content = back ? `帮我讲解这张卡片：${front}（参考答案：${back}）` : `帮我讲解这张卡片：${front}`
-  askAI(content, '卡片', {
-    path: `/review/${subjectId}`,
-    tab: 'cards',
-    sel: `#flash-card-${card.id}`,
-  })
+  const arg = card;
+  const stem = arg?.front || arg?.stem || arg?.question || arg?.content || String(arg || "");
+  const answer = arg?.back || arg?.answer || arg?.quickAnswer || "";
+  window.dispatchEvent(new CustomEvent("zg:tutor", { detail: { stem, answer } }));
+  if (typeof showToast === "function") showToast("AI 老师准备中…");
 }
 
 // 当前刷题 → 问AI（按当前题型组装题干+选项）
