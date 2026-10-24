@@ -370,7 +370,7 @@ export function createAiGateway(privateDir) {
             Authorization: "Bearer " + cfg.apiKey,
           },
           body: JSON.stringify({
-            model: cfg.model,
+            model: input.model || cfg.model,
             temperature: 0.1,
             max_tokens: 4000,
             enable_thinking: false,
@@ -455,7 +455,7 @@ export function createAiGateway(privateDir) {
     if (!message && !input?.historyMessages) throw fail(400, "说点什么吧");
     if (queue.length >= 3) throw fail(429, "我有点忙不过来，稍等一下再问");
     return new Promise((resolve, reject) => {
-      queue.push({ userId, input: { task: "chat", message, tools: input.tools || null, historyMessages: input.historyMessages || null, system: String(input.system || "").slice(0, 3000), page: String(input.page || ""), persona: String(input.persona || ""), peers: Array.isArray(input.peers) ? input.peers.slice(0, 6).map(String) : [], history: (input.history || []).slice(-6) }, signal, resolve, reject });
+      queue.push({ userId, input: { task: "chat", model: String(input.model || ""), message, tools: input.tools || null, historyMessages: input.historyMessages || null, system: String(input.system || "").slice(0, 3000), page: String(input.page || ""), persona: String(input.persona || ""), peers: Array.isArray(input.peers) ? input.peers.slice(0, 6).map(String) : [], history: (input.history || []).slice(-6) }, signal, resolve, reject });
       pump();
     });
   }

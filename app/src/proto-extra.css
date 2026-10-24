@@ -546,3 +546,5 @@ body.zg-pets-hidden .agent-chip { display: none !important; }
 .live2d-pet-container .pet-input-box,
 .live2d-pet-container .pet-dialog { right: auto !important; left: 0 !important; max-width: 200px !important; }
 .live2d-pet-container .pet-input-box { width: 200px; }
+
+.agent-chip-role { font-size: 9px; color: #9c8fae; }

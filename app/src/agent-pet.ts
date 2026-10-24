@@ -58,6 +58,7 @@ export default defineComponent({
       }, [
         h("img", { src: props.avatar, alt: props.name, draggable: false }),
         h("span", props.name),
+        h("span", { class: "agent-chip-role" }, props.role),
       ]);
   },
 });

@@ -528,6 +528,7 @@ const server = http.createServer(async (req, res) => {
         const agentIdMap = { "星野": "xingye", "知微": "zhiwei", "砚舟": "yanzhou", "栖迟": "qichi" };
         const agentId = agentIdMap[personaName] || "xingye";
         const ctx = agents.context(agentId);
+        const agentCfg = agents.read(agentId)?.config || {};
         const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
         const messages = [
           { role: "system", content: ctx.system + "\n可用工具：" + TOOLS.map((t) => t.name + "（" + t.description + "）").join("；") + "\n需要数据时直接调用工具，不要编造。" },
@@ -571,7 +572,7 @@ const server = http.createServer(async (req, res) => {
             const answer = await aiGateway.chat(s.user_id, {
               message: "用户问题：" + String(payload.message || "") + "\n\n已调用工具 " + decision.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
                 "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
-              persona: personaName,
+              persona: personaName, model: agentCfg.model,
               system: ctx.system,
             }, undefined);
             reply = String(answer.reply || "").trim();

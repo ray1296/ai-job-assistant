@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const DEFAULTS = [
-  { id: "xingye", name: "星野", role: "主理人", desc: "统筹全局，解答求职与学习问题", model: "deepseek-v4-flash" },
-  { id: "zhiwei", name: "知微", role: "学习助教", desc: "讲题、拆知识点、制定复习节奏", model: "deepseek-v4-flash" },
-  { id: "yanzhou", name: "砚舟", role: "求职顾问", desc: "简历、岗位匹配、面试准备", model: "deepseek-v4-flash" },
-  { id: "qichi", name: "栖迟", role: "生活管家", desc: "租房、通勤、城市生活", model: "deepseek-v4-flash" },
+  { id: "xingye", name: "星野", role: "主理人", desc: "统筹全局，解答求职与学习问题，兜底所有未分类请求", model: "deepseek-v4.1-flash" },
+  { id: "zhiwei", name: "知微", role: "学习助教", desc: "讲题、拆知识点、制定复习节奏", model: "glm-5.3-flash" },
+  { id: "yanzhou", name: "砚舟", role: "求职顾问", desc: "简历、岗位匹配、面试准备", model: "kimi-k3" },
+  { id: "qichi", name: "栖迟", role: "生活管家", desc: "租房、通勤、城市生活", model: "deepseek-v4.1-flash" },
 ];
 
 export function createAgents(privateDir) {
