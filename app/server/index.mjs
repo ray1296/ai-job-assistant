@@ -890,7 +890,7 @@ const server = http.createServer(async (req, res) => {
       const wishMatch = p.match(/^\/api\/wishes\/([a-f0-9]{20})$/);
       if (wishMatch && m === "PATCH") {
         requireAdmin(s);
-        once("wish:" + wishMatch[1], 1500);
+        once("wish-patch:" + wishMatch[1], 1500);
         const x = await body(req), row = db.prepare("SELECT * FROM wishes WHERE id=?").get(wishMatch[1]);
         if (!row) throw failure(404, "心愿不存在");
         const text = x.text === undefined ? row.text : String(x.text || "").trim();
@@ -903,7 +903,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (wishMatch && m === "DELETE") {
         requireAdmin(s);
-        once("wish:" + wishMatch[1], 1500);
+        once("wish-delete:" + wishMatch[1], 1500);
         db.prepare("DELETE FROM wishes WHERE id=?").run(wishMatch[1]);
         return send(res, 200, { ok: true });
       }

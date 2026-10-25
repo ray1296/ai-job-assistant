@@ -31,6 +31,9 @@
 - 生产审查记录：[REVIEW_2026-10-26.md](docs/REVIEW_2026-10-26.md)
 - 竞赛要求核对：[COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)
 - 国奖对比/扣分加分：[COMPETITION_GAP_ANALYSIS.md](docs/COMPETITION_GAP_ANALYSIS.md)
+- 功能清单：[FEATURES.md](docs/FEATURES.md)
+- 完整测试报告：[TEST_REPORT.md](docs/TEST_REPORT.md)
+- 手动测试流程/素材：[MANUAL_TESTING.md](docs/MANUAL_TESTING.md) / [fixtures](app/tests/fixtures/README.md)
 - 产品价值：[PRODUCT_VALUE.md](docs/PRODUCT_VALUE.md)
 - 第三方与原创说明：[THIRD_PARTY.md](docs/THIRD_PARTY.md)
 - 保留旧外观：`/preview/index.html`

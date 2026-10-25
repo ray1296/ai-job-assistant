@@ -48,6 +48,7 @@ async function upload(
   return req(u, "/resume-extractions", "POST", bytes, {
     "Content-Type": mime,
     "X-File-Name": encodeURIComponent(filename.split("/").pop()),
+    "X-AI-Consent": "true",
   });
 }
 async function poll(u, id) {
@@ -114,6 +115,7 @@ for (const [file, expected] of cases) {
 }
 r = await req(b, "/resume-extractions", "POST", Buffer.from("not a PNG"), {
   "Content-Type": "image/png",
+  "X-AI-Consent": "true",
 });
 assert.equal(r.status, 415);
 r = await req(
@@ -121,7 +123,7 @@ r = await req(
   "/resume-extractions",
   "POST",
   Buffer.alloc(5 * 1024 * 1024 + 1),
-  { "Content-Type": "application/pdf" },
+  { "Content-Type": "application/pdf", "X-AI-Consent": "true" },
 );
 assert.equal(r.status, 413);
 pass("actual file magic and early byte-length guard reject invalid uploads");

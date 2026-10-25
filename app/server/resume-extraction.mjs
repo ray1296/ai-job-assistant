@@ -7,7 +7,8 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 const base = path.dirname(fileURLToPath(import.meta.url));
 const MAX = 5 * 1024 * 1024,
-  TTL = 15 * 60 * 1000;
+  TTL = 15 * 60 * 1000,
+  MAX_LOAD = Number(process.env.CAREER_MAX_LOAD || 1.8);
 const fail = (status, message) => Object.assign(new Error(message), { status });
 export function workerArgs(folder, input, kind) {
   return [
@@ -227,7 +228,7 @@ export function createExtractionService(privateDir, recognize) {
       );
       if (m) available = Number(m[1]) * 1024;
     } catch {}
-    if (available < 1024 * 1024 * 1024 || os.loadavg()[0] > 1.8)
+    if (available < 1024 * 1024 * 1024 || os.loadavg()[0] > MAX_LOAD)
       throw fail(503, "服务器正在保留资源余量，请稍后再识别");
     const length = Number(req.headers["content-length"]);
     if (!Number.isFinite(length) || length <= 0 || length > MAX)

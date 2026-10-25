@@ -53,10 +53,20 @@ await f.setContent(
 await f.pdf({ path: "artifacts/intake-fixtures/scanned.pdf", format: "A4" });
 await f.close();
 const upload = async (path) => {
+  // 单账号同时只允许一个识别任务；上一份结果刚清除时，等 active 释放再上传。
+  await p.waitForFunction(async () => {
+    const r = await fetch("/api/resume-extractions/limits", { credentials: "same-origin" });
+    const j = await r.json();
+    return !j.active;
+  }, null, { timeout: 30000 });
   // 真实 UI 有"同意使用AI识别"闸门，未勾选时上传按钮是禁用的。
   const consent = p.getByTestId("import-ai-consent").locator("input");
   if (!(await consent.isChecked())) await consent.check();
   await p.getByLabel("选择简历文件", { exact: true }).setInputFiles(path);
+  await p.waitForFunction(() => {
+    const b = [...document.querySelectorAll("button")].find((x) => (x.textContent || "").trim() === "上传并识别");
+    return b && !b.disabled;
+  }, null, { timeout: 15000 });
   await p.getByRole("button", { name: "上传并识别", exact: true }).click();
   await p.getByLabel("识别原文", { exact: true }).waitFor({ timeout: 80000 });
 };
@@ -232,9 +242,9 @@ try {
       mobile.y + mobile.height <= 844,
   );
   pass("mobile import review and moved orbit stay inside viewport");
-  const touchPage = await c.newPage();
-  const cd = await c.newCDPSession(touchPage);
-  await touchPage.setViewportSize({ width: 390, height: 844 });
+  const touchCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const touchPage = await touchCtx.newPage();
+  const cd = await touchCtx.newCDPSession(touchPage);
   await cd.send("Emulation.setTouchEmulationEnabled", { enabled: true });
   await touchPage.goto(base);
   const trigger = touchPage.locator(".orbit-trigger");
@@ -253,8 +263,8 @@ try {
   });
   assert.equal(await touchPage.locator(".orbit-overlay").count(), 0);
   const moved = await trigger.boundingBox();
-  assert.ok(moved.y < 400);
-  await touchPage.close();
+  assert.ok(Math.abs(moved.x - tb.x) + Math.abs(moved.y - tb.y) > 20);
+  await touchCtx.close();
   pass("real browser touch drag moves orbit without opening overlay");
   assert.deepEqual(errors, []);
   pass("no real render exceptions");

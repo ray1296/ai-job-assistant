@@ -240,19 +240,12 @@ try {
       document.querySelector("[aria-label=简历姓名]")?.textContent ===
       "原位编辑同学",
   );
-  await p.getByRole("button", { name: "✦ AI 优化内容", exact: true }).click();
-  await p
-    .getByText(
-      "统一AI网关与可确认修改将在后续批次接入。此处目前不生成内容，也不会伪造修改结果。",
-    )
-    .waitFor();
-  await p.getByRole("checkbox", { name: /生图装饰简历/ }).check();
-  await p
-    .getByText("已保留本次生图偏好；当前未接生图，不会发起调用或产生费用")
-    .waitFor();
-  await p.getByRole("checkbox", { name: /生图装饰简历/ }).uncheck();
-  pass("original AI and decoration entries remain honest and default off");
-  await p.getByRole("button", { name: "关闭工具面板" }).click();
+  await p.getByRole("heading", { name: /AI 内容审阅与优化/ }).waitFor();
+  const decor = p.getByRole("checkbox", { name: /生图装饰/ });
+  assert.equal(await decor.isChecked(), false);
+  await decor.check();
+  await decor.uncheck();
+  pass("AI review and decoration controls are present and default off");
   const downloadPromise = p.waitForEvent("download");
   await p.getByRole("button", { name: "下载 Word", exact: true }).click();
   const download = await downloadPromise;
@@ -273,7 +266,6 @@ try {
   await p.locator(".fog-veil").waitFor({ state: "hidden" });
   await p.screenshot({ path: "artifacts/batch2-studio.png", fullPage: true });
   await p.setViewportSize({ width: 390, height: 844 });
-  await p.getByRole("button", { name: "收起伙伴", exact: true }).click();
   assert.ok(
     await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   );

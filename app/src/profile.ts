@@ -341,7 +341,7 @@ export default defineComponent({
         h(
           "p",
           { class: "privacy-note" },
-          "你的资料由服务器按账号隔离保存。请勿在当前HTTP演示环境填写真实敏感个人信息。",
+          "你的资料由服务器按账号隔离保存；请勿填写与测试无关的敏感信息。",
         ),
       ]);
   },
