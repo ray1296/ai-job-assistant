@@ -2105,9 +2105,9 @@ textarea {
 .learning-source .answer-source-badge { display: inline-block; padding: 2px 7px; border-radius: 999px; background: #eef5ec; color: #3f7a4f; border: 1px solid #cfe4d1; font-size: 10px; }
 .learning-source .answer-source-badge.ai { background: #fff6e6; color: #9a6326; border-color: #f0d9b5; }
 
-.guide-link { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; border-radius: 999px; padding: 6px 11px; font-size: 12px; cursor: pointer; }
-.guide-link:hover { background: rgba(255,255,255,.22); }
-.notice-entry { position: relative; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; border-radius: 999px; padding: 6px 11px; font-size: 12px; cursor: pointer; }
+.guide-link { border: 1px solid #e2d8ee; background: #f7f3fc; color: #5c4b6e; border-radius: 999px; padding: 6px 11px; font-size: 12px; cursor: pointer; }
+.guide-link:hover { background: #ece4f8; }
+.notice-entry { position: relative; border: 1px solid #e2d8ee; background: #f7f3fc; color: #5c4b6e; border-radius: 999px; padding: 6px 11px; font-size: 12px; cursor: pointer; }
 .notice-entry b { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 4px; padding: 0 3px; border-radius: 999px; background: #ff7a8a; color: #fff; font-size: 9px; }
 .notice-mask { position: fixed; inset: 0; z-index: 10050; background: rgba(20,16,35,.5); display: flex; align-items: flex-start; justify-content: center; padding: 70px 16px 20px; }
 .notice-modal { width: min(620px, 94vw); max-height: min(76vh, 720px); overflow: auto; background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 24px 70px rgba(0,0,0,.3); }

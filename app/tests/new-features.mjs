@@ -28,6 +28,10 @@ try {
   assert.equal(r.status, 200); assert.ok((r.data.result.text || "").includes("审核"));
   console.log("PASS project_guide AI tool");
 
+  r = await req("/companion/chat", "POST", { persona: "星野", message: "Nacos 在微服务里有什么作用？" });
+  assert.equal(r.status, 200); assert.ok(Array.isArray(r.data.ragSources) && r.data.ragSources.length > 0);
+  console.log("PASS all agents default RAG context");
+
   r = await req("/wishes", "POST", { text: "待审核心愿 " + Date.now() });
   assert.equal(r.status, 201); assert.equal(r.data.item.status, "pending"); wishId = r.data.item.id;
   r = await req("/wishes"); assert.equal(r.status, 200); assert.ok(r.data.items.some((x) => x.id === wishId && x.status === "pending"));

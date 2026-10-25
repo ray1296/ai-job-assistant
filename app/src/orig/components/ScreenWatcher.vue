@@ -3,7 +3,7 @@
     <div class="sw-panel">
       <div class="sw-head">
         <span class="sw-dot" :class="{ busy: analyzing }"></span>
-        <span class="sw-title">🖥️ 小帮在看当前画面</span>
+        <span class="sw-title">🖥️ 星野在看当前画面</span>
         <button class="sw-close" title="停止观察" @click="closeWatch">✕</button>
       </div>
       <div class="sw-status">{{ analyzing ? '🔍 正在描述当前画面…' : '👀 观察中 · 每 5~10 分钟看 3 帧，只描述不预测' }}</div>
@@ -31,10 +31,12 @@ let videoEl = null
 let canvas = null
 let timerId = null
 let closed = false
-
+let lastEncourageAt = 0
+try { lastEncourageAt = Number(localStorage.getItem("zg.screenEncourageAt") || 0) || 0 } catch {}
 const MIN_INTERVAL = 300000
 const MAX_INTERVAL = 600000
 const FRAME_GAP_MS = 2500
+const ENCOURAGE_COOLDOWN = 8 * 60 * 1000
 
 function randInterval() {
   return MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL)
@@ -137,15 +139,25 @@ async function sendFrames(blobs) {
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.__zgCsrf || '' },
     body: JSON.stringify({
       images,
-      question: '这是用户屏幕连续3帧（间隔2.5秒），分析他正在做什么操作（注意光标/滚动/输入轨迹），如果与学习备考相关给一句鼓励或建议，否则一句话描述',
+      question: '这是用户屏幕连续3帧（间隔2.5秒）。只输出 JSON：{"observe":"一句话描述当前画面","encourage":"一句不超过40字的星野式鼓励；如果用户正在学习、求职、认真工作或明显卡住，才给；否则为空"}。不要输出 JSON 之外的文字，不要猜隐私。',
     }),
   })
   const json = await res.json()
   if (json.code !== 200) throw new Error(json.message || '分析失败')
-  const desc = ((json.data && json.data.description) || '').trim()
-  if (desc) {
-    summary.value = desc
-    emit('summary', desc)
+  const raw = String((json.data && json.data.description) || '').trim().replace(/^```(?:json)?/, '').replace(/```$/, '').trim()
+  let data = null
+  try { data = JSON.parse(raw) } catch {}
+  const observe = data?.observe ? String(data.observe).trim() : ''
+  const encourage = data?.encourage ? String(data.encourage).trim().slice(0, 60) : ''
+  const now = Date.now()
+  // 只有模型判断值得鼓励，且距离上次鼓励至少 8 分钟，才弹一次；否则只更新状态，不打扰。
+  if (observe) summary.value = observe
+  if (encourage && now - lastEncourageAt >= ENCOURAGE_COOLDOWN) {
+    const text = encourage.startsWith('星野') ? encourage : '星野：' + encourage
+    summary.value = text
+    lastEncourageAt = now
+    try { localStorage.setItem('zg.screenEncourageAt', String(now)) } catch {}
+    emit('summary', text)
   }
 }
 

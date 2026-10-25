@@ -60,6 +60,18 @@ function aiConfigured() {
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
 const rag = createRag(db, aiGateway);
+async function chatRagContext(query) {
+  try {
+    const r = await rag.search(String(query || "").slice(0, 600), { limit: 4, minScore: 0.42 });
+    if (!Array.isArray(r.hits) || !r.hits.length) return { text: "", sources: [] };
+    const sources = r.hits.map((h, i) => ({
+      index: i + 1, title: h.title, sourceType: h.sourceType,
+      content: String(h.content || "").slice(0, 1200),
+    }));
+    const text = sources.map((s) => "[" + s.index + "] " + s.title + "\n" + s.content).join("\n\n");
+    return { text, sources };
+  } catch { return { text: "", sources: [] }; }
+}
 fs.chmodSync(dbPath, 0o600);
 db.exec(
   "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000;",
@@ -1438,9 +1450,12 @@ const server = http.createServer(async (req, res) => {
         const images = normalizeImages(payload.image || payload.images);
         const message = String(payload.message || "").slice(0, 2000);
         if (!message.trim() && !images.length) throw failure(400, "说点什么吧");
-        const system = agentSystemWithMemory(s.user_id, agentId, images.length
+        let system = agentSystemWithMemory(s.user_id, agentId, images.length
           ? "用户这次发来了图片：先看清图片里的题目/文字/画面，再回答；看不清就直说看不清，不要猜。"
           : "", payload.memory);
+        // 四只 agent 默认带平台公开资料 RAG；私人资料/上传文件不进入这个索引。
+        const ragCtx = images.length ? { text: "", sources: [] } : await chatRagContext(message);
+        if (ragCtx.text) system += "\n\n平台公开资料检索（只作参考，引用片段用 [n]；不足就说不足，不要编造）：\n" + ragCtx.text;
         const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
         saveCompanion(s.user_id, agentId, "user", message || "[图片]");
         // 提示词驱动的工具路由（不依赖模型原生 function calling）
@@ -1558,7 +1573,8 @@ const server = http.createServer(async (req, res) => {
         const cleanReply = reply.replace(/^@\S+/, "").trim();
         saveCompanion(s.user_id, agentId, "assistant", cleanReply);
         saveAgentRun(s.user_id, agentId, message, planTrace || delegation, used);
-        return send(res, 200, { reply: cleanReply, handoff, tools: used, memory, delegation, plan: planTrace });
+        if (ragCtx.sources.length) used.push("rag:" + ragCtx.sources.length);
+        return send(res, 200, { reply: cleanReply, handoff, tools: used, memory, delegation, plan: planTrace, ragSources: ragCtx.sources });
       }
       if (p === "/api/study/tutor" && m === "POST") {
         const payload = await body(req);
@@ -1769,9 +1785,11 @@ const server = http.createServer(async (req, res) => {
         if (!message && !images.length) throw failure(400, "说点什么吧");
         const agentId = "xingye";
         const agentCfg = agents.read(agentId)?.config || {};
-        const system = agentSystemWithMemory(s.user_id, agentId, images.length
+        let system = agentSystemWithMemory(s.user_id, agentId, images.length
           ? "用户这次发来了图片：先看清图片里的题目/文字/画面，再回答；看不清就直说看不清，不要猜。"
           : "", payload.memory);
+        const ragCtx = images.length ? { text: "", sources: [] } : await chatRagContext(message);
+        if (ragCtx.text) system += "\n\n平台公开资料检索（只作参考，引用片段用 [n]；不足就说不足，不要编造）：\n" + ragCtx.text;
         const history = Array.isArray(payload.history)
           ? payload.history.slice(-6).map((x) => ({ role: x.role === "user" || x.role === "me" ? "me" : "ai", text: String(x.text || x.content || "").slice(0, 500) }))
           : [];

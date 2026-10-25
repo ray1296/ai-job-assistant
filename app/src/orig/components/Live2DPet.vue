@@ -43,19 +43,12 @@
         <button class="pet-tool-btn" :class="{ recording: isRecording }" :title="isRecording ? '点击停止录音' : '点击开始语音输入'" @mousedown.prevent @click.stop="toggleMic">
           {{ isRecording ? '⏹' : '🎤' }}
         </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答（独立模式，与 Agent 二选一）：检索平台公开题库/岗位/企业/房源" @mousedown.prevent @click.stop="setMode('rag')">
-          🔍
-        </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'agent' }" title="Agent 任务（独立模式，与知识库二选一；工具调用，不自动检索知识库）" @mousedown.prevent @click.stop="setMode('agent')">
-          🧭
-        </button>
         <button class="pet-tool-btn" :class="{ on: screenWatching }" title="屏幕观察（授权共享屏幕，每 5–10 分钟描述当前画面；不预测意图）" @mousedown.prevent @click.stop="toggleScreenWatch">
           🖥️
         </button>
-        <button class="pet-tool-btn" title="手势彩蛋（开摄像头比手势，小帮有反应）" @mousedown.prevent @click.stop="toggleGestureCam">
+        <button class="pet-tool-btn" title="手势彩蛋（开摄像头比手势，星野有反应）" @mousedown.prevent @click.stop="toggleGestureCam">
           📷
         </button>
-        <span v-if="mode === 'rag' || mode === 'agent'" class="pet-mode-tag" @mousedown.prevent @click.stop="setMode('chat')">{{ mode === 'rag' ? '知识库模式 ✕' : 'Agent 模式 ✕' }}</span>
       </div>
       <div v-if="isRecording" class="pet-rec-hint">正在聆听… 再点 🎤 结束</div>
     </div>
@@ -137,7 +130,7 @@ const workingDisplayText = ref('')
 const WORK_POOL_A_PREFIX = '正在调用「'
 const WORK_POOL_A_SUFFIX = '」…'
 const WORK_POOL_B = [
-  '小帮努力干活中~',
+  '星野努力干活中~',
   '哒哒哒哒哒……',
   '这段资料再翻翻…',
   '快好啦快好啦…',
@@ -1359,12 +1352,12 @@ async function onRecordingStop() {
 /* ===== 摄像头手势彩蛋 ===== */
 const gestureCam = ref(null)
 const GESTURE_REACTIONS = {
-  Thumb_Up: '收到你的赞啦！小帮也要给你点赞 👍',
+  Thumb_Up: '收到你的赞啦！星野也要给你点赞 👍',
   Victory: '耶！胜利手势！考试必胜～٩(๑>◡<๑)۶',
-  Open_Palm: '嗨～看到你啦！小帮在挥手 👋',
+  Open_Palm: '嗨～看到你啦！星野在挥手 👋',
   Closed_Fist: '握拳加油！我们一起冲鸭！✊',
-  ILoveYou: '哇，收到爱意啦！小帮也喜欢你 (｡♥‿♥｡)',
-  Pointing_Up: '有什么要指示小帮的呀？☝️',
+  ILoveYou: '哇，收到爱意啦！星野也喜欢你 (｡♥‿♥｡)',
+  Pointing_Up: '有什么要指示星野的呀？☝️',
 }
 let gestureOpen = false
 function toggleGestureCam() {

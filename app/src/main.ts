@@ -498,12 +498,10 @@ const app = defineComponent({
               },
               "旅程地图",
             ),
-            announcements.value.length
-              ? h("button", { class: "notice-entry", title: "站内通告", onClick: () => (noticeOpen.value = true) }, [
-                  "通告",
-                  unreadNotices.value.length ? h("b", unreadNotices.value.length > 9 ? "9+" : String(unreadNotices.value.length)) : null,
-                ])
-              : null,
+            h("button", { class: "notice-entry", title: "站内通告", onClick: () => (noticeOpen.value = true) }, [
+              "通告",
+              unreadNotices.value.length ? h("b", unreadNotices.value.length > 9 ? "9+" : String(unreadNotices.value.length)) : null,
+            ]),
             h("button", { class: "guide-link", title: "查看项目功能说明", onClick: () => go("guide") }, "功能说明"),
             session.user
               ? h(
