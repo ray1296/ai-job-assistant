@@ -117,9 +117,12 @@ const app = defineComponent({
           return;
         }
         const id = raw;
-        if (!known.has(id) || id === active.value) return;
+        crash.value = false;
+        notice.value = "";
+        if (!known.has(id)) return;
+        if (id === active.value) return;
         reviewId.value = "";
-        go(id);
+        void go(id);
       });
       // 学习页 iframe 里的工具箱通过 postMessage 把「Agent 模式 / 工作状态」交给主页面看板娘。
       window.addEventListener("message", (ev: MessageEvent) => {
@@ -157,6 +160,8 @@ const app = defineComponent({
         return;
       }
       navigating = true;
+      crash.value = false;
+      notice.value = "";
       orbit.value = false;
       fog.value = true;
       await new Promise((r) => setTimeout(r, 170));
@@ -483,13 +488,7 @@ const app = defineComponent({
               },
               session.user ? "退出登录" : "登录 / 注册",
             ),
-            session.user?.role === "admin"
-              ? h(
-                  "button",
-                  { class: "admin-portal", onClick: () => go("admin") },
-                  "管理中心",
-                )
-              : null,
+
           ]),
         ]),
         notice.value

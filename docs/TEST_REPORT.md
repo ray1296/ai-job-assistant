@@ -6,7 +6,7 @@
 
 ## 一、结论
 
-- 自动化测试最终全部通过：163 项断言通过，0 失败（另有性能指标和基础可访问性扫描）。
+- 自动化测试最终全部通过：167 项断言通过，0 失败（另有性能指标和基础可访问性扫描）。
 - 覆盖：认证、资料/简历、岗位/投递、数据空间、大屏/地图/企业/租房、学习/刷题、上传、面试、AI 协作、RAG、Tool RAG、MCP、心愿池、管理中心、设置、安全与性能。
 - 发现并修复 1 个服务端幂等键问题（心愿“完成”后立即删除被误拦为 409），以及若干测试脚本/测试环境问题。
 - 仍存在的限制：高负载时 OCR/视觉识别会主动返回 503；只测了 Chromium；没有做正式长稳压测/渗透/跨浏览器；全双工实时音频需人工听测。
@@ -46,7 +46,8 @@
 | Quality/security | 9/9 |
 | Extraction security | 9/9 |
 | Legacy upload API | 1/1 |
-| 合计 | 163/163 |
+| Navigation regression | 4/4 |
+| 合计 | 167/167 |
 
 ### 关键指标
 
@@ -66,20 +67,30 @@
 - 修复：拆成 wish-patch: 和 wish-delete:。
 - 回归：full functional 23/23；完成→删除通过。
 
-### 2. 修改密码撤销其他会话时 SQL 列名错误（前一轮发现）
+### 2. 普通用户头部出现“管理中心” + 空白页/返回报错（本轮修复）
+
+- 现象：普通用户登录后，退出登录旁显示“管理中心”；点击后空白；返回后落到地图并残留“这个页面暂时出错”。
+- 原因：header 对 role 的判断把入口暴露给了普通用户；同时错误边界只在重新打开按钮里清除，hash 返回时没有清 crash。
+- 修复：
+  - 删除 header 的管理中心入口；管理员只从登录/注册的管理员入口进入。
+  - hashchange / go() 开始时清理 crash 与 notice。
+  - 普通用户直接访问 #admin 显示“不是管理员”的明确提示，不再是空白。
+- 回归：Navigation regression 4/4：无管理中心按钮、#admin 非空白、返回地图正常、无页面异常。
+
+### 3. 修改密码撤销其他会话时 SQL 列名错误（前一轮发现）
 
 - 现象：密码修改返回 500；原因是 sessions 表列名是 hash，代码写了 token。
 - 修复：改为 hash 比较。
 - 回归：旧 session 401、当前 session 200。
 
-### 3. OCR/视觉上传在高负载下返回 503（设计保护，不是崩溃）
+### 4. OCR/视觉上传在高负载下返回 503（设计保护，不是崩溃）
 
 - 现象：连续跑多轮视觉识别后，系统 load average > 1.8，服务端返回“服务器正在保留资源余量”。
 - 原因：resume-extraction 的保护：可用内存 <1GB 或 load >1.8 时拒绝重任务，避免把服务器打满。
 - 处理：保留默认保护；增加 CAREER_MAX_LOAD 环境变量，测试机临时设为 99 完成 OCR 用例；生产默认 1.8。
 - 结论：这是预期的容量保护，不是功能缺陷；用户遇到时应等 1–2 分钟，或降低并发。
 
-### 4. 测试脚本/环境问题（不是业务代码）
+### 5. 测试脚本/环境问题（不是业务代码）
 
 - 旧 intake 测试没有带 X-AI-Consent 头，和当前必须同意的产品规则不一致；已补。
 - 连续上传时上一份识别任务还没释放 active，测试立即上传导致 429；测试增加 limits.active 等待。
@@ -88,7 +99,7 @@
 - 地图页没有 h1（视觉标题是链接），测试改为按页面文本判断；知识页第一个 input 是隐藏文件选择框，测试改用 data-testid=learning-search。
 - gzip 响应没有 Content-Length（chunked），测试改为检查 Content-Encoding 和响应体。
 
-### 5. 顺手修复的文案/配置
+### 6. 顺手修复的文案/配置
 
 - 个人信息页移除“当前HTTP演示环境”字样，避免正式演示出现开发提示。
 - .env.example 增加 CAREER_MAX_LOAD 说明。
@@ -166,6 +177,7 @@
     npm run test:learning
     node tests/full-functional.mjs
     node tests/full-browser.mjs
+    node tests/navigation-regression.mjs
     node tests/legacy-upload.mjs
     node tests/quality-suite.mjs
     node tests/rag-eval.mjs
