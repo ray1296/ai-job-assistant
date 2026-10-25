@@ -224,6 +224,9 @@ try {
         items: [{ id: "item1", title: "学校", meta: "时间", content: "内容" }],
       },
     ],
+    pageBreaks: [],
+    decoration: null,
+    decorationFooter: null,
     layout: { template: "compact", fontSize: 15, accent: "navy" },
   };
   assert.deepEqual(validateDocument(document), document);

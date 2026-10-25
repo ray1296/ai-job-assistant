@@ -1,0 +1,13 @@
+{
+  "provider": "uu",
+  "baseUrl": "https://uuapi.io/v1",
+  "apiKey": "YOUR_TEXT_API_KEY",
+  "model": "deepseek-v4-flash",
+  "visionModel": "qwen3.8-max",
+  "imageBaseUrl": "https://uuapi.cc/v1",
+  "imageApiKey": "YOUR_IMAGE_API_KEY",
+  "imageModel": "gpt-image-2.5",
+  "aliyunKey": "YOUR_ALIYUN_DASHSCOPE_KEY",
+  "aliyunTtsModel": "qwen3-tts-flash",
+  "aliyunTtsVoice": "Cherry"
+}

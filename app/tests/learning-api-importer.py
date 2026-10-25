@@ -6,7 +6,7 @@ class Importer(unittest.TestCase):
  def test_csv_provenance_stability(self):
   with tempfile.TemporaryDirectory() as d:
    p=Path(d)/'source.csv';out=Path(d)/'out'
-   rows=[['1','Java','分类','含逗号,与"引号"\n换行','原文答案','高','来源','https://example.com/a','2026-10-18'],['2','测试','分类','另一题','','低','来源','javascript:alert(1)','未知']]
+   rows=[['1','Java','分类','含逗号,与"引号"\n换行','原文答案','原文有答案','高','来源','https://example.com/a','2026-10-18'],['2','测试','分类','另一题','','AI 生成（详细版）','低','来源','javascript:alert(1)','未知']]
    def write(rows):
     with p.open('w',encoding='utf-8-sig',newline='') as f:
      w=csv.writer(f);w.writerow(m.HEADERS);w.writerows(rows)

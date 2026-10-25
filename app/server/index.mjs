@@ -21,6 +21,7 @@ import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
+import { createGzip } from "node:zlib";
 import { promisify } from "node:util";
 import fs from "node:fs";
 import os from "node:os";
@@ -698,7 +699,7 @@ const server = http.createServer(async (req, res) => {
       "media-src 'self' blob:; " +
       // 高德 SDK 用 blob: Worker 做渲染，不显式声明 worker-src 会回退到 script-src 而被拦
       "worker-src 'self' blob:; child-src 'self' blob:; " +
-      "frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+      "frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
   );
   try {
     const url = new URL(req.url, "http://local"),
@@ -2527,10 +2528,19 @@ const server = http.createServer(async (req, res) => {
         ? "public,max-age=31536000,immutable"
         : "no-cache",
     );
+    const ext = path.extname(file).toLowerCase();
+    const compressible = [".html", ".js", ".mjs", ".css", ".json", ".svg", ".txt"].includes(ext);
+    if (compressible) res.setHeader("Vary", "Accept-Encoding");
+    const gzip = m === "GET" && compressible && /\bgzip\b/.test(String(req.headers["accept-encoding"] || ""));
+    if (gzip) {
+      res.setHeader("Content-Encoding", "gzip");
+      res.removeHeader("Content-Length");
+    }
     if (m === "HEAD") return res.end();
     const stream = fs.createReadStream(file);
     stream.on("error", () => res.destroy());
-    stream.pipe(res);
+    if (gzip) stream.pipe(createGzip()).pipe(res);
+    else stream.pipe(res);
   } catch (e) {
     if (!res.headersSent) {
       send(res, e.status || 500, {

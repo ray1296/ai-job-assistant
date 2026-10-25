@@ -1,6 +1,8 @@
 import { build } from "esbuild";
 import fs from "node:fs/promises";
 const output = process.env.BUILD_OUT_DIR || "dist";
+// 每次构建清空输出目录，避免旧 hash chunk 越积越多（会让 dist 膨胀且评审看到旧文件）
+await fs.rm(output, { recursive: true, force: true });
 await fs.mkdir(`${output}/assets`, { recursive: true });
 import { parse, compileScript, compileTemplate, compileStyle } from "@vue/compiler-sfc";
 import path from "node:path";

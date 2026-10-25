@@ -84,11 +84,7 @@ try {
   pass("document session and profile persist after reload");
   await p.getByRole("button", { name: "展开星盘", exact: false }).click();
   await p.getByRole("button", { name: /就业数据大屏/ }).click();
-  const frame = p.frameLocator("iframe");
-  await frame
-    .getByText("就业数据大屏", { exact: true })
-    .first()
-    .waitFor({ timeout: 10000 });
+  await p.getByRole("heading", { name: "就业数据大屏" }).waitFor({ timeout: 10000 });
   pass("approved prototype pages remain reachable");
   await p.getByRole("button", { name: "退出登录", exact: true }).click();
   await p.getByRole("button", { name: /填写个人信息/ }).click();
