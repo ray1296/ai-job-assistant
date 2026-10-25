@@ -15,7 +15,10 @@ async function chat(message: string, history: Msg[] = [], opts: any = {}) {
 export const aiChat = (message: string, history: Msg[] = []) => chat(message, history);
 export const aiWrongReview = (subjectName: string, wrongQuestions: any[]) =>
   chat("请帮我复盘这些错题：\n" + JSON.stringify(wrongQuestions).slice(0, 2000));
-export const aiRagAsk = (query: string) => chat(query);
+export const aiRagAsk = (query: string, subjectId?: string) => post("/ai/rag/ask", { query, subjectId });
+export const aiRagSearch = (query: string, subjectId?: string) => post("/ai/rag/search", { query, subjectId });
+export const aiRagStats = () => call<any>("GET", "/ai/rag/stats");
+export const aiRagRebuild = () => post("/ai/rag/rebuild", {});
 export const aiAgentRun = (message: string) => chat(message);
 async function call<T = any>(method: string, path: string, body?: any): Promise<{ code: number; data: T }> {
   const res = await fetch("/api" + path, {

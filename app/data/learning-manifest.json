@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceFilename": "互联网技术岗位面试题面经汇总.csv",
-  "sourceSha256": "fa3d0840802999f20563d7d4c0ce63ccd3d3a409c0cc06cb43d6e2ecfb0e0166",
-  "catalogSha256": "1d5272eba993233be55d04310b28f38362a5af203eae448ebc5feb4ac25ada92",
+  "sourceSha256": "64b821b1176f89fb881d910a9a7961e1472901904870a6b2493f108d7ae34071",
+  "catalogSha256": "1b384c880609367233fdb812ebf0b18d3912f45197976ef653e7367abef34223",
   "rowCount": 1761,
   "columns": [
     "序号",
@@ -10,6 +10,7 @@
     "模块/分类",
     "面试题 / 面经问题",
     "考察点 / 答题要点",
+    "答案来源",
     "重要程度",
     "来源网站",
     "来源链接",

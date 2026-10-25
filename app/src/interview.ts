@@ -69,6 +69,7 @@ export default defineComponent({
     const setupError = ref("");
     const started = ref(false);
     const busy = ref(false);
+    const starting = ref(false);
     const error = ref("");
     const messages = ref<Msg[]>([]);
     const draft = ref("");
@@ -636,6 +637,12 @@ export default defineComponent({
     }
 
     async function start() {
+      if (starting.value) return;
+      starting.value = true;
+      try { await startInternal(); } finally { starting.value = false; }
+    }
+
+    async function startInternal() {
       setupError.value = "";
       error.value = "";
       if (mode.value === "candidate" && !resume.value) {
@@ -939,7 +946,7 @@ export default defineComponent({
                 : null,
             ]),
             mediaError.value ? h("p", { class: "muted" }, mediaError.value) : null,
-            h("button", { class: "btn primary interview-start", onClick: () => void start() }, "开始模拟面试"),
+            h("button", { class: "btn primary interview-start", disabled: starting.value, onClick: () => void start() }, starting.value ? "正在准备…" : "开始模拟面试"),
             h("p", { class: "interview-privacy" }, "原始音视频不会上传到逐光服务器、不落盘；语音转文字由浏览器自带能力完成（Chrome/Edge 可能由浏览器厂商处理），按需截图会压缩后发给 AI 做观察。对隐私要求高时请用文字输入。"),
           ]),
           h("section", { class: "card" }, [

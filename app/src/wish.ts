@@ -45,11 +45,13 @@ export default defineComponent({
       }
     }
     async function toggle(item: Wish) {
-      if (!canManage.value) return;
+      if (!canManage.value || busy.value) return;
+      busy.value = true;
       try {
         await api("/wishes/" + item.id, "PATCH", { done: !item.done });
         await load();
       } catch (e) { error.value = errorText(e); }
+      finally { busy.value = false; }
     }
     onMounted(load);
 

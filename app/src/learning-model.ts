@@ -3,7 +3,7 @@ import { api, ApiError, session, errorText } from "./api";
 export type Status = "unseen" | "review" | "mastered";
 export type Scope = "all" | "favorites" | "review" | "mastered";
 export interface QuestionState { favorite: boolean; status: Status; attempts: number; revision: number }
-export interface Question { id: string; direction: string; category: string; question: string; answer: string | null; importance?: string | number; source: string; sourceUrl: string; publishedAt?: string; state: QuestionState }
+export interface Question { id: string; direction: string; category: string; question: string; answer: string | null; answerSource?: string | null; importance?: string | number; source: string; sourceUrl: string; publishedAt?: string; state: QuestionState }
 export const statusLabel = (s: Status) => ({ unseen: "未学习", review: "待复习", mastered: "已掌握" })[s];
 type Entry = { account: string; id: string; q: string; direction: string; category: string; scope: Scope; page: number };
 let entry: Entry | undefined;
@@ -92,7 +92,8 @@ export function useLearning(study = false) {
 }
 export function sourceInfo(q: Question) {
   let safe = false; try { const url = new URL(q.sourceUrl); safe = ["http:","https:"].includes(url.protocol) && !url.username && !url.password && !/[\u0000-\u0020\u007f]/.test(q.sourceUrl); } catch {}
-  return h("div", {class:"learning-source"}, [h("span", "来源：" + (q.source || "未注明")), q.publishedAt ? h("span", "发布时间：" + q.publishedAt) : null, safe ? h("a", {href:q.sourceUrl,target:"_blank",rel:"noopener noreferrer"}, "查看原始来源 ↗") : h("span", "未提供可访问的原始链接")]);
+  const ai = /AI/i.test(String(q.answerSource || ""));
+  return h("div", {class:"learning-source"}, [h("span", "来源：" + (q.source || "未注明")), q.answerSource ? h("span", {class:"answer-source-badge" + (ai ? " ai" : "")}, ai ? "AI 生成答案" : "原文有答案") : null, q.publishedAt ? h("span", "发布时间：" + q.publishedAt) : null, safe ? h("a", {href:q.sourceUrl,target:"_blank",rel:"noopener noreferrer"}, "查看原始来源 ↗") : h("span", "未提供可访问的原始链接")]);
 }
 export function learningFilters(m: ReturnType<typeof useLearning>) {
   const select = (label: string, key: "direction" | "category", items: string[]) => h("label", [label, h("select", {"aria-label":label,value:m[key].value, disabled:m.saving.value, 'data-testid':'learning-'+key,onChange:(e:Event)=>{m[key].value=(e.target as HTMLSelectElement).value;m.filters();}}, [h("option",{value:""},"全部"),...items.map(v=>h("option",{value:v},v))])]);

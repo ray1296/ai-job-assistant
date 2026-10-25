@@ -22,6 +22,8 @@
 !/app/data/jobs-manifest.json
 !/app/data/learning-catalog.json
 !/app/data/learning-manifest.json
+!/app/data/finetune/
+!/app/data/finetune/**
 !/app/data/housing-catalog.json
 !/app/data/companies-catalog.json
 **/uploads/

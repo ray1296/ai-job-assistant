@@ -56,6 +56,7 @@
                 <div class="card-question-num">{{ idx + 1 }}</div>
                 <div class="card-type-badge">{{ card.topic || '知识点' }}</div>
                 <div class="card-question-text">{{ card.front }}</div>
+                <span v-if="card.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(card.answerSource) }">{{ answerSourceLabel(card.answerSource) }}</span>
                 <button class="ask-ai-btn card-ask-btn" @click.stop="askCardAI(card)">🤖 问问AI</button>
                 <div v-if="card.hint" class="hint-bulb" @click.stop="showHint(card.id)">💡</div>
                 <div class="hint-popup" :class="{ show: showingHint === card.id }">{{ card.hint }}</div>
@@ -63,7 +64,7 @@
               </div>
               <!-- 背面左（简化答案） -->
               <div class="flash-card-back short-back">
-                <div class="card-answer-header">📝 简化答案</div>
+                <div class="card-answer-header">📝 简化答案 <span v-if="card.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(card.answerSource) }">{{ answerSourceLabel(card.answerSource) }}</span></div>
                 <div class="card-answer-content"><pre>{{ card.quickAnswer || card.quick_answer || card.back }}</pre></div>
                 <div class="card-nav-hints">
                   <span @click.stop="setCardState(card.id, 'front')">← 翻回题目</span>
@@ -72,7 +73,7 @@
               </div>
               <!-- 背面右（完整答案） -->
               <div class="flash-card-back-right short-back">
-                <div class="card-answer-header" style="background:var(--primary-dark)">📖 完整答案</div>
+                <div class="card-answer-header" style="background:var(--primary-dark)">📖 完整答案 <span v-if="card.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(card.answerSource) }">{{ answerSourceLabel(card.answerSource) }}</span></div>
                 <div class="card-answer-content"><pre>{{ card.fullAnswer || card.full_answer || card.back }}</pre></div>
                 <div class="card-nav-hints">
                   <span @click.stop="setCardState(card.id, 'left')">← 看简化答案</span>
@@ -263,7 +264,7 @@
               </div>
             </div>
             <div v-if="showShortAnswer" class="answer-area show">
-              <div class="answer-label">✓ 参考答案</div>
+              <div class="answer-label">✓ 参考答案 <span v-if="currentShort.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(currentShort.answerSource) }">{{ answerSourceLabel(currentShort.answerSource) }}</span></div>
               <div class="answer-explanation" style="white-space:pre-wrap">{{ currentShort.answer }}</div>
             </div>
             <div class="btn-group">
@@ -390,7 +391,30 @@
             <strong>{{ aiPanel.title }}</strong>
             <button class="ai-result-close" title="关闭" @click="closeAiPanel">✕</button>
           </header>
-          <div v-if="aiPanel.loading" class="ai-result-loading">
+          <div v-if="aiPanel.type === 'rag'" class="rag-tool">
+            <div class="rag-tool-row">
+              <input v-model="ragQuery" type="search" maxlength="500" placeholder="问平台题库里的知识，例如：Nacos 的作用？" @keyup.enter="askRag" />
+              <button class="btn btn-primary" :disabled="ragLoading || !ragQuery.trim()" @click="askRag">{{ ragLoading ? '检索中…' : '检索问答' }}</button>
+            </div>
+            <p class="rag-tool-hint">只检索平台公开题库 / 岗位 / 企业 / 房源；不会读取你的简历、投递话术、聊天记录或上传文件。回答会带来源编号。</p>
+            <div v-if="ragLoading" class="ai-result-loading"><span class="ai-spinner dark"></span> 正在混合检索 + 重排 + 生成…</div>
+            <div v-else-if="ragError" class="error" role="alert">{{ ragError }}</div>
+            <div v-else-if="ragAnswer" class="rag-answer">{{ ragAnswer }}</div>
+            <div v-if="ragSources.length" class="rag-sources">
+              <h4>来源（可核对）</h4>
+              <div v-for="s in ragSources" :key="s.index" class="rag-source">
+                <div class="rag-source-head">
+                  <span class="rag-source-index">[{{ s.index }}]</span>
+                  <strong>{{ s.title }}</strong>
+                  <span v-if="s.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(s.answerSource) }">{{ answerSourceLabel(s.answerSource) }}</span>
+                </div>
+                <p>{{ s.content }}</p>
+                <a v-if="s.sourceUrl" :href="s.sourceUrl" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a>
+                <small v-else>{{ s.source || '平台公开资料' }}</small>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="aiPanel.loading" class="ai-result-loading">
             <span class="ai-spinner dark"></span> 小帮正在整理，请稍等～
           </div>
           <iframe v-else-if="aiPanel.html" class="ai-result-frame" :srcdoc="aiPanel.html" sandbox="allow-same-origin"></iframe>
@@ -416,7 +440,7 @@ import { useTheme, cssVar } from '../../utils/theme'
 import AiStudyTools from '../../components/AiStudyTools.vue'
 import { showConfirmDialog, showToast } from 'vant'
 import {
-  aiStudySummary, aiWrongSteps, aiShortMemo, aiSubjectLink, aiGeneratePage, aiPageSave
+  aiStudySummary, aiWrongSteps, aiShortMemo, aiSubjectLink, aiGeneratePage, aiPageSave, aiRagAsk
 } from '../../api/ai'
 
 defineOptions({ name: 'SubjectReview' })
@@ -560,11 +584,20 @@ const showAnswerCard = ref(false)
 const showShortAnswer = ref(false)
 const shortAnswer = ref('')
 
+function isAiSource(value) { return /AI/i.test(String(value || '')) }
+function answerSourceLabel(value) { return isAiSource(value) ? 'AI 生成' : '原文有答案' }
+
 // ===== 看板娘 AI 小帮：悬浮菜单状态 =====
 const aiMenuOpen = ref(false)
 const aiLoading = ref(false)
 // 工具箱结果面板（iframe 里的独立浮层；父页面的看板娘气泡在 iframe 外，收不到 window 事件）
 const aiPanel = ref(null)
+const ragQuery = ref('')
+const ragAnswer = ref('')
+const ragSources = ref([])
+const ragLoading = ref(false)
+const ragError = ref('')
+let lastRagAt = 0
 const FAB_POS_KEY = 'zg.studyFab.v1'
 const fabPos = ref(readFabPos())
 function readFabPos() {
@@ -1246,6 +1279,26 @@ function slimQuestions(list, max = 25) {
   }))
 }
 
+async function askRag() {
+  const q = ragQuery.value.trim()
+  if (!q || ragLoading.value || Date.now() - lastRagAt < 900) return
+  lastRagAt = Date.now()
+  ragLoading.value = true
+  ragError.value = ''
+  ragAnswer.value = ''
+  ragSources.value = []
+  try {
+    const res = await aiRagAsk(q, subjectId)
+    const r = res?.data || res || {}
+    ragAnswer.value = String(r.answer || '').trim() || '没有拿到回答，请稍后重试。'
+    ragSources.value = Array.isArray(r.sources) ? r.sources : []
+  } catch (e) {
+    ragError.value = e?.message || '知识库问答失败，请稍后重试。'
+  } finally {
+    ragLoading.value = false
+  }
+}
+
 async function aiAction(type) {
   if (aiLoading.value) return
   // 市场预览模式下不允许（无错题/答题数据）
@@ -1257,15 +1310,13 @@ async function aiAction(type) {
   const name = subject.value.name || '这科'
   const toolName = { summary: '总结考点', steps: '错题精讲', memo: '简答记忆', link: '科目关联', page: '生成报告页', rag: '知识库问答', agent: 'Agent 任务' }[type] || '小帮'
 
-  // 知识库问答（RAG）还没上线：需要先确定索引范围与隐私分区，先给明确提示，别假装能用
+  // 知识库问答（RAG）：只检索平台公开题库/岗位/企业/房源，不读个人资料和用户上传文件
   if (type === 'rag') {
-    aiPanel.value = {
-      title: '知识库问答',
-      loading: false,
-      html: '',
-      text: '知识库问答（RAG）还没上线：需要先确定索引范围、召回准确率和隐私分区，避免把别人的资料答给你。先用「总结考点 / 错题精讲 / 简答记忆」或直接在看板娘里问我吧。',
-      action: null,
-    }
+    ragAnswer.value = ''
+    ragSources.value = []
+    ragError.value = ''
+    ragQuery.value = ''
+    aiPanel.value = { title: '知识库问答', type: 'rag', loading: false, html: '', text: '', action: null }
     return
   }
   // Agent 任务：交给父页面的看板娘输入框（iframe 里的 window 事件传不到父页面，得用 postMessage）
@@ -2743,4 +2794,42 @@ function askQuestionAI(q) {
     font-size: 21px;
   }
 }
+
+.answer-source-badge {
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef5ec;
+  color: #3f7a4f;
+  border: 1px solid #cfe4d1;
+  font-size: 10px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.answer-source-badge.ai {
+  background: #fff6e6;
+  color: #9a6326;
+  border-color: #f0d9b5;
+}
+.card-answer-header .answer-source-badge {
+  margin-left: 6px;
+  background: rgba(255,255,255,.18);
+  color: #fff;
+  border-color: rgba(255,255,255,.35);
+}
+
+.rag-tool { padding: 4px 2px 8px; }
+.rag-tool-row { display: flex; gap: 8px; align-items: center; }
+.rag-tool-row input { flex: 1; min-width: 0; border: 1px solid var(--border-strong); border-radius: 8px; padding: 9px 10px; font: inherit; }
+.rag-tool-hint { margin: 8px 0 10px; color: var(--text-secondary); font-size: 11px; line-height: 1.7; }
+.rag-answer { white-space: pre-wrap; line-height: 1.8; color: var(--text); font-size: 14px; background: var(--bg-alt); border-radius: 10px; padding: 12px; }
+.rag-sources { margin-top: 14px; }
+.rag-sources h4 { font-size: 13px; margin-bottom: 8px; color: var(--text-secondary); }
+.rag-source { border-top: 1px dashed var(--border); padding: 9px 0; }
+.rag-source-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rag-source-index { color: var(--primary); font-weight: 600; }
+.rag-source-head strong { font-size: 12px; }
+.rag-source p { color: var(--text-secondary); font-size: 12px; line-height: 1.7; margin: 4px 0; }
+.rag-source a, .rag-source small { color: var(--primary); font-size: 11px; }
 </style>

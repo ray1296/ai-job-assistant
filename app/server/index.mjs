@@ -5,6 +5,7 @@ import { questionFacets, questionCount } from "./learning-catalog.mjs";
 import { createExtractionService } from "./resume-extraction.mjs";
 import { createResumeImports } from "./resume-import.mjs";
 import { createAiGateway, validateLayoutInput } from "./ai-gateway.mjs";
+import { createRag } from "./rag.mjs";
 import { createApplicationPlan } from "./application-plan.mjs";
 import { createDashboard } from "./dashboard.mjs";
 import { createDatasets } from "./datasets.mjs";
@@ -54,6 +55,7 @@ function aiConfigured() {
 }
 const dbPath = path.join(dataDir, "career.sqlite");
 const db = new DatabaseSync(dbPath, { timeout: 3000 });
+const rag = createRag(db, aiGateway);
 fs.chmodSync(dbPath, 0o600);
 db.exec(
   "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=3000;",
@@ -786,7 +788,8 @@ const server = http.createServer(async (req, res) => {
       }
       const s = session(req);
       if (!s) throw failure(401, "请先登录，未保存内容仍保留在当前页面");
-      if (m !== "GET" && m !== "HEAD") {
+      const readOnlyRag = p === "/api/ai/rag/ask" || p === "/api/ai/rag/search";
+      if (m !== "GET" && m !== "HEAD" && !readOnlyRag) {
         if (
           typeof req.headers["x-csrf-token"] !== "string" ||
           req.headers["x-csrf-token"] !== s.csrf
@@ -813,6 +816,36 @@ const server = http.createServer(async (req, res) => {
         db.prepare("UPDATE users SET password_hash=?,salt=? WHERE id=?").run(hashed, salt, s.user_id);
         return send(res, 200, { ok: true });
       }
+      if (p === "/api/ai/rag/stats" && m === "GET") {
+        return send(res, 200, rag.stats());
+      }
+      if (p === "/api/ai/rag/rebuild" && m === "POST") {
+        requireAdmin(s);
+        limited("rag-rebuild:" + s.user_id, 1, 600000);
+        const started = rag.startBackgroundBuild();
+        return send(res, 200, { started, stats: rag.stats() });
+      }
+      if ((p === "/api/ai/rag/search" || p === "/api/ai/rag/ask") && m === "POST") {
+        limited("rag-ask:" + s.user_id, 30, 60000);
+        const x = await body(req);
+        const query = String(x.query || "").trim().slice(0, 1000);
+        if (!query) throw failure(400, "请输入要检索的问题");
+        let direction = String(x.direction || "").slice(0, 40);
+        if (!direction && x.subjectId) {
+          const sub = db.prepare("SELECT name FROM study_subjects WHERE id=? AND user_id=?").get(String(x.subjectId), s.user_id);
+          if (sub && study.catalogDirections().some((d) => d.name === sub.name)) direction = sub.name;
+        }
+        const sourceTypes = Array.isArray(x.sourceTypes)
+          ? x.sourceTypes.filter((v) => ["question", "job", "company", "housing"].includes(v)).slice(0, 4)
+          : (direction ? ["question"] : undefined);
+        const opts = { direction, sourceTypes, limit: Number(x.limit) || 6, minScore: Number(x.minScore) || 0.38 };
+        if (p.endsWith("/search")) {
+          const result = await rag.search(query, opts);
+          return send(res, 200, { ...result, stats: rag.stats() });
+        }
+        const result = await rag.ask(query, opts);
+        return send(res, 200, result);
+      }
       // ---- 心愿池（用户只添加/查看；管理员增删改查、排序、完成）----
       if (p === "/api/wishes" && m === "GET") {
         const rows = db.prepare("SELECT * FROM wishes ORDER BY sort_order ASC, created_at ASC").all();
@@ -822,6 +855,8 @@ const server = http.createServer(async (req, res) => {
         const x = await body(req);
         const text = String(x.text || "").trim();
         if (!text || text.length > 500 || text.includes("\0")) throw failure(400, "心愿内容需为 1—500 字");
+        const recent = db.prepare("SELECT * FROM wishes WHERE user_id=? AND text=? AND created_at>?").get(s.user_id, text, Date.now() - 5000);
+        if (recent) return send(res, 200, { item: wishOut(recent, s.user_id), deduped: true });
         const next = (db.prepare("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM wishes").get().n) || 1;
         const id = randomBytes(10).toString("hex"), now = Date.now();
         db.prepare("INSERT INTO wishes(id,user_id,text,done,sort_order,created_at,updated_at) VALUES(?,?,?,0,?,?,?)")
@@ -1530,13 +1565,14 @@ const server = http.createServer(async (req, res) => {
               : q.answer,
             analysis: q.analysis,
             simpleAnswer: q.simpleAnswer,
+            answerSource: q.answerSource,
             tags: q.tags,
           }));
           return send(res, 200, {
             subject: { id: sub.id, name: sub.name, versionId: ver.id, versionName: ver.name },
             versions: sub.versions,
             questions,
-            flashcards: questions.filter((q) => q.type === "short").map((q) => ({ id: q.id, front: q.stem, back: q.answer })),
+            flashcards: questions.filter((q) => q.type === "short").map((q) => ({ id: q.id, front: q.stem, back: q.answer, answerSource: q.answerSource, quickAnswer: q.simpleAnswer || q.answer, fullAnswer: q.answer })),
             knowledgePoints: [],
             totalQuestions: questions.length,
           });
@@ -2529,6 +2565,8 @@ server.listen(
   process.env.HOST || "0.0.0.0",
   () => console.log("Career batch 3 listening on " + server.address().port),
 );
+// 首次部署没有向量索引时，后台慢慢建，不阻塞请求；已有索引不会重复烧 token。
+setTimeout(() => { try { const s = rag.stats(); if (!s.total || s.embedded < s.total) rag.startBackgroundBuild(); } catch {} }, 8000);
 let closing = false;
 function shutdown() {
   if (closing) return;

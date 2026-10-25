@@ -6,7 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
-HEADERS = ['序号','岗位方向','模块/分类','面试题 / 面经问题','考察点 / 答题要点','重要程度','来源网站','来源链接','发布时间']
+HEADERS = ['序号','岗位方向','模块/分类','面试题 / 面经问题','考察点 / 答题要点','答案来源','重要程度','来源网站','来源链接','发布时间']
+# 旧版 ID 算法不包含“答案来源”，保留老 ID，避免收藏/错题/学习状态全部失效
+LEGACY_ID_FIELDS = ['岗位方向','模块/分类','面试题 / 面经问题','考察点 / 答题要点','重要程度','来源网站','来源链接','发布时间']
 
 def safe_url(value):
     value = value.strip()
@@ -48,11 +50,11 @@ def convert(source, output, expected=1761):
     for record, raw in enumerate(reader, 2):
         if None in raw or any(v is None for v in raw.values()): raise ValueError(f'Malformed CSV record {record}')
         if not raw[HEADERS[3]].strip(): raise ValueError(f'Missing question at record {record}')
-        identity = json.dumps([raw[k].strip() for k in HEADERS[1:]], ensure_ascii=False, separators=(',',':'))
+        identity = json.dumps([raw[k].strip() for k in LEGACY_ID_FIELDS], ensure_ascii=False, separators=(',',':'))
         digest = hashlib.sha256(identity.encode()).hexdigest()
         occurrence = seen[digest]; seen[digest] += 1
         qid = hashlib.sha256((digest + ':' + str(occurrence)).encode()).hexdigest()[:24]
-        questions.append(dict(id=qid, direction=raw[HEADERS[1]].strip(), category=raw[HEADERS[2]].strip(), question=raw[HEADERS[3]].strip(), answer=raw[HEADERS[4]].strip() or None, importance=raw[HEADERS[5]].strip(), source=raw[HEADERS[6]].strip(), sourceUrl=safe_url(raw[HEADERS[7]]), publishedAt=published(raw[HEADERS[8]]), raw=raw, sourceRecord=record))
+        questions.append(dict(id=qid, direction=raw[HEADERS[1]].strip(), category=raw[HEADERS[2]].strip(), question=raw[HEADERS[3]].strip(), answer=raw[HEADERS[4]].strip() or None, answerSource=raw[HEADERS[5]].strip() or None, importance=raw[HEADERS[6]].strip(), source=raw[HEADERS[7]].strip(), sourceUrl=safe_url(raw[HEADERS[8]]), publishedAt=published(raw[HEADERS[9]]), raw=raw, sourceRecord=record))
     if expected is not None and len(questions) != expected: raise ValueError(f'Expected {expected} rows, got {len(questions)}')
     if len({q['id'] for q in questions}) != len(questions): raise ValueError('ID collision')
     catalog = dict(schemaVersion=1, questions=questions)

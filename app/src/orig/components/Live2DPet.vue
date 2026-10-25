@@ -37,7 +37,7 @@
         <button class="pet-tool-btn" :class="{ on: speakerMode }" title="识别说话人（区分谁说了什么）" @mousedown.prevent @click.stop="toggleSpeakerMode">
           👥
         </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答（整理中，暂用普通对话）" @mousedown.prevent @click.stop="setMode('rag')">
+        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答：检索平台公开题库/岗位/企业/房源" @mousedown.prevent @click.stop="setMode('rag')">
           🔍
         </button>
         <button class="pet-tool-btn" :class="{ on: mode === 'agent' }" title="Agent 任务（AI 自主调用工具：出卷/查错题/定计划）" @mousedown.prevent @click.stop="setMode('agent')">
@@ -105,6 +105,7 @@ const dialogAction = ref(null)
 
 // ===== 输入模式：chat 闲聊 / rag 知识库问答 / agent 工具调用任务 =====
 const mode = ref('chat')
+const ragAsking = ref(false)
 const inputPlaceholder = computed(() => {
   if (mode.value === 'rag') return '问我题库/资料里的知识…'
   if (mode.value === 'agent') return '给我派个任务，比如：帮我出一套机器学习小测验'
@@ -1061,9 +1062,28 @@ async function uploadMemory() {
 
 async function sendMessage() {
   if (mode.value === 'rag') {
-    showToast('知识库问答还在整理，先用普通对话问我～')
-    mode.value = 'chat'
-    if (!buildMessage().trim() && !pendingImage.value) return
+    if (ragAsking.value) return
+    const ragText = buildMessage().trim()
+    if (!ragText) { showToast('先输入要问知识库的问题'); return }
+    if (pendingImage.value) { showToast('知识库问答先只接受文字，图片请切回普通对话'); return }
+    ragAsking.value = true
+    showBubble('正在检索平台知识库…', { duration: 2000 })
+    try {
+      const r = await fetch('/api/ai/rag/ask', {
+        method: 'POST', credentials: 'same-origin',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, csrfHeaders()),
+        body: JSON.stringify({ query: ragText, limit: 6 }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || '知识库问答失败')
+      const refs = (Array.isArray(j.sources) ? j.sources : []).map(s => '[' + s.index + '] ' + s.title).join('\n')
+      showBubble(String(j.answer || '没有找到依据。') + (refs ? '\n\n来源：\n' + refs : ''), { persistent: true, duration: 20000 })
+      if (inputRef.value) inputRef.value.innerHTML = ''
+      inputVisible.value = false
+    } catch (e) {
+      showBubble((e && e.message) || '知识库问答失败，请稍后重试', { type: 'error', duration: 8000 })
+    } finally { ragAsking.value = false }
+    return
   }
   // 发送时把 chip 原位替换为完整原文，一并交给 AI（已删除的 chip 不参与）
   const msg = buildMessage().trim()

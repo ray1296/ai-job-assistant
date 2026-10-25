@@ -17,6 +17,8 @@ export default defineComponent({
     const users = ref<AdminUser[]>([]);
     const wishes = ref<Wish[]>([]);
     const loading = ref(false);
+    const userBusy = ref(false);
+    const wishBusy = ref(false);
     const history = ref<Array<{ at: number; rss: number; requests: number; avg: number }>>([]);
     const editUser = ref<AdminUser | null>(null);
     const editEmail = ref("");
@@ -70,6 +72,7 @@ export default defineComponent({
       wishes.value = Array.isArray(r.items) ? r.items : [];
     }
     async function loadAll() {
+      if (loading.value) return;
       loading.value = true;
       error.value = "";
       try {
@@ -103,20 +106,26 @@ export default defineComponent({
       finally { busy.value = false; }
     }
     async function removeUser(u: AdminUser) {
+      if (userBusy.value) return;
       if (!confirm("删除账号 " + u.email + "？该账号的私人数据会一并删除。")) return;
+      userBusy.value = true;
       try {
         await api("/admin/users/" + u.id, "DELETE");
         notice.value = "账号已删除。";
         await loadUsers();
       } catch (e) { error.value = errorText(e); }
+      finally { userBusy.value = false; }
     }
     async function resetPassword(u: AdminUser) {
+      if (userBusy.value) return;
       if (!confirm("重置 " + u.email + " 的密码？旧密码会立即失效。")) return;
+      userBusy.value = true;
       try {
         const r = await api<any>("/admin/users/" + u.id + "/reset-password", "POST");
         resetInfo.value = { email: u.email, password: String(r.password || "") };
         await loadUsers();
       } catch (e) { error.value = errorText(e); }
+      finally { userBusy.value = false; }
     }
     async function addWish() {
       const text = wishDraft.value.trim();
@@ -130,24 +139,33 @@ export default defineComponent({
       finally { busy.value = false; }
     }
     async function saveWish(w: Wish, patch: any) {
+      if (wishBusy.value) return;
+      wishBusy.value = true;
       try {
         await api("/wishes/" + w.id, "PATCH", patch);
         await loadWishes();
       } catch (e) { error.value = errorText(e); }
+      finally { wishBusy.value = false; }
     }
     async function removeWish(w: Wish) {
+      if (wishBusy.value) return;
       if (!confirm("删除这条心愿？")) return;
+      wishBusy.value = true;
       try { await api("/wishes/" + w.id, "DELETE"); await loadWishes(); }
       catch (e) { error.value = errorText(e); }
+      finally { wishBusy.value = false; }
     }
     async function moveWish(index: number, delta: number) {
+      if (wishBusy.value) return;
       const next = wishes.value.slice();
       const j = index + delta;
       if (j < 0 || j >= next.length) return;
       [next[index], next[j]] = [next[j], next[index]];
       wishes.value = next;
+      wishBusy.value = true;
       try { await api("/wishes/order", "PUT", { ids: next.map((w) => w.id) }); }
       catch (e) { error.value = errorText(e); await loadWishes(); }
+      finally { wishBusy.value = false; }
     }
     function startWishEdit(w: Wish) {
       editingWish.value = w.id;

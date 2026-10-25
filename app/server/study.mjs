@@ -25,6 +25,7 @@ const SCHEMA = [
   "CREATE INDEX IF NOT EXISTS study_questions_version ON study_questions(version_id,seq);",
   "CREATE TABLE IF NOT EXISTS study_attempts(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,question_id TEXT NOT NULL REFERENCES study_questions(id) ON DELETE CASCADE,correct INTEGER NOT NULL,created_at INTEGER NOT NULL);",
   "CREATE INDEX IF NOT EXISTS study_attempts_owner ON study_attempts(user_id,created_at);",
+  "CREATE TABLE IF NOT EXISTS study_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);",
 ].join("\n");
 
 export function createStudy(db, options = {}) {
@@ -35,6 +36,14 @@ export function createStudy(db, options = {}) {
     const cols = db.prepare("PRAGMA table_info(" + table + ")").all().map((c) => c.name);
     if (!cols.includes(col)) db.exec("ALTER TABLE " + table + " ADD COLUMN " + col + " INTEGER NOT NULL DEFAULT 0");
   }
+  {
+    const cols = db.prepare("PRAGMA table_info(study_questions)").all().map((c) => c.name);
+    if (!cols.includes("answer_source")) db.exec("ALTER TABLE study_questions ADD COLUMN answer_source TEXT NOT NULL DEFAULT ''");
+  }
+  const catalogDigest = () => {
+    try { return String(JSON.parse(fs.readFileSync(new URL("../data/learning-manifest.json", import.meta.url), "utf8")).catalogSha256 || ""); }
+    catch { return ""; }
+  };
   // 首次进入时把平台面经题库灌进来（所有用户都有，只读）
   const SYSTEM_SUBJECT = "平台面经题库";
   function ensureSystemLibrary(userId) {
@@ -51,6 +60,10 @@ export function createStudy(db, options = {}) {
       db.prepare("SELECT id, name FROM study_subjects WHERE user_id=? AND is_system=1").all(userId).map((r) => [r.name, r.id]),
     );
     const now = Date.now();
+    const digest = catalogDigest();
+    const metaKey = "system_catalog:" + userId;
+    const lastDigest = db.prepare("SELECT value FROM study_meta WHERE key=?").get(metaKey)?.value || "";
+    const needsRefresh = !!digest && digest !== lastDigest;
     for (const d of catalogDirections()) {
       let sid = byDir.get(d.name);
       if (!sid) {
@@ -58,7 +71,21 @@ export function createStudy(db, options = {}) {
         db.prepare("INSERT INTO study_subjects(id,user_id,name,is_system,created_at) VALUES(?,?,?,1,?)").run(sid, userId, d.name, now);
       }
       const exists = db.prepare("SELECT id FROM study_versions WHERE subject_id=? AND is_system=1 AND name=?").get(sid, "平台题库");
-      if (exists) continue;
+      if (exists) {
+        if (!needsRefresh) continue;
+        const rows = questionsFromCatalog(d.name, 200);
+        const current = db.prepare("SELECT id,seq FROM study_questions WHERE version_id=? ORDER BY seq").all(exists.id);
+        const upd = db.prepare("UPDATE study_questions SET stem=?,answer=?,analysis=?,simple_answer=?,source=?,tags=?,answer_source=? WHERE id=?");
+        const ins = insertQ();
+        rows.forEach((q, i) => {
+          const row = current[i];
+          if (row) upd.run(q.stem || "", q.answer || "", q.analysis || "", q.simpleAnswer || "", q.source || "", JSON.stringify(q.tags || []), q.answerSource || "", row.id);
+          else ins.run(uid(), exists.id, userId, i + 1, q.type, q.stem || "",
+            JSON.stringify(q.options || []), q.answer || "", q.analysis || "", q.simpleAnswer || "",
+            q.source || "", JSON.stringify(q.tags || []), q.difficulty || "", q.answerSource || "", now);
+        });
+        continue;
+      }
       const vid = "sys" + uid().slice(0, 21);
       db.prepare("INSERT INTO study_versions(id,subject_id,user_id,name,source,is_system,created_at) VALUES(?,?,?,?,?,1,?)")
         .run(vid, sid, userId, "平台题库", "平台面经题库", now);
@@ -67,8 +94,11 @@ export function createStudy(db, options = {}) {
       rows.forEach((q, i) => {
         stmt.run(uid(), vid, userId, i + 1, q.type, q.stem,
           JSON.stringify(q.options || []), q.answer || "", q.analysis || "", q.simpleAnswer || "",
-          q.source || "", JSON.stringify(q.tags || []), q.difficulty || "", now);
+          q.source || "", JSON.stringify(q.tags || []), q.difficulty || "", q.answerSource || "", now);
       });
+    }
+    if (digest && digest !== lastDigest) {
+      db.prepare("INSERT INTO study_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(metaKey, digest);
     }
     return null;
   }
@@ -128,7 +158,7 @@ export function createStudy(db, options = {}) {
   }
 
   const insertQ = () =>
-    db.prepare("INSERT INTO study_questions(id,version_id,user_id,seq,type,stem,options,answer,analysis,simple_answer,source,tags,difficulty,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    db.prepare("INSERT INTO study_questions(id,version_id,user_id,seq,type,stem,options,answer,analysis,simple_answer,source,tags,difficulty,answer_source,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
   function createVersion(userId, subjectId, input) {
     ownSubject(userId, subjectId);
@@ -154,6 +184,7 @@ export function createStudy(db, options = {}) {
           String(q.source || "").slice(0, 300),
           JSON.stringify(Array.isArray(q.tags) ? q.tags.slice(0, 10).map((t) => String(t).slice(0, 40)) : []),
           String(q.difficulty || "").slice(0, 20),
+          String(q.answerSource || q.answer_source || "").slice(0, 80),
           now);
       });
       db.exec("COMMIT");
@@ -200,7 +231,7 @@ export function createStudy(db, options = {}) {
         id: q.id, type: q.type, stem: q.stem,
         options: JSON.parse(q.options || "[]"),
         answer: q.answer, analysis: q.analysis, simpleAnswer: q.simple_answer,
-        source: q.source, tags: JSON.parse(q.tags || "[]"), difficulty: q.difficulty,
+        source: q.source, answerSource: q.answer_source || "", tags: JSON.parse(q.tags || "[]"), difficulty: q.difficulty,
         attempts: stat.get(q.id)?.n || 0,
         correct: stat.get(q.id)?.ok || 0,
       })),
@@ -227,6 +258,7 @@ export function createStudy(db, options = {}) {
           String(q.source || sourceLabel || "AI 生成").slice(0, 300),
           JSON.stringify(Array.isArray(q.tags) ? q.tags.slice(0, 10) : ["AI生成"]),
           String(q.difficulty || "").slice(0, 20),
+          String(q.answerSource || q.answer_source || "").slice(0, 80),
           now);
       });
       db.exec("COMMIT");
@@ -249,6 +281,7 @@ export function createStudy(db, options = {}) {
       type: "short",
       stem: q.question,
       answer: q.answer || "",
+      answerSource: q.answerSource || "",
       simpleAnswer: "",
       source: [q.source, q.sourceUrl].filter(Boolean).join(" "),
       tags: [q.direction, q.category, q.importance].filter(Boolean),
