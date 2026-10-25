@@ -11,6 +11,7 @@
 | qa-resume.docx | 简历 Word 导入 | 个人信息 → 上传已有简历 → 选择文件 |
 | qa-resume.pdf | 简历 PDF 导入 | 个人信息 → 上传已有简历 → 选择文件 |
 | qa-resume.png | 简历图片视觉识别 | 个人信息 → 上传已有简历 → 选择文件 |
+| qa-data.xlsx | Excel 聊天附件/文字提取 | AI 协作空间/看板娘 → 上传文件 |
 
 ## 使用注意
 

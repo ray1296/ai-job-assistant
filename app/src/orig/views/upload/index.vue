@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page upload-page">
     <!-- 主题化Header -->
     <div class="page-header upload-header">
@@ -6,7 +6,6 @@
       <p>粘贴资料，自动生成知识点和题目</p>
     </div>
 
-    <AiStudyTools :questions="[]" />
     <div class="content-card">
       <!-- 类型选择 -->
       <div class="upload-type-toggle">
@@ -362,7 +361,6 @@ import { useUserStore } from '../../stores/userStore'
 import { uploadKnowledge, uploadQuestions, parseFile, getVersionList, createVersion, renameVersion, deleteVersion } from '../../api/material'
 import { aiRecognize, aiGenerateQuiz, aiRecognizeQuestion } from '../../api/ai'
 import { askAI } from '../../utils/askAI'
-import AiStudyTools from '../../components/AiStudyTools.vue'
 
 defineOptions({ name: 'UploadCenter' })
 

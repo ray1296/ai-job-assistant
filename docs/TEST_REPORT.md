@@ -6,7 +6,7 @@
 
 ## 一、结论
 
-- 自动化测试最终全部通过：167 项断言通过，0 失败（另有性能指标和基础可访问性扫描）。
+- 自动化测试最终全部通过：189 项断言通过，0 失败（另有性能指标和基础可访问性扫描）。
 - 覆盖：认证、资料/简历、岗位/投递、数据空间、大屏/地图/企业/租房、学习/刷题、上传、面试、AI 协作、RAG、Tool RAG、MCP、心愿池、管理中心、设置、安全与性能。
 - 发现并修复 1 个服务端幂等键问题（心愿“完成”后立即删除被误拦为 409），以及若干测试脚本/测试环境问题。
 - 仍存在的限制：高负载时 OCR/视觉识别会主动返回 503；只测了 Chromium；没有做正式长稳压测/渗透/跨浏览器；全双工实时音频需人工听测。
@@ -47,7 +47,10 @@
 | Extraction security | 9/9 |
 | Legacy upload API | 1/1 |
 | Navigation regression | 4/4 |
-| 合计 | 167/167 |
+| 新功能 API（介绍/审核/通告/文档/地铁） | 9/9 |
+| 新功能 UI（介绍/通告/心愿/文件/地图） | 9/9 |
+| 看板娘工具栏回归 | 4/4 |
+| 合计 | 189/189 |
 
 ### 关键指标
 
@@ -82,6 +85,14 @@
 - 现象：密码修改返回 500；原因是 sessions 表列名是 hash，代码写了 token。
 - 修复：改为 hash 比较。
 - 回归：旧 session 401、当前 session 200。
+
+### 3b. 旧功能中的假按钮/固定数据（本轮修复）
+
+- “识别说话人”按钮只把 diarization 参数发给后端，后端 ASR 没有返回说话人分段；已删除按钮和参数，不再假装可用。
+- 看板娘文件按钮原来只收图片；已补 PDF/DOCX/XLSX/PPTX 上传和文字提取。
+- 地图“地铁站 25”是 AMap 关键词搜索第一页固定 25 条；已改为按岗位/租房城市读取完整地铁线路站点（上海实测 599 个唯一站）。
+- 卡片记忆的“知识点/简答”筛选已删除，直接显示全部。
+- 上传题库页重复且不可用的“生成选择题/判断题/批量简化答案”工具已删除；保留刷题页真实工具。
 
 ### 4. OCR/视觉上传在高负载下返回 503（设计保护，不是崩溃）
 
@@ -177,6 +188,9 @@
     npm run test:learning
     node tests/full-functional.mjs
     node tests/full-browser.mjs
+    node tests/new-features.mjs
+    node tests/new-features-browser.mjs
+    node tests/pet-features.mjs
     node tests/navigation-regression.mjs
     node tests/legacy-upload.mjs
     node tests/quality-suite.mjs

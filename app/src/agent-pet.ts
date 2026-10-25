@@ -5,6 +5,7 @@ import { api, errorText } from "./api";
 import { petPositions, setPetPos } from "./pet-store";
 import { voiceOn, setVoiceOn, speakAs, stopSpeech } from "./voice";
 import { addMemory, clearMemory, memoryEntries, memoryStats, memoryText, MEMORY_TTL_DAYS } from "./agent-memory";
+import { extractFile } from "./extract-file";
 
 const ROLE_SHORT: Record<string, string> = {
   主理人: "主理", 学习助教: "学习", 求职顾问: "求职", 生活管家: "生活",
@@ -49,6 +50,7 @@ export default defineComponent({
     const err = ref("");
     const msg = ref("");
     const pendingImage = ref("");
+    const pendingDoc = ref<{ name: string; text: string; chars: number } | null>(null);
     const listening = ref(false);
     const memPct = ref(memoryStats(props.name).pct);
     const memDismissed = ref(false);
@@ -101,6 +103,13 @@ export default defineComponent({
       } else stopSpeech();
     }
 
+    async function attachDoc(file: File) {
+      try {
+        err.value = "";
+        const d = await extractFile(file);
+        pendingDoc.value = { name: d.name, text: d.text, chars: d.chars };
+      } catch (e) { err.value = (e as Error).message || "文件解析失败"; }
+    }
     async function attachImage(file: Blob) {
       try {
         pendingImage.value = await imageToDataUrl(file);
@@ -122,16 +131,18 @@ export default defineComponent({
     async function send() {
       const text = msg.value.trim();
       const image = pendingImage.value;
-      if ((!text && !image) || busy.value) return;
+      const doc = pendingDoc.value;
+      if ((!text && !image && !doc) || busy.value) return;
       msg.value = "";
       pendingImage.value = "";
-      log.value.push({ role: "me", text: text || "帮我看看这张图。", image: image || undefined });
+      pendingDoc.value = null;
+      log.value.push({ role: "me", text: (text || (doc ? "📄 " + doc.name : "帮我看看这张图。")) + (doc ? "\n\n【附件：" + doc.name + "】" : ""), image: image || undefined });
       busy.value = true;
       err.value = "";
       scrollLog();
       try {
         const r = await api<any>("/companion/chat", "POST", {
-          message: text || "请看看这张图，帮我讲解一下。",
+          message: (text || (doc ? "请阅读这个文件并帮我分析。" : "请看看这张图，帮我讲解一下。")) + (doc ? "\n\n【附件：" + doc.name + "】\n" + doc.text : ""),
           persona: props.name,
           page: props.page || location.hash.replace(/^#/, ""),
           history: log.value.slice(-7, -1).map((x) => ({ role: x.role, text: x.text })),
@@ -311,6 +322,12 @@ export default defineComponent({
                   ]),
                 ])
               : null,
+            pendingDoc.value
+              ? h("div", { class: "agent-img-preview" }, [
+                  h("span", null, "📄 " + pendingDoc.value.name + " · " + Math.ceil(pendingDoc.value.chars / 1000) + "k 字"),
+                  h("button", { title: "移除文件", onClick: () => (pendingDoc.value = null) }, "×"),
+                ])
+              : null,
             pendingImage.value
               ? h("div", { class: "agent-img-preview" }, [
                   h("img", { src: pendingImage.value, alt: "待发送图片" }),
@@ -326,6 +343,17 @@ export default defineComponent({
                   onChange: (e: Event) => {
                     const f = (e.target as HTMLInputElement).files?.[0];
                     if (f) void attachImage(f);
+                    (e.target as HTMLInputElement).value = "";
+                  },
+                }),
+              ]),
+              h("label", { class: "agent-attach", title: "上传 PDF/Word/Excel/PPT" }, [
+                "📄",
+                h("input", {
+                  type: "file", accept: ".pdf,.docx,.xlsx,.pptx", style: { display: "none" },
+                  onChange: (e: Event) => {
+                    const f = (e.target as HTMLInputElement).files?.[0];
+                    if (f) void attachDoc(f);
                     (e.target as HTMLInputElement).value = "";
                   },
                 }),

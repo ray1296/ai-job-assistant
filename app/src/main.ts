@@ -40,8 +40,10 @@ const Interview = defineAsyncComponent(() => import("./interview"));
 const Chat = defineAsyncComponent(() => import("./chat"));
 const Wish = defineAsyncComponent(() => import("./wish"));
 const Admin = defineAsyncComponent(() => import("./admin"));
+const Guide = defineAsyncComponent(() => import("./guide"));
 const pages = [
   ["home", "求职工作台", "✦"],
+  ["guide", "项目介绍", "?"],
   ["profile", "个人信息", "◎"],
   ["resume", "简历工作室", "▤"],
   ["data", "我的数据空间", "▧"],
@@ -83,10 +85,26 @@ const app = defineComponent({
       error = ref(""),
       notice = ref(""),
       dirty = ref(false),
-      crash = ref(false);
+      crash = ref(false),
+      announcements = ref<Array<{ id: string; title: string; body: string; createdAt: number }>>([]),
+      noticeOpen = ref(false),
+      readNoticeIds = ref<string[]>([]);
     let navigating = false,
       queued: string | null = null;
     const dashboardMode = ref<"city" | "career">("city");
+    const unreadNotices = computed(() => announcements.value.filter((n) => !readNoticeIds.value.includes(n.id)));
+    async function loadAnnouncements() {
+      try {
+        const r = await api<{ items: any[] }>("/announcements", "GET", undefined, { timeoutMs: 10000 });
+        announcements.value = Array.isArray(r.items) ? r.items : [];
+      } catch { announcements.value = []; }
+    }
+    function markNoticeRead(id: string) {
+      if (!readNoticeIds.value.includes(id)) {
+        readNoticeIds.value = [...readNoticeIds.value, id];
+        try { localStorage.setItem("zg.readNotices", JSON.stringify(readNoticeIds.value)); } catch {}
+      }
+    }
     const title = computed(
       () => pages.find((p) => p[0] === active.value)?.[1] || "求职工作台",
     );
@@ -99,7 +117,9 @@ const app = defineComponent({
     onMounted(async () => {
       try {
         await loadSession();
-      try { (window as any).__zgCsrf = session.csrf || ""; } catch {}
+        try { readNoticeIds.value = JSON.parse(localStorage.getItem("zg.readNotices") || "[]") || []; } catch { readNoticeIds.value = []; }
+        void loadAnnouncements();
+        try { (window as any).__zgCsrf = session.csrf || ""; } catch {}
       } catch (e) {
         notice.value = errorText(e);
       }
@@ -192,6 +212,7 @@ const app = defineComponent({
           displayName: authMode.value === "register" ? displayName.value : undefined,
         });
         Object.assign(session, r);
+        void loadAnnouncements();
         auth.value = false;
         password.value = "";
         displayName.value = "";
@@ -257,6 +278,11 @@ const app = defineComponent({
             h("span", { class: "live-dot" }),
             "已接通 · 真实岗位、投递方案、题库与学习进度",
           ]),
+        ]),
+        h("div", { class: "guide-prompt" }, [
+          h("span", "第一次使用？"),
+          h("button", { onClick: () => go("guide") }, "看项目介绍"),
+          h("span", "不知道某个按钮做什么，就点“功能说明”，或直接问看板娘。"),
         ]),
         h("div", { class: "journey-choices" }, [
           h(
@@ -338,6 +364,7 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
+      if (active.value === "guide") return h(Guide, { key: "guide" });
       if (active.value === "knowledge") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
@@ -471,6 +498,13 @@ const app = defineComponent({
               },
               "旅程地图",
             ),
+            announcements.value.length
+              ? h("button", { class: "notice-entry", title: "站内通告", onClick: () => (noticeOpen.value = true) }, [
+                  "通告",
+                  unreadNotices.value.length ? h("b", unreadNotices.value.length > 9 ? "9+" : String(unreadNotices.value.length)) : null,
+                ])
+              : null,
+            h("button", { class: "guide-link", title: "查看项目功能说明", onClick: () => go("guide") }, "功能说明"),
             session.user
               ? h(
                   "button",
@@ -491,6 +525,24 @@ const app = defineComponent({
 
           ]),
         ]),
+        noticeOpen.value
+          ? h("div", { class: "notice-mask", onClick: () => (noticeOpen.value = false) }, h("div", { class: "notice-modal", onClick: (e: Event) => e.stopPropagation() }, [
+              h("div", { class: "notice-modal-head" }, [h("h2", "站内通告"), h("button", { "aria-label": "关闭通告", onClick: () => (noticeOpen.value = false) }, "×")]),
+              announcements.value.length
+                ? announcements.value.map((n) => h("article", { class: "notice-item" + (readNoticeIds.value.includes(n.id) ? " read" : "") }, [
+                    h("strong", n.title),
+                    h("p", n.body),
+                    h("div", { class: "notice-item-foot" }, [
+                      h("small", new Date(n.createdAt).toLocaleString()),
+                      readNoticeIds.value.includes(n.id)
+                        ? h("span", "已阅")
+                        : h("button", { onClick: () => markNoticeRead(n.id) }, "已阅"),
+                    ]),
+                  ]))
+                : h("p", { class: "muted" }, "暂无通告。"),
+              h("button", { class: "notice-all-read", onClick: () => { for (const n of announcements.value) markNoticeRead(n.id); } }, "全部已阅"),
+            ]))
+          : null,
         notice.value
           ? h("div", { class: "toast", role: "status" }, [
               notice.value,

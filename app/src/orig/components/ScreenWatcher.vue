@@ -3,10 +3,10 @@
     <div class="sw-panel">
       <div class="sw-head">
         <span class="sw-dot" :class="{ busy: analyzing }"></span>
-        <span class="sw-title">🖥️ 小帮在观察你的屏幕</span>
+        <span class="sw-title">🖥️ 小帮在看当前画面</span>
         <button class="sw-close" title="停止观察" @click="closeWatch">✕</button>
       </div>
-      <div class="sw-status">{{ analyzing ? '🔍 正在分析你的操作…' : '👀 观察中 · 每隔 5~10 分钟看一眼' }}</div>
+      <div class="sw-status">{{ analyzing ? '🔍 正在描述当前画面…' : '👀 观察中 · 每 5~10 分钟看 3 帧，只描述不预测' }}</div>
       <div v-if="summary" class="sw-summary">{{ summary }}</div>
     </div>
   </div>

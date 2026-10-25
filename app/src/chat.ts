@@ -1,6 +1,7 @@
 import { defineComponent, h, ref, computed, onMounted, nextTick } from "vue";
 import { api, errorText } from "./api";
 import { addMemory } from "./agent-memory";
+import { extractFile } from "./extract-file";
 
 const AGENTS = [
   { id: "xingye", name: "星野", role: "主理人", tag: "方向 / 规划", avatar: "/assets/companions/b-1.png" },
@@ -89,8 +90,15 @@ export default defineComponent({
           if (file.size > 1024 * 1024) { error.value = file.name + " 超过 1MB，已跳过"; continue; }
           const text = await file.text().catch(() => "");
           next.push({ id: uid(), name: file.name, kind: "text", text: text.slice(0, 8000), size: file.size });
+        } else if (["pdf", "docx", "xlsx", "pptx"].includes(ext)) {
+          notice.value = "正在解析 " + file.name + "…";
+          try {
+            const d = await extractFile(file);
+            next.push({ id: uid(), name: file.name, kind: "file", text: d.text.slice(0, 12000), size: file.size });
+            notice.value = d.truncated ? file.name + " 较长，已截取前 12000 字作为上下文" : "";
+          } catch (e) { error.value = file.name + "：" + (e as Error).message; }
         } else {
-          next.push({ id: uid(), name: file.name, kind: "file", size: file.size });
+          error.value = file.name + " 暂不支持；可上传图片、文本、PDF、DOCX、XLSX、PPTX";
         }
       }
       attachments.value = [...attachments.value, ...next].slice(0, 6);
@@ -107,7 +115,7 @@ export default defineComponent({
       let sendText = text;
       for (const f of files) {
         if (f.kind === "text") sendText += "\n\n【附件：" + f.name + "】\n" + (f.text || "").slice(0, 6000);
-        else if (f.kind === "file") sendText += "\n\n[附件：" + f.name + "，暂不支持解析内容]";
+        else if (f.kind === "file") sendText += "\n\n【附件：" + f.name + "】\n" + (f.text || "").slice(0, 12000);
       }
       if (!sendText.trim() && images.length) sendText = "请看看我发的图片。";
       messages.value.push({
@@ -174,7 +182,7 @@ export default defineComponent({
           ])
         )),
         h("div", { class: "ds-side-foot" }, [
-          h("p", "文件/图片只在本次对话里处理；图片会发给多模态模型，文本文件会作为上下文发给模型。"),
+          h("p", "文件/图片只在本次对话里处理；图片发给多模态模型，PDF/DOCX/XLSX/PPTX 会先提取文字再作为上下文。"),
           h("a", { href: "#home" }, "← 返回工作台"),
         ]),
       ]);
@@ -230,7 +238,7 @@ export default defineComponent({
             ref: fileInput,
             type: "file",
             multiple: true,
-            accept: "image/*,.txt,.md,.markdown,.csv,.json,.log,.html,.htm,.css,.js,.ts,.yml,.yaml,.xml,.pdf,.doc,.docx",
+            accept: "image/*,.txt,.md,.markdown,.csv,.json,.log,.html,.htm,.css,.js,.ts,.yml,.yaml,.xml,.pdf,.docx,.xlsx,.pptx",
             style: "display:none",
             onChange: (e: Event) => void pickFiles((e.target as HTMLInputElement).files),
           }),

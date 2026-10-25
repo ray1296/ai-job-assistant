@@ -31,7 +31,6 @@
       <div v-show="activeTab === 'cards'" class="page active">
         <!-- 筛选 + 操作按钮 -->
         <div class="cards-controls">
-          <button v-for="cat in cardCategories" :key="cat.key" class="cards-filter" :class="{ active: cardFilter === cat.key }" @click="filterCards(cat.key)">{{ cat.label }}</button>
           <button class="btn btn-success" @click="shuffleCards">🔀 重新洗牌</button>
           <button class="btn btn-secondary" @click="flipAllCards">🔄 全部翻转</button>
           <button class="btn btn-secondary" @click="resetCards">↩️ 重置</button>
@@ -475,28 +474,13 @@ const tabs = computed(() => {
 })
 
 // ==================== 卡片 ====================
-const cardFilter = ref('all')
 const cardStates = reactive({})  // id -> 'front' | 'left' | 'right'
 const cardsReviewed = ref(new Set())
 const showingHint = ref(null)
 const shuffledCards = ref([])
 
-const cardCategories = computed(() => [
-  { key: 'all', label: '全部' },
-  { key: 'knowledge', label: '知识点' },
-  { key: 'short', label: '简答' },
-])
-
 const filteredCards = computed(() => {
-  const source = shuffledCards.value.length ? shuffledCards.value : flashcards.value
-  if (cardFilter.value === 'all') return source
-  if (cardFilter.value === 'knowledge') {
-    return source.filter(c => !c.fullAnswer && !c.full_answer)
-  }
-  if (cardFilter.value === 'short') {
-    return source.filter(c => c.fullAnswer || c.full_answer)
-  }
-  return source
+  return shuffledCards.value.length ? shuffledCards.value : flashcards.value
 })
 
 function cardFrontBg(card) {
@@ -546,10 +530,6 @@ function handleCardClick(id, event) {
 
 function showHint(id) {
   showingHint.value = showingHint.value === id ? null : id
-}
-
-function filterCards(key) {
-  cardFilter.value = key
 }
 
 function shuffleCards() {

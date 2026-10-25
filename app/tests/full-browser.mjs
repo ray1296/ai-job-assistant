@@ -147,9 +147,9 @@ try {
   await go("wish", 900);
   assert.equal(await h1Text(), "心愿池");
   await page.getByPlaceholder(/希望岗位列表/).fill("UI 测试心愿 " + Date.now());
-  await page.getByRole("button", { name: "放进心愿池" }).click();
+  await page.getByRole("button", { name: "提交审核" }).click();
   await page.waitForTimeout(900);
-  assert.ok((await page.locator("body").innerText()).includes("已放进心愿池"));
+  assert.ok((await page.locator("body").innerText()).includes("等待管理员审核"));
   pass("wish add");
 
   await go("settings", 900);

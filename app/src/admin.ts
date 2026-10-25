@@ -2,12 +2,13 @@ import { defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick
 import { api, errorText, session, loadSession } from "./api";
 
 type AdminUser = { id: string; email: string; role: "user" | "admin"; displayName?: string; createdAt: number; resumes: number; interviews: number };
-type Wish = { id: string; text: string; done: boolean; sortOrder: number; createdAt: number; mine: boolean };
+type Wish = { id: string; text: string; done: boolean; status: "pending" | "approved" | "rejected"; reviewNote: string; sortOrder: number; createdAt: number; mine: boolean };
+type Notice = { id: string; title: string; body: string; active: boolean; createdAt: number };
 type Stats = any;
 
 export default defineComponent({
   setup() {
-    const tab = ref<"overview" | "users" | "wishes" | "system">("overview");
+    const tab = ref<"overview" | "users" | "wishes" | "notices" | "system">("overview");
     const email = ref("");
     const password = ref("");
     const busy = ref(false);
@@ -26,6 +27,10 @@ export default defineComponent({
     const editRole = ref<"user" | "admin">("user");
     const resetInfo = ref<{ email: string; password: string } | null>(null);
     const wishDraft = ref("");
+    const notices = ref<Notice[]>([]);
+    const noticeTitle = ref("");
+    const noticeBody = ref("");
+    const wishTab = ref<"pending" | "approved" | "rejected" | "all">("pending");
     const editingWish = ref<string | null>(null);
     const editingText = ref("");
     let timer = 0;
@@ -71,6 +76,10 @@ export default defineComponent({
       const r = await api<any>("/wishes", "GET", undefined, { timeoutMs: 12000 });
       wishes.value = Array.isArray(r.items) ? r.items : [];
     }
+    async function loadNotices() {
+      const r = await api<any>("/announcements", "GET", undefined, { timeoutMs: 12000 });
+      notices.value = Array.isArray(r.items) ? r.items : [];
+    }
     async function loadAll() {
       if (loading.value) return;
       loading.value = true;
@@ -78,7 +87,7 @@ export default defineComponent({
       try {
         await loadSession();
         if (!isAdmin.value) return;
-        await Promise.all([loadStats(), loadUsers(), loadWishes()]);
+        await Promise.all([loadStats(), loadUsers(), loadWishes(), loadNotices()]);
         window.clearInterval(timer);
         timer = window.setInterval(() => { if (alive && isAdmin.value) void loadStats().catch(() => {}); }, 5000);
       } catch (e) {
@@ -299,27 +308,73 @@ export default defineComponent({
       ]);
     }
     function wishesView() {
+      const pending = wishes.value.filter((w) => w.status === "pending");
+      const approved = wishes.value.filter((w) => w.status === "approved");
+      const rejected = wishes.value.filter((w) => w.status === "rejected");
+      const shown = wishTab.value === "pending" ? pending : wishTab.value === "approved" ? approved : wishTab.value === "rejected" ? rejected : wishes.value;
       return h("div", { class: "admin-stack" }, [
-        h("div", { class: "admin-panel-head" }, [h("h2", "心愿池管理"), h("button", { class: "admin-btn", onClick: () => void loadWishes() }, "刷新")]),
+        h("div", { class: "admin-panel-head" }, [h("h2", "心愿池审核"), h("button", { class: "admin-btn", onClick: () => void loadWishes() }, "刷新")]),
+        h("div", { class: "admin-wish-tabs" }, [["pending", "待审核 " + pending.length], ["approved", "已采纳 " + approved.length], ["rejected", "已退回 " + rejected.length], ["all", "全部 " + wishes.value.length]].map(([key, label]) => h("button", { class: wishTab.value === key ? "on" : "", onClick: () => (wishTab.value = key as any) }, label))),
         h("div", { class: "admin-wish-add" }, [
           h("input", { value: wishDraft.value, placeholder: "新增一条心愿…", onInput: (e: Event) => (wishDraft.value = (e.target as HTMLInputElement).value), onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void addWish(); } }),
           h("button", { class: "admin-btn primary", onClick: () => void addWish(), disabled: busy.value || !wishDraft.value.trim() }, "添加"),
         ]),
-        h("div", { class: "admin-wish-list" }, wishes.value.map((w, i) => h("div", { class: "admin-wish" + (w.done ? " done" : "") }, [
-          h("button", { class: "admin-wish-check" + (w.done ? " on" : ""), onClick: () => void saveWish(w, { done: !w.done }) }, w.done ? "✓" : ""),
+        h("div", { class: "admin-wish-list" }, shown.map((w) => h("div", { class: "admin-wish " + w.status }, [
+          h("span", { class: "admin-wish-status" }, w.status === "pending" ? "待审" : w.status === "approved" ? "已采纳" : "已退回"),
           editingWish.value === w.id
             ? h("input", { class: "admin-wish-edit", value: editingText.value, onInput: (e: Event) => (editingText.value = (e.target as HTMLInputElement).value), onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void saveWishEdit(w); } })
             : h("span", { class: "admin-wish-text" }, w.text),
           h("div", { class: "admin-wish-actions" }, [
+            w.status === "pending" ? h("button", { class: "ok", onClick: () => void saveWish(w, { status: "approved", done: true }) }, "采纳") : null,
+            w.status === "pending" ? h("button", { class: "danger", onClick: () => void saveWish(w, { status: "rejected", done: false, reviewNote: prompt("退回原因（可留空）") || "" }) }, "退回") : null,
             editingWish.value === w.id
               ? h("button", { onClick: () => void saveWishEdit(w) }, "保存")
               : h("button", { onClick: () => startWishEdit(w) }, "编辑"),
-            h("button", { onClick: () => void moveWish(i, -1), disabled: i === 0 }, "↑"),
-            h("button", { onClick: () => void moveWish(i, 1), disabled: i === wishes.value.length - 1 }, "↓"),
+            h("button", { onClick: () => void moveWish(wishes.value.indexOf(w), -1), disabled: wishes.value.indexOf(w) === 0 }, "↑"),
+            h("button", { onClick: () => void moveWish(wishes.value.indexOf(w), 1), disabled: wishes.value.indexOf(w) === wishes.value.length - 1 }, "↓"),
             h("button", { class: "danger", onClick: () => void removeWish(w) }, "删除"),
           ]),
         ]))),
         !wishes.value.length ? h("p", { class: "admin-muted" }, "还没有心愿。") : null,
+      ]);
+    }
+    async function addNotice() {
+      if (busy.value || !noticeTitle.value.trim() || !noticeBody.value.trim()) return;
+      busy.value = true;
+      try {
+        await api("/announcements", "POST", { title: noticeTitle.value.trim(), body: noticeBody.value.trim() });
+        noticeTitle.value = "";
+        noticeBody.value = "";
+        await loadNotices();
+        notice.value = "通告已发布。";
+      } catch (e) { error.value = errorText(e); }
+      finally { busy.value = false; }
+    }
+    async function toggleNotice(n: Notice) {
+      try { await api("/announcements/" + n.id, "PATCH", { active: !n.active }); await loadNotices(); }
+      catch (e) { error.value = errorText(e); }
+    }
+    async function removeNotice(n: Notice) {
+      if (!confirm("删除这条通告？")) return;
+      try { await api("/announcements/" + n.id, "DELETE"); await loadNotices(); }
+      catch (e) { error.value = errorText(e); }
+    }
+    function noticesView() {
+      return h("div", { class: "admin-stack" }, [
+        h("div", { class: "admin-panel-head" }, [h("h2", "站内通告"), h("button", { class: "admin-btn", onClick: () => void loadNotices() }, "刷新")]),
+        h("div", { class: "admin-notice-form" }, [
+          h("input", { value: noticeTitle.value, maxlength: 120, placeholder: "通告标题", onInput: (e: Event) => (noticeTitle.value = (e.target as HTMLInputElement).value) }),
+          h("textarea", { value: noticeBody.value, maxlength: 4000, rows: 4, placeholder: "通告正文：功能更新、维护时间、活动说明…", onInput: (e: Event) => (noticeBody.value = (e.target as HTMLTextAreaElement).value) }),
+          h("button", { class: "admin-btn primary", disabled: busy.value || !noticeTitle.value.trim() || !noticeBody.value.trim(), onClick: () => void addNotice() }, busy.value ? "发布中…" : "发布通告"),
+        ]),
+        h("div", { class: "admin-wish-list" }, notices.value.map((n) => h("div", { class: "admin-notice-row" + (n.active ? "" : " off") }, [
+          h("div", { class: "admin-notice-main" }, [h("strong", n.title), h("p", n.body)]),
+          h("div", { class: "admin-wish-actions" }, [
+            h("button", { onClick: () => void toggleNotice(n) }, n.active ? "下线" : "上线"),
+            h("button", { class: "danger", onClick: () => void removeNotice(n) }, "删除"),
+          ]),
+        ]))),
+        !notices.value.length ? h("p", { class: "admin-muted" }, "还没有通告。") : null,
       ]);
     }
     function systemView() {
@@ -347,6 +402,7 @@ export default defineComponent({
           h("button", { class: "admin-tab" + (tab.value === "overview" ? " on" : ""), onClick: () => (tab.value = "overview") }, "概览"),
           h("button", { class: "admin-tab" + (tab.value === "users" ? " on" : ""), onClick: () => (tab.value = "users") }, "用户账号"),
           h("button", { class: "admin-tab" + (tab.value === "wishes" ? " on" : ""), onClick: () => (tab.value = "wishes") }, "心愿池"),
+          h("button", { class: "admin-tab" + (tab.value === "notices" ? " on" : ""), onClick: () => (tab.value = "notices") }, "通告"),
           h("button", { class: "admin-tab" + (tab.value === "system" ? " on" : ""), onClick: () => (tab.value = "system") }, "系统"),
           h("div", { class: "admin-side-foot" }, [
             h("p", session.user?.email || ""),
@@ -356,12 +412,12 @@ export default defineComponent({
         ]),
         h("main", { class: "admin-main" }, [
           h("header", { class: "admin-head" }, [
-            h("div", [h("span", "ADMIN"), h("h1", tab.value === "overview" ? "运行概览" : tab.value === "users" ? "用户账号" : tab.value === "wishes" ? "心愿池管理" : "系统与隐私")]),
+            h("div", [h("span", "ADMIN"), h("h1", tab.value === "overview" ? "运行概览" : tab.value === "users" ? "用户账号" : tab.value === "wishes" ? "心愿池管理" : tab.value === "notices" ? "通告管理" : "系统与隐私")]),
             h("button", { class: "admin-btn", onClick: () => void loadAll() }, loading.value ? "刷新中…" : "刷新全部"),
           ]),
           error.value ? h("p", { class: "admin-error" }, error.value) : null,
           notice.value ? h("p", { class: "admin-notice" }, notice.value) : null,
-          tab.value === "overview" ? overview() : tab.value === "users" ? usersView() : tab.value === "wishes" ? wishesView() : systemView(),
+          tab.value === "overview" ? overview() : tab.value === "users" ? usersView() : tab.value === "wishes" ? wishesView() : tab.value === "notices" ? noticesView() : systemView(),
         ]),
       ]);
     };

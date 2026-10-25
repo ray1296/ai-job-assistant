@@ -20,6 +20,11 @@
         @mousedown="onInputMousedown"
         @paste="onPaste"
       ></div>
+      <div v-if="pendingDoc" class="pet-img-chip pet-file-chip">
+        <span>📄 {{ pendingDoc.name }}</span>
+        <small>{{ Math.ceil(pendingDoc.chars / 1000) }}k 字上下文</small>
+        <button title="移除文件" @mousedown.prevent @click.stop="pendingDoc = null">✕</button>
+      </div>
       <div v-if="pendingImage" class="pet-img-chip">
         <img :src="pendingImage" alt="待发送图片" />
         <span title="图片已附上，写完问题点发送">图片已附上</span>
@@ -31,19 +36,20 @@
           🖼️
         </button>
         <input ref="imgInput" type="file" accept="image/*" style="display: none" @change="onPickImage" />
+        <input ref="docInput" type="file" accept=".pdf,.docx,.xlsx,.pptx" style="display: none" @change="onPickDoc" />
+        <button class="pet-tool-btn" title="上传 PDF/Word/Excel/PPT（解析文字后作为上下文）" @mousedown.prevent @click.stop="pickDoc">
+          📎
+        </button>
         <button class="pet-tool-btn" :class="{ recording: isRecording }" :title="isRecording ? '点击停止录音' : '点击开始语音输入'" @mousedown.prevent @click.stop="toggleMic">
           {{ isRecording ? '⏹' : '🎤' }}
         </button>
-        <button class="pet-tool-btn" :class="{ on: speakerMode }" title="识别说话人（区分谁说了什么）" @mousedown.prevent @click.stop="toggleSpeakerMode">
-          👥
-        </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答：检索平台公开题库/岗位/企业/房源" @mousedown.prevent @click.stop="setMode('rag')">
+        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答（独立模式，与 Agent 二选一）：检索平台公开题库/岗位/企业/房源" @mousedown.prevent @click.stop="setMode('rag')">
           🔍
         </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'agent' }" title="Agent 任务（AI 自主调用工具：出卷/查错题/定计划）" @mousedown.prevent @click.stop="setMode('agent')">
+        <button class="pet-tool-btn" :class="{ on: mode === 'agent' }" title="Agent 任务（独立模式，与知识库二选一；工具调用，不自动检索知识库）" @mousedown.prevent @click.stop="setMode('agent')">
           🧭
         </button>
-        <button class="pet-tool-btn" :class="{ on: screenWatching }" title="屏幕陪伴（分享屏幕，小帮定时观察并给你建议）" @mousedown.prevent @click.stop="toggleScreenWatch">
+        <button class="pet-tool-btn" :class="{ on: screenWatching }" title="屏幕观察（授权共享屏幕，每 5–10 分钟描述当前画面；不预测意图）" @mousedown.prevent @click.stop="toggleScreenWatch">
           🖥️
         </button>
         <button class="pet-tool-btn" title="手势彩蛋（开摄像头比手势，小帮有反应）" @mousedown.prevent @click.stop="toggleGestureCam">
@@ -51,7 +57,7 @@
         </button>
         <span v-if="mode === 'rag' || mode === 'agent'" class="pet-mode-tag" @mousedown.prevent @click.stop="setMode('chat')">{{ mode === 'rag' ? '知识库模式 ✕' : 'Agent 模式 ✕' }}</span>
       </div>
-      <div v-if="isRecording" class="pet-rec-hint">正在聆听… 再点 🎤 结束{{ speakerMode ? '（区分说话人）' : '' }}</div>
+      <div v-if="isRecording" class="pet-rec-hint">正在聆听… 再点 🎤 结束</div>
     </div>
 
     <!-- Live2D Canvas（点击/长按拖动） -->
@@ -73,6 +79,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from '../router'
 import { showToast } from 'vant'
 import { aiWrongReview } from '../api/ai'
+import { extractFile } from '../../extract-file'
 import GestureCam from './GestureCam.vue'
 import ScreenWatcher from './ScreenWatcher.vue'
 import { edgeTTSSynthesize, getVoiceConfig } from '../utils/edgeTTS'
@@ -97,7 +104,8 @@ const inputRef = ref(null)
 const petContainer = ref(null)
 // 待发送图片（粘贴截图或本地选图），发送后清空
 const pendingImage = ref('')
-const imgInput = ref(null)
+const pendingDoc = ref(null)
+const docInput = ref(null)
 // 持久显示：重要 AI 分析（考点总结/错题精讲等）不自动消失，点击人物才关
 const persistentDialog = ref(false)
 // 持久气泡可带一个动作按钮（如"查看报告"跳转 AI 生成的页面）
@@ -229,7 +237,6 @@ function stopIdleTheater() {
     idleTheaterTimer = null
   }
 }
-const speakerMode = ref(false)
 let mediaRecorder = null
 let audioChunks = []
 
@@ -484,6 +491,23 @@ function onPickImage(e) {
   const f = e.target.files && e.target.files[0]
   if (f) acceptImage(f)
   e.target.value = ''
+}
+function pickDoc() {
+  if (docInput.value) docInput.value.click()
+}
+async function onPickDoc(e) {
+  const f = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!f) return
+  showToast('正在解析 ' + f.name + '…')
+  try {
+    const d = await extractFile(f)
+    pendingDoc.value = { name: d.name, text: d.text, chars: d.chars }
+    if (!inputVisible.value) inputVisible.value = true
+    showToast(d.truncated ? '文件较长，已截取前 3 万字' : '已附上文件，输入问题后发送')
+  } catch (err) {
+    showToast('文件解析失败：' + ((err && err.message) || '格式不支持'))
+  }
 }
 function onPaste(e) {
   const items = Array.from((e.clipboardData && e.clipboardData.items) || [])
@@ -1066,7 +1090,7 @@ async function sendMessage() {
     if (ragAsking.value) return
     const ragText = buildMessage().trim()
     if (!ragText) { showToast('先输入要问知识库的问题'); return }
-    if (pendingImage.value) { showToast('知识库问答先只接受文字，图片请切回普通对话'); return }
+    if (pendingImage.value || pendingDoc.value) { showToast('知识库问答先只接受文字，图片/文件请切回普通对话'); return }
     ragAsking.value = true
     showBubble('正在检索平台知识库…', { duration: 2000 })
     try {
@@ -1090,7 +1114,8 @@ async function sendMessage() {
   if (sending.value) return
   const msg = buildMessage().trim()
   const image = pendingImage.value
-  if (!msg && !image) return
+  const doc = pendingDoc.value
+  if (!msg && !image && !doc) return
   sending.value = true
   // 记忆管理口令：不调用模型，直接执行
   const plainCmd = msg.replace(/\s+/g, '')
@@ -1116,6 +1141,7 @@ async function sendMessage() {
   if (inputRef.value) inputRef.value.innerHTML = ''
   clearAIDrafts()
   pendingImage.value = ''
+  pendingDoc.value = null
 
   stopSpeech()
   clearAutoHide()
@@ -1123,7 +1149,7 @@ async function sendMessage() {
   dialogVisible.value = true
 
   try {
-    const asked = msg || '请看看这张图，帮我讲解一下。'
+    const asked = (msg || (doc ? '请阅读这个文件并帮我分析。' : '请看看这张图，帮我讲解一下。')) + (doc ? '\n\n【附件：' + doc.name + '】\n' + doc.text : '')
     const history = loadChatHistory()
     const reply = await streamChatSSE(asked, history, image)
     // 记录本轮对话到上下文记忆（user + assistant 成对）
@@ -1227,6 +1253,8 @@ function setMode(m) {
     mode.value = 'chat'
   } else {
     mode.value = m
+    if (m === 'rag') showToast('知识库问答模式：只检索平台公开资料，不调用 Agent 工具')
+    if (m === 'agent') showToast('Agent 模式：调用只读工具；不自动检索知识库，两种模式二选一')
   }
   nextTick(() => {
     inputRef.value?.focus()
@@ -1258,7 +1286,7 @@ async function toggleMic() {
       inputVisible.value = true
       nextTick(() => { inputRef.value?.focus(); focusEnd() })
     }
-    showToast(speakerMode.value ? '开始录音（区分说话人）' : '开始录音，再点 🎤 结束')
+    showToast('开始录音，再点 🎤 结束')
   } catch (e) {
     showToast('麦克风权限被拒绝')
   }
@@ -1284,8 +1312,6 @@ async function onRecordingStop() {
     clearAutoHide()
     const form = new FormData()
     form.append('file', blob, 'voice.webm')
-    form.append('diarization', speakerMode.value ? 'true' : 'false')
-    form.append('speakerCount', speakerMode.value ? '2' : '0')
     const res = await fetch('/api/ai/asr', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + (localStorage.getItem('exam_prep_token') || '') },
@@ -1328,11 +1354,6 @@ async function onRecordingStop() {
     dialogText.value = '语音识别开小差了：' + (e.message || '')
     scheduleAutoHide()
   }
-}
-
-function toggleSpeakerMode() {
-  speakerMode.value = !speakerMode.value
-  showToast(speakerMode.value ? '已开启说话人区分' : '已关闭说话人区分')
 }
 
 /* ===== 摄像头手势彩蛋 ===== */
@@ -1951,6 +1972,9 @@ onUnmounted(() => {
   color: #5a5f75;
 }
 .pet-img-chip img { width: 38px; height: 38px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.pet-file-chip { align-items: center; }
+.pet-file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-file-chip small { color: #8a7ba0; font-size: 9px; flex: none; }
 .pet-img-chip span { flex: 1; min-width: 0; line-height: 1.35; }
 .pet-img-chip button { flex: 0 0 auto; border: 0; background: #eef1ff; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; }
 

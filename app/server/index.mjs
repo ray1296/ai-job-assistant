@@ -14,6 +14,7 @@ import { createStudy } from "./study.mjs";
 import { createAgents } from "./agents.mjs";
 import { TOOLS, callTool } from "./tools.mjs";
 import { toolPromptFor } from "./tool-rag.mjs";
+import { allGuide } from "./project-guide.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
@@ -23,6 +24,7 @@ import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
 import { createGzip } from "node:zlib";
 import { promisify } from "node:util";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -70,10 +72,14 @@ CREATE TABLE IF NOT EXISTS resumes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REF
 CREATE INDEX IF NOT EXISTS resumes_owner ON resumes(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS job_intents(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,job_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,job_id));
 CREATE INDEX IF NOT EXISTS job_intents_owner ON job_intents(user_id,created_at);
-CREATE TABLE IF NOT EXISTS wishes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS wishes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'approved',review_note TEXT,reviewed_at INTEGER,reviewed_by TEXT);
 CREATE INDEX IF NOT EXISTS wishes_order ON wishes(sort_order,created_at);
+CREATE TABLE IF NOT EXISTS announcements(id TEXT PRIMARY KEY,title TEXT NOT NULL,body TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,created_by TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS announcements_active ON announcements(active,created_at);
 PRAGMA user_version=1;`);
 try { const cols = db.prepare("PRAGMA table_info(users)").all(); if (!cols.some((c) => c.name === "role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'"); if (!cols.some((c) => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT"); } catch {}
+// 心愿审核迁移：老数据保留为已采纳，新提交默认 pending。
+try { const wc = db.prepare("PRAGMA table_info(wishes)").all(); for (const [name, ddl] of [["status", "TEXT NOT NULL DEFAULT 'approved'"], ["review_note", "TEXT"], ["reviewed_at", "INTEGER"], ["reviewed_by", "TEXT"]]) if (!wc.some((c) => c.name === name)) db.exec("ALTER TABLE wishes ADD COLUMN " + name + " " + ddl); } catch {}
 db.exec("CREATE TABLE IF NOT EXISTS study_favorites(user_id TEXT NOT NULL, question_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,question_id));");
 db.exec("CREATE TABLE IF NOT EXISTS study_wrong(user_id TEXT NOT NULL, question_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,question_id));");
 // 看板娘对话落库：刷新不丢，按 agent 隔离（P4）
@@ -131,6 +137,7 @@ const stmt = {
 };
 const hash = (s) => createHash("sha256").update(s).digest("hex");
 const derive = promisify(scrypt);
+const execFileAsync = promisify(execFile);
 let cryptoActive = 0;
 const cryptoMax = 4;
 async function passwordHash(password, salt) {
@@ -602,9 +609,11 @@ function tableCount(name) {
   try { return db.prepare("SELECT count(*) AS n FROM " + name).get().n; } catch { return 0; }
 }
 function wishOut(r, me) {
+  const status = ["pending", "approved", "rejected"].includes(r.status) ? r.status : (r.done ? "approved" : "pending");
   return {
-    id: r.id, text: r.text, done: !!r.done, sortOrder: r.sort_order,
-    createdAt: r.created_at, updatedAt: r.updated_at, mine: r.user_id === me,
+    id: r.id, text: r.text, done: !!r.done, status, reviewNote: r.review_note || "",
+    sortOrder: r.sort_order, createdAt: r.created_at, updatedAt: r.updated_at,
+    mine: r.user_id === me, canWithdraw: r.user_id === me && status === "pending",
   };
 }
 function normalizeDisplayName(v, email) {
@@ -740,6 +749,8 @@ const server = http.createServer(async (req, res) => {
         if (req.headers["sec-fetch-site"] === "cross-site")
           throw failure(403, "跨站请求被拒绝");
       }
+      if (p === "/api/guide" && m === "GET")
+        return send(res, 200, { sections: allGuide() });
       if (p === "/api/health" && m === "GET")
         return send(res, 200, {
           status: "ok",
@@ -817,6 +828,35 @@ const server = http.createServer(async (req, res) => {
         )
           throw failure(403, "会话校验失败，请刷新后重试");
       }
+      if (p === "/api/ai/extract-text" && m === "POST") {
+        const rawName = String(req.headers["x-file-name"] || new URL(req.url, "http://local").searchParams.get("filename") || "附件");
+        let name = rawName; try { name = decodeURIComponent(rawName); } catch {}
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        const kindMap = { pdf: "pdf", docx: "docx", xlsx: "xlsx", pptx: "pptx" };
+        const kind = kindMap[ext];
+        if (!kind) throw failure(415, "聊天附件支持 PDF / DOCX / XLSX / PPTX；旧版 .doc/.xls 请另存为新格式");
+        const length = Number(req.headers["content-length"]);
+        if (!Number.isFinite(length) || length <= 0 || length > 8 * 1024 * 1024)
+          throw failure(413, "附件需小于 8MiB");
+        const chunks = [];
+        for await (const ch of req) chunks.push(ch);
+        const buf = Buffer.concat(chunks);
+        if (!buf.length) throw failure(400, "附件为空");
+        const dir = path.join(dataDir, "chat-files");
+        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+        const tmp = path.join(dir, "extract-" + randomBytes(8).toString("hex") + "." + ext);
+        fs.writeFileSync(tmp, buf, { mode: 0o600 });
+        try {
+          const { stdout } = await execFileAsync("/usr/bin/python3", [path.join(root, "server", "extract-document.py"), tmp, kind], {
+            timeout: 30000, maxBuffer: 1024 * 1024, env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+          });
+          const data = JSON.parse(String(stdout || "{}"));
+          if (data.error) throw failure(422, data.error);
+          return send(res, 200, { name, text: data.text || "", chars: data.chars || 0, truncated: !!data.truncated, method: data.method || kind.toUpperCase() });
+        } finally {
+          try { fs.unlinkSync(tmp); } catch {}
+        }
+      }
       if (p === "/api/account" && m === "PATCH") {
         const x = await body(req);
         const displayName = normalizeDisplayName(x.displayName, s.email);
@@ -872,7 +912,9 @@ const server = http.createServer(async (req, res) => {
       }
       // ---- 心愿池（用户只添加/查看；管理员增删改查、排序、完成）----
       if (p === "/api/wishes" && m === "GET") {
-        const rows = db.prepare("SELECT * FROM wishes ORDER BY sort_order ASC, created_at ASC").all();
+        const rows = s.role === "admin"
+          ? db.prepare("SELECT * FROM wishes ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, sort_order ASC, created_at ASC").all()
+          : db.prepare("SELECT * FROM wishes WHERE status='approved' OR user_id=? ORDER BY sort_order ASC, created_at ASC").all(s.user_id);
         return send(res, 200, { items: rows.map((r) => wishOut(r, s.user_id)), canManage: s.role === "admin" });
       }
       if (p === "/api/wishes" && m === "POST") {
@@ -883,7 +925,7 @@ const server = http.createServer(async (req, res) => {
         if (recent) return send(res, 200, { item: wishOut(recent, s.user_id), deduped: true });
         const next = (db.prepare("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM wishes").get().n) || 1;
         const id = randomBytes(10).toString("hex"), now = Date.now();
-        db.prepare("INSERT INTO wishes(id,user_id,text,done,sort_order,created_at,updated_at) VALUES(?,?,?,0,?,?,?)")
+        db.prepare("INSERT INTO wishes(id,user_id,text,done,sort_order,created_at,updated_at,status) VALUES(?,?,?,0,?,?,?,'pending')")
           .run(id, s.user_id, text, next, now, now);
         return send(res, 201, { item: wishOut(db.prepare("SELECT * FROM wishes WHERE id=?").get(id), s.user_id) });
       }
@@ -897,12 +939,20 @@ const server = http.createServer(async (req, res) => {
         if (!text || text.length > 500 || text.includes("\0")) throw failure(400, "心愿内容需为 1—500 字");
         const done = x.done === undefined ? row.done : (x.done ? 1 : 0);
         const order = Number.isSafeInteger(x.sortOrder) ? x.sortOrder : row.sort_order;
-        db.prepare("UPDATE wishes SET text=?,done=?,sort_order=?,updated_at=? WHERE id=?")
-          .run(text, done, order, Date.now(), row.id);
+        let status = String(x.status || "").toLowerCase();
+        if (!["pending", "approved", "rejected"].includes(status)) status = x.done === true ? "approved" : x.done === false ? "pending" : (row.status || (row.done ? "approved" : "pending"));
+        const note = x.reviewNote === undefined ? (row.review_note || "") : String(x.reviewNote || "").trim().slice(0, 500);
+        db.prepare("UPDATE wishes SET text=?,done=?,sort_order=?,status=?,review_note=?,reviewed_at=?,reviewed_by=?,updated_at=? WHERE id=?")
+          .run(text, done, order, status, note, status === "pending" ? null : Date.now(), status === "pending" ? null : s.user_id, Date.now(), row.id);
         return send(res, 200, { item: wishOut(db.prepare("SELECT * FROM wishes WHERE id=?").get(row.id), s.user_id) });
       }
       if (wishMatch && m === "DELETE") {
-        requireAdmin(s);
+        const row = db.prepare("SELECT * FROM wishes WHERE id=?").get(wishMatch[1]);
+        if (!row) throw failure(404, "心愿不存在");
+        if (s.role !== "admin") {
+          if (row.user_id !== s.user_id) throw failure(403, "无权删除这条心愿");
+          if ((row.status || "pending") !== "pending") throw failure(409, "审核通过后不能撤销；如确实不需要，请联系管理员退回");
+        }
         once("wish-delete:" + wishMatch[1], 1500);
         db.prepare("DELETE FROM wishes WHERE id=?").run(wishMatch[1]);
         return send(res, 200, { ok: true });
@@ -918,6 +968,41 @@ const server = http.createServer(async (req, res) => {
           unique.forEach((id, i) => update.run(i + 1, Date.now(), id));
           db.exec("COMMIT");
         } catch (e) { db.exec("ROLLBACK"); throw e; }
+        return send(res, 200, { ok: true });
+      }
+      // ---- 站内通告：管理员发布，所有用户可见；已阅状态在客户端 ----
+      if (p === "/api/announcements" && m === "GET") {
+        const rows = s.role === "admin"
+          ? db.prepare("SELECT * FROM announcements ORDER BY created_at DESC LIMIT 200").all()
+          : db.prepare("SELECT * FROM announcements WHERE active=1 ORDER BY created_at DESC LIMIT 100").all();
+        return send(res, 200, { items: rows.map((r) => ({ id: r.id, title: r.title, body: r.body, active: !!r.active, createdAt: r.created_at, updatedAt: r.updated_at })), canManage: s.role === "admin" });
+      }
+      if (p === "/api/announcements" && m === "POST") {
+        requireAdmin(s);
+        const x = await body(req);
+        const title = String(x.title || "").trim().slice(0, 120);
+        const bodyText = String(x.body || "").trim().slice(0, 4000);
+        if (!title || !bodyText) throw failure(400, "通告标题和正文都要填写");
+        const id = randomBytes(10).toString("hex"), now = Date.now();
+        db.prepare("INSERT INTO announcements(id,title,body,active,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+          .run(id, title, bodyText, 1, s.user_id, now, now);
+        return send(res, 201, { item: { id, title, body: bodyText, active: true, createdAt: now, updatedAt: now } });
+      }
+      const annMatch = p.match(/^\/api\/announcements\/([a-f0-9]{20})$/);
+      if (annMatch && m === "PATCH") {
+        requireAdmin(s);
+        const x = await body(req), row = db.prepare("SELECT * FROM announcements WHERE id=?").get(annMatch[1]);
+        if (!row) throw failure(404, "通告不存在");
+        const title = x.title === undefined ? row.title : String(x.title || "").trim().slice(0, 120);
+        const bodyText = x.body === undefined ? row.body : String(x.body || "").trim().slice(0, 4000);
+        const active = x.active === undefined ? row.active : (x.active ? 1 : 0);
+        if (!title || !bodyText) throw failure(400, "通告标题和正文都要填写");
+        db.prepare("UPDATE announcements SET title=?,body=?,active=?,updated_at=? WHERE id=?").run(title, bodyText, active, Date.now(), row.id);
+        return send(res, 200, { ok: true });
+      }
+      if (annMatch && m === "DELETE") {
+        requireAdmin(s);
+        db.prepare("DELETE FROM announcements WHERE id=?").run(annMatch[1]);
         return send(res, 200, { ok: true });
       }
       // ---- 管理员：只返回账号元数据，绝不返回密码/资料/简历/上传内容 ----

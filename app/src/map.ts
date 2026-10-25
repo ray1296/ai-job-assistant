@@ -317,14 +317,45 @@ export default defineComponent({
         renderMarkers();
       } catch (e) { error.value = errorText(e); }
     }
+    function mapCity() {
+      return jobSel.value?.city || houseSel.value?.city ||
+        (layers.value.jobs || []).find((j: any) => j.pos)?.city ||
+        (layers.value.housing || []).find((h: any) => h.pos)?.city || "上海";
+    }
     async function loadSubway() {
-      const city = jobSel.value?.city || (layers.value.jobs || []).find((j: any) => j.pos)?.city || "上海";
+      const city = mapCity();
+      try {
+        // 地铁线路数据包含该城市完整站点，比“关键词搜索第一页25条”更符合图层语义。
+        const r = await api<any>("/geo/subway-lines?city=" + encodeURIComponent(city), "GET", undefined, { timeoutMs: 30000 });
+        const seen = new Set<string>();
+        const stations: any[] = [];
+        for (const line of r.lines || []) {
+          for (const st of line.stations || []) {
+            const p = Array.isArray(st.pos) ? st.pos : [];
+            if (!st.name || !p[0] || !p[1]) continue;
+            const key = st.name + "@" + p[0] + "," + p[1];
+            if (seen.has(key)) continue;
+            seen.add(key);
+            stations.push({ id: key, name: st.name, address: line.name || "", lng: p[0], lat: p[1], pos: { lng: p[0], lat: p[1] } });
+          }
+        }
+        if (stations.length) {
+          subway.value = stations;
+          if (showSubway.value) renderMarkers();
+          return;
+        }
+      } catch {}
       try {
         const r = await api<any>("/geo/nearby?kind=subway&city=" + encodeURIComponent(city), "GET", undefined, { timeoutMs: 30000 });
         subway.value = (r.pois || []).map((x: any) => ({ ...x, pos: { lng: x.lng, lat: x.lat } }));
         if (showSubway.value) renderMarkers();
       } catch { subway.value = []; }
     }
+    watch([jobSel, houseSel], () => {
+      if (!showSubway.value) return;
+      subway.value = [];
+      void loadSubway();
+    });
 
     async function search() {
       const q = searchFrom.value.trim();

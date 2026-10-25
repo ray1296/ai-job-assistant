@@ -1,11 +1,13 @@
 import { loadCompanies, loadPlatformHousing } from "./data-catalog.mjs";
 import { listJobs } from "./jobs-catalog.mjs";
+import { guideFor, guideText } from "./project-guide.mjs";
 
 export const TOOLS = [
   { name: "search_jobs", description: "按关键词/城市搜索岗位", inputSchema: { type: "object", properties: { keyword: { type: "string" }, city: { type: "string" }, limit: { type: "number" } } } },
   { name: "company_review", description: "查询企业风评与工商信息", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
   { name: "find_housing", description: "查询城市租房（可按租金上限）", inputSchema: { type: "object", properties: { city: { type: "string" }, maxRent: { type: "number" } } } },
   { name: "my_progress", description: "查询当前用户的学习题库进度", inputSchema: { type: "object", properties: {} } },
+  { name: "project_guide", description: "查项目各功能的作用和使用方法；用户问“这个功能怎么用/项目有哪些功能”时使用", inputSchema: { type: "object", properties: { topic: { type: "string" } } } },
 ];
 
 /** 工具端强制拦截：任何删除 / 覆盖 / 执行类工具名都不会被派发。 */
@@ -48,6 +50,10 @@ export function callTool(name, args = {}, ctx = {}) {
     const maxRent = Number(args.maxRent) || 0;
     const list = loadPlatformHousing(city).filter((h) => !maxRent || Number(h.rent || 0) <= maxRent).slice(0, 6);
     return { count: list.length, items: list.map((h) => ({ community: h.community, rent: h.rent, layout: h.layout, url: h.url })) };
+  }
+  if (toolName === "project_guide") {
+    const topic = String(args.topic || "").trim();
+    return { sections: guideFor(topic).map((s) => ({ id: s.id, title: s.title, summary: s.summary, steps: s.steps })), text: guideText(topic) };
   }
   if (toolName === "my_progress") {
     const study = ctx.study;
