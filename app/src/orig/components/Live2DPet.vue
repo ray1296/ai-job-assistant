@@ -18,16 +18,26 @@
         @input="onInput"
         @keydown="handleKeydown"
         @mousedown="onInputMousedown"
+        @paste="onPaste"
       ></div>
-      <!-- 输入工具栏：语音 / 说话人分离 / 知识库 / Agent -->
+      <div v-if="pendingImage" class="pet-img-chip">
+        <img :src="pendingImage" alt="待发送图片" />
+        <span title="图片已附上，写完问题点发送">图片已附上</span>
+        <button title="移除图片" @mousedown.prevent @click.stop="pendingImage = ''">✕</button>
+      </div>
+      <!-- 输入工具栏：语音 / 说话人分离 / 发图 / 知识库 / Agent -->
       <div class="pet-input-tools">
+        <button class="pet-tool-btn" title="发图 / 粘贴截图（Ctrl+V）" @mousedown.prevent @click.stop="pickImage">
+          🖼️
+        </button>
+        <input ref="imgInput" type="file" accept="image/*" style="display: none" @change="onPickImage" />
         <button class="pet-tool-btn" :class="{ recording: isRecording }" :title="isRecording ? '点击停止录音' : '点击开始语音输入'" @mousedown.prevent @click.stop="toggleMic">
           {{ isRecording ? '⏹' : '🎤' }}
         </button>
         <button class="pet-tool-btn" :class="{ on: speakerMode }" title="识别说话人（区分谁说了什么）" @mousedown.prevent @click.stop="toggleSpeakerMode">
           👥
         </button>
-        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答（基于你的题库/资料）" @mousedown.prevent @click.stop="setMode('rag')">
+        <button class="pet-tool-btn" :class="{ on: mode === 'rag' }" title="知识库问答（整理中，暂用普通对话）" @mousedown.prevent @click.stop="setMode('rag')">
           🔍
         </button>
         <button class="pet-tool-btn" :class="{ on: mode === 'agent' }" title="Agent 任务（AI 自主调用工具：出卷/查错题/定计划）" @mousedown.prevent @click.stop="setMode('agent')">
@@ -47,7 +57,7 @@
     <!-- Live2D Canvas（点击/长按拖动） -->
     <div class="pet-canvas-wrap" ref="canvasWrap">
       <button class="pet-wardrobe" title="换装" @click.stop="nextModel">👗</button>
-      <img v-if="!modelReady" class="pet-loading-avatar" src="/assets/companions/b-1.png" alt="" />
+      <img v-if="!modelReady" class="pet-loading-avatar" :src="fallbackAvatar" alt="角色立绘" />
       <canvas :id="canvasId" class="live2d-canvas" width="200" height="250" @click="handleClick" @mousedown="onPointerDown" @touchstart="onPointerDown"></canvas>
     </div>
 
@@ -62,10 +72,11 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from '../router'
 import { showToast } from 'vant'
-import { aiChat, aiWrongReview, aiRagAsk, aiAgentRun } from '../api/ai'
+import { aiWrongReview } from '../api/ai'
 import GestureCam from './GestureCam.vue'
 import ScreenWatcher from './ScreenWatcher.vue'
 import { edgeTTSSynthesize, getVoiceConfig } from '../utils/edgeTTS'
+import { addMemory, clearMemory, memoryEntries, memoryStats, memoryText } from '../../agent-memory'
 import { readAIDrafts, saveAIDrafts, getAIDraft, clearAIDraft, clearAIDrafts } from '../utils/askAI'
 
 const props = defineProps({
@@ -76,11 +87,17 @@ const props = defineProps({
 
 const router = useRouter()
 
+// 本站写接口要求 CSRF；原项目页面的裸 fetch 容易漏带
+const csrfHeaders = () => ({ 'X-CSRF-Token': window.__zgCsrf || '' })
+
 const inputVisible = ref(false)
 const dialogVisible = ref(false)
 const dialogText = ref('')
 const inputRef = ref(null)
 const petContainer = ref(null)
+// 待发送图片（粘贴截图或本地选图），发送后清空
+const pendingImage = ref('')
+const imgInput = ref(null)
 // 持久显示：重要 AI 分析（考点总结/错题精讲等）不自动消失，点击人物才关
 const persistentDialog = ref(false)
 // 持久气泡可带一个动作按钮（如"查看报告"跳转 AI 生成的页面）
@@ -317,6 +334,25 @@ function stopProactiveReview() {
 
 const currentModelIndex = ref(props.modelStart || 0)
 const modelReady = ref(false)
+const fallbackAvatar = computed(() => '/assets/companions/model-' + MODEL_NAMES[currentModelIndex.value] + '.png')
+let modelCheckToken = 0
+let modelCheckCount = 0
+function checkModelPixels(token) {
+  if (token !== modelCheckToken || modelReady.value) return
+  const canvas = document.getElementById(props.canvasId)
+  if (!canvas) return
+  try {
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    if (gl) {
+      const buf = new Uint8Array(canvas.width * canvas.height * 4)
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, buf)
+      let nonEmpty = 0
+      for (let i = 3; i < buf.length; i += 4) if (buf[i] > 8) nonEmpty++
+      if (nonEmpty > 500) { modelReady.value = true; return }
+    }
+  } catch (e) {}
+  if (++modelCheckCount < 40) setTimeout(() => checkModelPixels(token), 250)
+}
 
 // 输入框尺寸：初始小小，随输入自适应宽度，宽到限度后变长（增高）
 const INPUT_MIN_W = 120   // 初始最小宽度
@@ -367,7 +403,7 @@ function loadScript(src) {
 
 onMounted(async () => {
   try {
-    await loadScript('/live2d/js/l2d.js')
+    await loadScript('/live2d/js/l2d.js?v=2')
     await nextTick()
     initPet()
     // 监听"问问AI"事件（其他页面把题目/知识点/卡片添加到对话）
@@ -388,8 +424,17 @@ onMounted(async () => {
     window.addEventListener('kaoshibang:favorited', onFavorited)
     // 监听 AI 忙碌状态（工作气泡轮播）
     window.addEventListener('kaoshibang:ai-busy', onAiBusy)
+    // 设置页切换默认形象后立即生效
+    window.addEventListener('zg:pet-model', onPetModelChange)
     // 启动见缝插针主动复习定时器（用户在壁纸页勾选后才生效）
     startProactiveReview()
+    // 从服务端恢复星野的对话记忆（P4：刷新/换设备不丢）
+    loadRemoteChatHistory()
+    // 本地记忆快到上限时主动提醒（可对看板娘说「上传记忆」「清空记忆」）
+    const mem = memoryStats('星野')
+    if (mem.pct >= 0.8) {
+      setTimeout(() => showBubble('我的长期记忆快满了（' + Math.round(mem.pct * 100) + '%），可以对我说「上传记忆」或「清空记忆」哦～', { type: 'info', duration: 12000 }), 3500)
+    }
     // 预热语音列表（部分浏览器首次 getVoices 为空，需触发一次）
     if (window.speechSynthesis) {
       window.speechSynthesis.getVoices()
@@ -406,6 +451,47 @@ onMounted(async () => {
     console.error('Live2D加载失败:', e)
   }
 })
+
+/* ===== 图片：本地选图 / 粘贴截图（多模态识图） ===== */
+async function fileToDataUrl(file) {
+  const bmp = await createImageBitmap(file)
+  const max = 1100
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height))
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(bmp.width * scale))
+  c.height = Math.max(1, Math.round(bmp.height * scale))
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+  try { bmp.close() } catch (e) { /* ignore */ }
+  return c.toDataURL('image/jpeg', 0.84)
+}
+async function acceptImage(file) {
+  if (!file || !(file.type || '').startsWith('image/')) return
+  try {
+    pendingImage.value = await fileToDataUrl(file)
+    inputVisible.value = true
+    nextTick(() => inputRef.value && inputRef.value.focus())
+    showToast('图片已附上，写完问题点发送（或直接发送让我看图）')
+  } catch (e) {
+    showToast('这张图读不出来，换一张试试')
+  }
+}
+function pickImage() {
+  if (imgInput.value) imgInput.value.click()
+}
+function onPickImage(e) {
+  const f = e.target.files && e.target.files[0]
+  if (f) acceptImage(f)
+  e.target.value = ''
+}
+function onPaste(e) {
+  const items = Array.from((e.clipboardData && e.clipboardData.items) || [])
+  const hit = items.find(it => (it.type || '').startsWith('image/'))
+  if (!hit) return
+  const f = hit.getAsFile()
+  if (!f) return
+  e.preventDefault()
+  acceptImage(f)
+}
 
 /* ===== 拖拽输入 ===== */
 function onDragOver(e) {
@@ -426,38 +512,11 @@ async function onDrop(e) {
   const text = e.dataTransfer?.getData('text/plain') || ''
   const uri = e.dataTransfer?.getData('text/uri-list') || ''
 
-  // 图片 → 视觉识别（小帮看图）
+  // 图片 → 附到输入框，随问题一起走多模态识图
   const imgFile = files.find(f => (f.type || '').startsWith('image/'))
   if (imgFile) {
-    try {
-      dialogText.value = '让我看看这是什么...'
-      dialogVisible.value = true
-      clearAutoHide()
-      const form = new FormData()
-      form.append('file', imgFile)
-      const res = await fetch('/api/ai/vision', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + (localStorage.getItem('exam_prep_token') || '') },
-        body: form,
-      })
-      const json = await res.json()
-      if (json.code !== 200) throw new Error(json.message || '看图失败')
-      const desc = json.data?.description || '没看清呢'
-      dialogVisible.value = false
-      inputVisible.value = true
-      nextTick(() => {
-        const el = inputRef.value
-        if (!el) return
-        el.textContent = '我看到一张图：' + desc + '（帮我讲解一下？）'
-        focusEnd()
-        autoResize()
-      })
-      return
-    } catch (err) {
-      dialogText.value = '看图开小差了：' + (err.message || '')
-      scheduleAutoHide()
-      return
-    }
+    await acceptImage(imgFile)
+    return
   }
 
   // 文本文件 → 读内容进输入框
@@ -502,18 +561,34 @@ function insertIntoInput(content) {
 
 function initPet() {
   if (!window.loadlive2d) return
-  // 优先使用用户上次选择的形象（localStorage 记忆），没有则随机
+  // 优先使用用户上次选择的形象；首次进入用固定的默认形象（与设置页高亮一致），并立即记住
   let idx = parseInt(localStorage.getItem(MODEL_STORAGE_KEY) || '', 10)
   if (!(idx >= 0 && idx < MODELS.length)) {
-    idx = Math.floor(Math.random() * MODELS.length)
+    idx = Number.isFinite(props.modelStart) && props.modelStart >= 0 && props.modelStart < MODELS.length ? props.modelStart : 0
+    try { localStorage.setItem(MODEL_STORAGE_KEY, String(idx)) } catch (e) { /* ignore */ }
   }
   currentModelIndex.value = idx
   loadModel(idx)
 }
 
+function onPetModelChange(e) {
+  const i = Number(e && e.detail && e.detail.index)
+  if (!(i >= 0 && i < MODELS.length)) return
+  currentModelIndex.value = i
+  try { localStorage.setItem(MODEL_STORAGE_KEY, String(i)) } catch (err) { /* ignore */ }
+  loadModel(i)
+}
+
 function loadModel(idx) {
-  window.loadlive2d(props.canvasId, MODELS[idx])
-    setTimeout(() => { modelReady.value = true }, 700)
+  modelReady.value = false
+  modelCheckCount = 0
+  const token = ++modelCheckToken
+  try {
+    window.loadlive2d(props.canvasId, MODELS[idx])
+  } catch (e) {
+    console.warn('[pet] Live2D load failed, keep fallback', e)
+  }
+  setTimeout(() => checkModelPixels(token), 300)
 }
 
 /* ===== 换装：点击按钮切换形象，记住用户选择 ===== */
@@ -962,10 +1037,53 @@ function handleKeydown(e) {
   }
 }
 
+async function uploadMemory() {
+  const entries = memoryEntries('星野')
+  if (!entries.length) {
+    showBubble('本地还没有需要上传的记忆哦～')
+    return
+  }
+  try {
+    const r = await fetch('/api/agents/xingye/memories', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, csrfHeaders()),
+      body: JSON.stringify({ entries }),
+    })
+    if (!r.ok) throw new Error('上传失败')
+    const j = await r.json()
+    clearMemory('星野')
+    showBubble('已把 ' + (j.added || entries.length) + ' 条记忆上传到服务器，保留 30 天；本地记忆已清空。', { type: 'success', duration: 10000 })
+  } catch (e) {
+    showBubble('上传失败了，稍后再试一次吧～', { type: 'error' })
+  }
+}
+
 async function sendMessage() {
+  if (mode.value === 'rag') {
+    showToast('知识库问答还在整理，先用普通对话问我～')
+    mode.value = 'chat'
+    if (!buildMessage().trim() && !pendingImage.value) return
+  }
   // 发送时把 chip 原位替换为完整原文，一并交给 AI（已删除的 chip 不参与）
-  const msg = buildMessage()
-  if (!msg) return
+  const msg = buildMessage().trim()
+  const image = pendingImage.value
+  if (!msg && !image) return
+  // 记忆管理口令：不调用模型，直接执行
+  const plainCmd = msg.replace(/\s+/g, '')
+  if (/^(清空|清除|忘记)(一下)?(我的)?记忆$/.test(plainCmd)) {
+    clearMemory('星野')
+    if (inputRef.value) inputRef.value.innerHTML = ''
+    inputVisible.value = false
+    showBubble('本地记忆已清空；服务器副本（如果有）会在 30 天后自动删除。', { type: 'success', duration: 9000 })
+    return
+  }
+  if (/^(上传|保存)(我的)?记忆(到服务器)?$/.test(plainCmd)) {
+    if (inputRef.value) inputRef.value.innerHTML = ''
+    inputVisible.value = false
+    await uploadMemory()
+    return
+  }
 
   // 快照输入内容（草稿 + 文字/chip 顺序）：发送失败时原样恢复，避免重新输入
   const draftBackup = JSON.parse(JSON.stringify(readAIDrafts()))
@@ -974,48 +1092,24 @@ async function sendMessage() {
   inputVisible.value = false
   if (inputRef.value) inputRef.value.innerHTML = ''
   clearAIDrafts()
+  pendingImage.value = ''
 
   stopSpeech()
   clearAutoHide()
-  dialogText.value = mode.value === 'rag' ? '正在翻你的知识库...' : (mode.value === 'agent' ? '小帮正在规划任务...' : '正在思考...')
+  dialogText.value = '正在思考...'
   dialogVisible.value = true
 
   try {
-    if (mode.value === 'rag') {
-      // RAG 知识库问答：带来源引用
-      const res = await aiRagAsk(msg)
-      const data = res.data || {}
-      let reply = data.answer || '知识库里没翻到相关内容呢～'
-      // 追加来源标记（来源编号在正文里已标注）
-      const sources = Array.isArray(data.sources) ? data.sources : []
-      if (sources.length) {
-        reply += '\n\n📚 来源：' + sources.map((s, i) => '[' + (i + 1) + '] ' + (s.title || '').slice(0, 24)).join(' · ')
-      }
-      await showReplyStreaming(reply, { persistent: true })
-      // 结束后收起 RAG 模式，回到闲聊
-      mode.value = 'chat'
-    } else if (mode.value === 'agent') {
-      // Agent 任务：展示思考步骤 + 最终回答
-      const res = await aiAgentRun(msg)
-      const data = res.data || {}
-      const answer = data.answer || '任务没完成呢，换个说法试试～'
-      const steps = Array.isArray(data.steps) ? data.steps : []
-      let prefix = ''
-      if (steps.length) {
-        const names = steps.map(s => toolName(s.tool))
-        prefix = '🧭 小帮用了 ' + steps.length + ' 个工具（' + names.join(' → ') + '）\n\n'
-      }
-      await showReplyStreaming(prefix + answer, { persistent: true })
-      mode.value = 'chat'
-    } else {
-      const history = loadChatHistory()
-      const reply = await streamChatSSE(msg, history)
-      // 记录本轮对话到上下文记忆（user + assistant 成对）
-      pushChatHistory('user', msg)
-      pushChatHistory('assistant', reply)
-    }
+    const asked = msg || '请看看这张图，帮我讲解一下。'
+    const history = loadChatHistory()
+    const reply = await streamChatSSE(asked, history, image)
+    // 记录本轮对话到上下文记忆（user + assistant 成对）
+    pushChatHistory('user', asked)
+    pushChatHistory('assistant', reply)
+    mode.value = 'chat'
   } catch (e) {
     dialogText.value = '呜，我这边开小差了，稍后再试吧~'
+    pendingImage.value = image
     // 发送失败：把刚才的内容原样放回输入框，用户不用重写
     restoreInput(draftBackup, inputSnap)
   }
@@ -1023,11 +1117,12 @@ async function sendMessage() {
 }
 
 /* ===== SSE 流式聊天：逐 token 实时渲染 + 结束后 TTS 朗读 ===== */
-async function streamChatSSE(msg, history) {
+async function streamChatSSE(msg, history, image) {
   const res = await fetch('/api/ai/chat-stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('exam_prep_token') || '') },
-    body: JSON.stringify({ message: msg, history }),
+    credentials: 'same-origin',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, csrfHeaders()),
+    body: JSON.stringify({ message: msg, history, image: image || undefined, memory: memoryText('星野') || undefined }),
   })
   if (!res.ok || !res.body) throw new Error('网络错误')
   const reader = res.body.getReader()
@@ -1037,44 +1132,55 @@ async function streamChatSSE(msg, history) {
   dialogVisible.value = true
   dialogText.value = ''
   typingCancel = false
+  let ev = ''
+  let dataLines = []
+  const flush = () => {
+    if (!ev && !dataLines.length) return
+    const text = dataLines.join('\n')
+    if (ev === 'token') {
+      if (!typingCancel) {
+        full += text
+        dialogText.value = full
+      }
+    } else if (ev === 'memory') {
+      if (text) addMemory('星野', text)
+    } else if (ev === 'error') {
+      throw new Error(text || 'AI失败')
+    }
+    ev = ''
+    dataLines = []
+  }
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()
-    for (const line of lines) {
-      if (!line.startsWith('data:')) continue
-      const payload = line.slice(5).trim()
-      const nl = payload.indexOf('\n')
-      if (nl < 0) continue
-      const ev = payload.slice(0, nl)
-      const data = payload.slice(nl + 1)
-      if (ev === 'token') {
-        if (typingCancel) continue
-        full += data
-        dialogText.value = full
-      } else if (ev === 'error') {
-        throw new Error(data || 'AI失败')
-      }
+    let idx
+    while ((idx = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, idx).replace(/\r$/, '')
+      buffer = buffer.slice(idx + 1)
+      if (line === '') flush()
+      else if (line.startsWith('event:')) ev = line.slice(6).trim()
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''))
     }
   }
+  flush()
   if (!full) throw new Error('AI返回为空')
   const plain = full.replace(/[#*`~_]/g, '').replace(/\s+/g, ' ')
   await speakReply(plain)
   return full
 }
 
-function toolName(t) {
-  const map = {
-    get_subject_stats: '📊查统计',
-    create_exam_paper: '📝组卷',
-    get_wrong_questions: '📕查错题',
-    rag_search: '🔍搜知识库',
-    create_study_plan: '🗓定计划',
-    get_study_plan: '🗓看计划',
-  }
-  return map[t] || t
+async function loadRemoteChatHistory() {
+  try {
+    const r = await fetch('/api/companion/history?agent=xingye', { credentials: 'same-origin' })
+    if (!r.ok) return
+    const j = await r.json()
+    const list = (j.messages || []).slice(-CHAT_HISTORY_MAX).map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: String(m.text || '').slice(0, 300),
+    }))
+    if (list.length) saveChatHistory(list)
+  } catch (e) { /* 离线时保留本地记忆 */ }
 }
 
 /* ===== 输入模式切换 ===== */
@@ -1378,6 +1484,8 @@ async function showReplyStreaming(reply, opts) {
 
 /* 只做 TTS 朗读 + 口型动作，不改动已显示的文字（SSE 流式已实时渲染） */
 async function speakReply(plain) {
+  // 思考链 / 工具调用动画期间不朗读，避免和状态气泡抢声音
+  if (workingActive.value) return
   const cfg = getVoiceConfig()
   let ttsUrl = null
   if (plain) {
@@ -1577,6 +1685,7 @@ onUnmounted(() => {
   clearAutoHide()
   stopProactiveReview()
   stopSpeech()
+  window.removeEventListener('zg:pet-model', onPetModelChange)
   window.removeEventListener('kaoshibang:ask-ai', onAskAI)
   window.removeEventListener('kaoshibang:wrong-review', onWrongReview)
   window.removeEventListener('kaoshibang:ai-show', onAiShow)
@@ -1623,6 +1732,7 @@ onUnmounted(() => {
 /* 换装按钮 */
 .pet-wardrobe {
   position: absolute;
+  z-index: 3;
   top: -8px;
   right: -4px;
   width: 28px;
@@ -1648,7 +1758,23 @@ onUnmounted(() => {
 
 .live2d-canvas {
   display: block;
+  position: relative;
+  z-index: 1;
   -webkit-user-drag: none;
+  background: transparent;
+}
+
+.pet-loading-avatar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  z-index: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 18px rgba(30, 22, 55, 0.18));
 }
 
 /* 对话气泡 */
@@ -1784,6 +1910,24 @@ onUnmounted(() => {
   border-color: #2c3e6b;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
+
+/* 待发送图片 */
+.pet-img-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #e0e0f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(80, 90, 180, 0.12);
+  font-size: 11px;
+  color: #5a5f75;
+}
+.pet-img-chip img { width: 38px; height: 38px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.pet-img-chip span { flex: 1; min-width: 0; line-height: 1.35; }
+.pet-img-chip button { flex: 0 0 auto; border: 0; background: #eef1ff; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; }
 
 /* ===== 输入工具栏（语音/说话人/知识库/Agent） ===== */
 .pet-input-tools {

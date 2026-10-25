@@ -13,6 +13,9 @@ onMounted(() => {
   document.head.appendChild(style);
   const sync = () => {
     const onUpload = location.hash.startsWith("#/upload");
+    const onReport = location.hash.startsWith("#/ai-page");
+    // 报告页自带返回按钮，悬浮上传入口会盖住它
+    a.style.display = onReport ? "none" : "";
     a.textContent = onUpload ? "← 继续刷题" : "⬆ 上传题库";
     a.href = onUpload ? "#/review" : "#/upload";
   };

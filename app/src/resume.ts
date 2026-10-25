@@ -132,7 +132,16 @@ export default defineComponent({
     onMounted(async () => {
       try {
         await refresh();
-        if (versions.value.length) await load(versions.value[0].id);
+        // 投递方案里"打开新标签页查看专属简历"会先写这个 key
+        let wanted = "";
+        try {
+          wanted = localStorage.getItem("zg.resumeOpenId") || "";
+          localStorage.removeItem("zg.resumeOpenId");
+        } catch {}
+        const target = wanted && versions.value.some((v: any) => v.id === wanted)
+          ? wanted
+          : versions.value[0]?.id;
+        if (target) await load(target);
       } catch (e) {
         error.value = errorText(e);
       } finally {

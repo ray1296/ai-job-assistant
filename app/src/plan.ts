@@ -42,7 +42,9 @@ export default defineComponent({
         base: string;
       } | null>(null),
       aiBusy = ref(false),
-      copyStatus = ref("");
+      copyStatus = ref(""),
+      tailorBusy = ref(false),
+      tailorResult = ref<{ resumeId: string; title: string; copy: string } | null>(null);
     let alive = true,
       listSeq = 0,
       aiSeq = 0,
@@ -287,6 +289,73 @@ export default defineComponent({
         if (active() && selected.value === id) copyStatus.value = errorText(e);
       }
     }
+    async function tailorResume() {
+      const row = current.value;
+      if (!row || tailorBusy.value) return;
+      cancelAI();
+      tailorBusy.value = true;
+      row.error = "";
+      row.notice = "";
+      const id = row.job.id;
+      try {
+        const result = await api(
+          "/ai/tailored-application",
+          "POST",
+          { jobId: id },
+          { timeoutMs: 150000 },
+        );
+        if (!result?.resume?.id || typeof result.copy !== "string" || !result.copy.trim())
+          throw new Error("AI 返回的定制结果无效，原草稿未修改。");
+        if (!active() || selected.value !== id) return;
+        row.text = result.copy.slice(0, maxLength.value);
+        await save(row);
+        row.notice =
+          row.text === row.saved
+            ? "专属简历已生成，文案已自动保存。"
+            : "专属简历已生成，文案已写入，请检查后保存。";
+        tailorResult.value = {
+          resumeId: String(result.resume.id),
+          title: String(result.resume.title || "专属简历"),
+          copy: row.text,
+        };
+      } catch (e) {
+        if (active() && selected.value === id) row.error = errorText(e);
+      } finally {
+        if (active()) tailorBusy.value = false;
+      }
+    }
+    function openTailoredResume() {
+      const r = tailorResult.value;
+      if (!r) return;
+      try {
+        localStorage.setItem("zg.resumeOpenId", r.resumeId);
+      } catch {}
+      const win = window.open("#resume", "_blank");
+      if (!win) {
+        const row = current.value;
+        if (row) row.notice = "浏览器拦截了新标签页，请允许弹窗后重试，或到简历工作室手动打开。";
+        return;
+      }
+      try { win.opener = null; } catch {}
+      tailorResult.value = null;
+    }
+    async function copyAndOpen() {
+      const row = current.value;
+      if (!row) return;
+      const url = safeJobUrl(row.job.url);
+      let win: Window | null = null;
+      if (url) {
+        win = window.open(url, "_blank");
+        if (win) {
+          try { win.opener = null; } catch {}
+        }
+      }
+      await copy();
+      if (url && !win) row.notice = "文案已复制，但浏览器拦截了新标签页；请允许弹窗后重试。";
+      else if (url) row.notice = "文案已复制，岗位页已在新标签页打开。";
+      else row.notice = "文案已复制；该岗位暂无安全有效的链接。";
+    }
+
     onMounted(load);
     onBeforeUnmount(() => {
       alive = false;
@@ -409,9 +478,20 @@ export default defineComponent({
                             "button",
                             {
                               class: "primary",
+                              onClick: tailorResume,
+                              disabled: tailorBusy.value || aiBusy.value,
+                            },
+                            tailorBusy.value
+                              ? "正在定制简历…"
+                              : "AI 定制简历 + 文案",
+                          ),
+                          h(
+                            "button",
+                            {
                               onClick: generate,
                               disabled:
                                 aiBusy.value ||
+                                tailorBusy.value ||
                                 row.text.length > maxLength.value,
                             },
                             aiBusy.value
@@ -443,6 +523,13 @@ export default defineComponent({
                             { onClick: copy, disabled: !row.text },
                             "复制话术",
                           ),
+                          url
+                            ? h(
+                                "button",
+                                { onClick: copyAndOpen, disabled: !row.text },
+                                "打开岗位并复制文案",
+                              )
+                            : null,
                           url
                             ? h(
                                 "a",
@@ -533,6 +620,44 @@ export default defineComponent({
                   })()
                 : null,
             ])
+          : null,
+        tailorResult.value
+          ? h(
+              "div",
+              {
+                class: "plan-modal-mask",
+                onClick: () => (tailorResult.value = null),
+              },
+              h(
+                "div",
+                {
+                  class: "plan-modal",
+                  role: "dialog",
+                  "aria-modal": "true",
+                  onClick: (e: Event) => e.stopPropagation(),
+                },
+                [
+                  h("h3", "专属简历生成完毕"),
+                  h("p", "已为这个岗位生成一份定制版简历：" + tailorResult.value.title),
+                  h(
+                    "p",
+                    "投递文案也已写入编辑区并自动保存。请先检查文案，确认无误后再复制并打开岗位页。",
+                  ),
+                  h("div", { class: "plan-actions" }, [
+                    h(
+                      "button",
+                      { class: "primary", onClick: openTailoredResume },
+                      "打开简历工作室（新标签页）",
+                    ),
+                    h(
+                      "button",
+                      { onClick: () => (tailorResult.value = null) },
+                      "留在本页",
+                    ),
+                  ]),
+                ],
+              ),
+            )
           : null,
       ]);
   },

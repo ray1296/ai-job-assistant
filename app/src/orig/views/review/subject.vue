@@ -347,11 +347,11 @@
       </div>
     </div>
 
-    <!-- ===== 看板娘 AI 小帮：悬浮动作菜单 ===== -->
-    <div class="ai-assistant-fab">
+    <!-- ===== 看板娘 AI 小帮：悬浮动作菜单（可拖动，位置记忆） ===== -->
+    <div class="ai-assistant-fab" :class="{ 'menu-down': !menuUp }" :style="{ left: fabPos.left + 'px', bottom: fabPos.bottom + 'px' }">
       <transition name="ai-menu-pop">
-        <div v-if="aiMenuOpen" class="ai-assistant-menu">
-          <div class="ai-menu-title">小帮帮你复习 ✨</div>
+        <div v-if="aiMenuOpen" class="ai-assistant-menu" :style="{ maxHeight: menuMaxHeight + 'px' }">
+          <div class="ai-menu-title">小帮帮你复习 ✨<small>按住圆钮可拖动</small></div>
           <button class="ai-menu-item" :disabled="aiLoading" @click="aiAction('summary')">
             <span class="ai-menu-emoji">📊</span> 总结考点
           </button>
@@ -376,11 +376,31 @@
           </button>
         </div>
       </transition>
-      <button class="ai-assistant-btn" :class="{ active: aiMenuOpen, loading: aiLoading }" @click="aiMenuOpen = !aiMenuOpen">
+      <button class="ai-assistant-btn" :class="{ active: aiMenuOpen, loading: aiLoading }" title="单击打开工具箱，按住可拖动" @pointerdown="fabPointerDown">
         <span v-if="!aiLoading">🤖</span>
         <span v-else class="ai-spinner"></span>
       </button>
     </div>
+
+    <!-- 工具箱结果面板：iframe 独立浮层，不再依赖父页面看板娘气泡 -->
+    <transition name="ai-menu-pop">
+      <div v-if="aiPanel" class="ai-result-mask" @click.self="closeAiPanel">
+        <div class="ai-result-card" role="dialog" aria-modal="true">
+          <header class="ai-result-head">
+            <strong>{{ aiPanel.title }}</strong>
+            <button class="ai-result-close" title="关闭" @click="closeAiPanel">✕</button>
+          </header>
+          <div v-if="aiPanel.loading" class="ai-result-loading">
+            <span class="ai-spinner dark"></span> 小帮正在整理，请稍等～
+          </div>
+          <iframe v-else-if="aiPanel.html" class="ai-result-frame" :srcdoc="aiPanel.html" sandbox="allow-same-origin"></iframe>
+          <div v-else class="ai-result-text">{{ aiPanel.text }}</div>
+          <footer v-if="aiPanel.action" class="ai-result-foot">
+            <button class="ai-result-action" @click="runAiAction">{{ aiPanel.action.label }}</button>
+          </footer>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -543,6 +563,65 @@ const shortAnswer = ref('')
 // ===== 看板娘 AI 小帮：悬浮菜单状态 =====
 const aiMenuOpen = ref(false)
 const aiLoading = ref(false)
+// 工具箱结果面板（iframe 里的独立浮层；父页面的看板娘气泡在 iframe 外，收不到 window 事件）
+const aiPanel = ref(null)
+const FAB_POS_KEY = 'zg.studyFab.v1'
+const fabPos = ref(readFabPos())
+function readFabPos() {
+  try {
+    const p = JSON.parse(localStorage.getItem(FAB_POS_KEY) || 'null')
+    if (p && Number.isFinite(p.left) && Number.isFinite(p.bottom)) return p
+  } catch (e) { /* ignore */ }
+  return { left: Math.min(244, Math.max(12, window.innerWidth - 72)), bottom: 80 }
+}
+function fabPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return
+  e.preventDefault()
+  const sx = e.clientX, sy = e.clientY
+  const ox = fabPos.value.left, oy = fabPos.value.bottom
+  let moved = false
+  const move = (ev) => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true
+    if (!moved) return
+    fabPos.value = {
+      left: Math.min(window.innerWidth - 64, Math.max(8, ox + dx)),
+      bottom: Math.min(window.innerHeight - 64, Math.max(8, oy - dy)),
+    }
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    if (moved) {
+      try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPos.value)) } catch (e) { /* ignore */ }
+      aiMenuOpen.value = false
+    } else {
+      aiMenuOpen.value = !aiMenuOpen.value
+    }
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up, { once: true })
+}
+// 菜单默认向上展开；上方空间不足时改为向下，并限制高度避免顶出 iframe
+const menuUp = computed(() => window.innerHeight - fabPos.value.bottom - 62 >= 180)
+const menuMaxHeight = computed(() => {
+  const up = window.innerHeight - fabPos.value.bottom - 62
+  const down = fabPos.value.bottom - 62
+  return Math.max(150, Math.min(420, menuUp.value ? up : down))
+})
+function openAiPanel(title) {
+  aiPanel.value = { title, loading: true, text: '', html: '', action: null }
+}
+function closeAiPanel() { aiPanel.value = null }
+function runAiAction() {
+  const action = aiPanel.value && aiPanel.value.action
+  if (!action) return
+  closeAiPanel()
+  if (action.type === 'navigate') router.push(action.path)
+}
+function notifyParent(payload) {
+  try { window.parent.postMessage(payload, '*') } catch (e) { /* ignore */ }
+}
 // 简答题用户答案记录（qid -> 用户输入），供"简答记忆"功能对比分析
 const shortUserAnswers = reactive({})
 const shuffleOptions = ref(false)
@@ -1175,57 +1254,88 @@ async function aiAction(type) {
     return
   }
   aiMenuOpen.value = false
+  const name = subject.value.name || '这科'
+  const toolName = { summary: '总结考点', steps: '错题精讲', memo: '简答记忆', link: '科目关联', page: '生成报告页', rag: '知识库问答', agent: 'Agent 任务' }[type] || '小帮'
+
+  // 知识库问答（RAG）还没上线：需要先确定索引范围与隐私分区，先给明确提示，别假装能用
+  if (type === 'rag') {
+    aiPanel.value = {
+      title: '知识库问答',
+      loading: false,
+      html: '',
+      text: '知识库问答（RAG）还没上线：需要先确定索引范围、召回准确率和隐私分区，避免把别人的资料答给你。先用「总结考点 / 错题精讲 / 简答记忆」或直接在看板娘里问我吧。',
+      action: null,
+    }
+    return
+  }
+  // Agent 任务：交给父页面的看板娘输入框（iframe 里的 window 事件传不到父页面，得用 postMessage）
+  if (type === 'agent') {
+    notifyParent({ type: 'zg:study-mode', mode: 'agent' })
+    showToast('已把看板娘切到 Agent 模式，去输入框派任务吧～')
+    return
+  }
+
+  // 先做数据检查，避免打开一个永远转圈的面板
+  let memoItems = []
+  let recents = []
+  if (type === 'memo') {
+    memoItems = shortQuestions.value
+      .filter(q => q.id && shortUserAnswers[q.id] && shortUserAnswers[q.id].trim())
+      .slice(0, 4)
+      .map(q => ({
+        stem: (q.stem || '').slice(0, 100),
+        userAnswer: (shortUserAnswers[q.id] || '').slice(0, 150),
+        correctAnswer: (q.answer || '').slice(0, 200),
+      }))
+    if (!memoItems.length) {
+      aiPanel.value = { title: toolName, loading: false, html: '', text: '先去做几道简答题并写下答案，小帮才能对比你的答案帮你记牢哦～', action: null }
+      return
+    }
+  }
+  if (type === 'link') {
+    recents = getRecentSubjects()
+    if (recents.length < 2) {
+      aiPanel.value = { title: toolName, loading: false, html: '', text: '再多复习一个科目吧，两个以上我才能帮你找出它们之间的关联呀～', action: null }
+      return
+    }
+  }
+  // 报告页最贵（约 30 秒、输出一整页 HTML），先让用户确认
+  if (type === 'page') {
+    try {
+      await showConfirmDialog({
+        title: '生成 AI 复习报告',
+        message: '会根据当前科目题库生成一整页网页报告，约 30 秒，消耗的 token 较多。继续吗？',
+        confirmButtonText: '开始生成',
+        cancelButtonText: '先不生成',
+      })
+    } catch (e) {
+      return
+    }
+  }
+
+  openAiPanel(toolName)
   aiLoading.value = true
-  // 通知看板娘进入工作轮播
-  const _toolName = { summary: '总结考点', steps: '错题精讲', memo: '简答记忆', link: '科目关联', page: '生成报告页', rag: '知识库问答', agent: 'Agent 任务' }[type] || ''
-  window.dispatchEvent(new CustomEvent('kaoshibang:ai-busy', { detail: { active: true, tool: _toolName } }))
+  window.dispatchEvent(new CustomEvent('kaoshibang:ai-busy', { detail: { active: true, tool: toolName } }))
+  notifyParent({ type: 'zg:ai-busy', active: true, tool: toolName })
   try {
-    const name = subject.value.name || '这科'
     if (type === 'summary') {
       const res = await aiStudySummary(name, slimQuestions(allQuestions.value, 25))
-      showAiReply(res.data.reply || '总结好啦~')
+      aiPanel.value = { ...aiPanel.value, loading: false, text: res.data.reply || '总结好啦~' }
     } else if (type === 'steps') {
       const res = await aiWrongSteps(name, slimQuestions(wrongQuestions.value, 5))
-      showAiReply(res.data.reply || '解题步骤整理好啦~')
+      aiPanel.value = { ...aiPanel.value, loading: false, text: res.data.reply || '解题步骤整理好啦~' }
     } else if (type === 'memo') {
-      // 收集已作答的简答题：用户答案 + 正确答案
-      const items = shortQuestions.value
-        .filter(q => q.id && shortUserAnswers[q.id] && shortUserAnswers[q.id].trim())
-        .slice(0, 4)
-        .map(q => ({
-          stem: (q.stem || '').slice(0, 100),
-          userAnswer: (shortUserAnswers[q.id] || '').slice(0, 150),
-          correctAnswer: (q.answer || '').slice(0, 200),
-        }))
-      if (!items.length) {
-        showToast('先去做几道简答题写下答案，小帮才能帮你记牢哦~')
-        return
-      }
-      const res = await aiShortMemo(name, items)
-      showAiReply(res.data.reply || '记忆顺口溜编好啦~')
+      const res = await aiShortMemo(name, memoItems)
+      aiPanel.value = { ...aiPanel.value, loading: false, text: res.data.reply || '记忆顺口溜编好啦~' }
     } else if (type === 'link') {
-      const recents = getRecentSubjects()
-      if (recents.length < 2) {
-        showToast('再多复习一个科目，小帮才能帮你找关联哦~')
-        return
-      }
       const res = await aiSubjectLink(recents.map(s => ({ name: s.name, topics: s.topics || [] })))
-      showAiReply(res.data.reply || '科目关联分析好啦~')
-    } else if (type === 'rag' || type === 'agent') {
-      // 知识库问答 / Agent 任务：交给看板娘对应模式（输入框打开并切换模式）
-      window.dispatchEvent(new CustomEvent('kaoshibang:set-mode', { detail: { mode: type } }))
-      return
+      aiPanel.value = { ...aiPanel.value, loading: false, text: res.data.reply || '科目关联分析好啦~' }
     } else if (type === 'page') {
-      // 生成 AI 复习报告页（Agent 能力）：云端落库 + localStorage 兜底
       const res = await aiGeneratePage(name, slimQuestions(allQuestions.value, 20), slimQuestions(wrongQuestions.value, 8))
       const html = res.data.html || ''
-      if (!html) {
-        showToast('报告生成失败，稍后再试~')
-        return
-      }
+      if (!html) throw new Error('报告生成失败')
       const title = res.data.title || (name + ' AI 复习报告')
       let pageId = 'r' + Date.now()
-      // 优先云端存储，成功则用云端 id
       try {
         const saveRes = await aiPageSave({ title, html, subjectId: subjectId })
         if (saveRes.code === 200 && saveRes.data?.id) pageId = String(saveRes.data.id)
@@ -1237,18 +1347,24 @@ async function aiAction(type) {
         idx.unshift({ id: pageId, title, time: new Date().toLocaleString('zh-CN') })
         localStorage.setItem('ai-page-index', JSON.stringify(idx.slice(0, 20)))
       } catch (e) { /* ignore */ }
-      showAiReply(name + '的复习报告生成好啦！点击下方按钮去看看吧～', {
-        label: '📄 查看报告',
-        type: 'navigate',
-        path: '/ai-page/' + pageId,
-      })
+      aiPanel.value = {
+        ...aiPanel.value,
+        loading: false,
+        text: '',
+        html,
+        action: { label: '📄 打开独立报告页', type: 'navigate', path: '/ai-page/' + pageId },
+      }
     }
   } catch (e) {
-    showToast('小帮开小差了，稍后再试~')
+    if (aiPanel.value) {
+      aiPanel.value = { ...aiPanel.value, loading: false, text: '小帮开小差了：' + ((e && e.message) || '稍后再试～') }
+    } else {
+      showToast('小帮开小差了，稍后再试~')
+    }
   } finally {
     aiLoading.value = false
-    // 通知看板娘退出工作轮播
     window.dispatchEvent(new CustomEvent('kaoshibang:ai-busy', { detail: { active: false } }))
+    notifyParent({ type: 'zg:ai-busy', active: false })
   }
 }
 
@@ -2389,13 +2505,14 @@ function askQuestionAI(q) {
 /* ===== 看板娘 AI 小帮：悬浮动作菜单 ===== */
 .ai-assistant-fab {
   position: fixed;
-  left: 20px;
-  bottom: 90px;
+  left: 244px;
+  bottom: 80px;
   z-index: 9998;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
+  touch-action: none;
 }
 
 .ai-assistant-btn {
@@ -2406,7 +2523,9 @@ function askQuestionAI(q) {
   background: linear-gradient(135deg, #6c8cff, #9d7bff);
   color: #fff;
   font-size: 24px;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   box-shadow: 0 6px 18px rgba(108, 140, 255, 0.4);
   display: flex;
   align-items: center;
@@ -2417,6 +2536,7 @@ function askQuestionAI(q) {
   transform: translateY(-2px) scale(1.05);
   box-shadow: 0 8px 24px rgba(108, 140, 255, 0.55);
 }
+.ai-assistant-btn:active { cursor: grabbing; }
 .ai-assistant-btn.active {
   transform: rotate(90deg);
 }
@@ -2436,6 +2556,15 @@ function askQuestionAI(q) {
   to { transform: rotate(360deg); }
 }
 
+/* 菜单绝对定位在圆钮上方/下方，容器只占圆钮大小，避免整块被推出视口 */
+.ai-assistant-fab { display: block; }
+.ai-assistant-fab .ai-assistant-btn { position: relative; z-index: 1; }
+.ai-assistant-fab.menu-down .ai-assistant-menu {
+  bottom: auto;
+  top: calc(100% + 10px);
+  transform-origin: top left;
+}
+
 .ai-assistant-menu {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
@@ -2443,8 +2572,14 @@ function askQuestionAI(q) {
   border-radius: 18px;
   padding: 10px;
   box-shadow: 0 10px 30px rgba(108, 140, 255, 0.2);
-  min-width: 168px;
+  min-width: 178px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   transform-origin: bottom left;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 2;
 }
 
 .ai-menu-title {
@@ -2454,6 +2589,14 @@ function askQuestionAI(q) {
   padding: 4px 8px 8px;
   border-bottom: 1px solid #f0edff;
   margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ai-menu-title small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-light);
 }
 
 .ai-menu-item {
@@ -2500,6 +2643,93 @@ function askQuestionAI(q) {
 .ai-menu-pop-leave-to {
   transform: scale(0.85) translateY(8px);
   opacity: 0;
+}
+
+/* ===== 工具箱结果面板（iframe 内浮层） ===== */
+.ai-result-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(36, 28, 58, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.ai-result-card {
+  width: min(760px, 94vw);
+  max-height: min(84vh, 720px);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(40, 30, 70, 0.32);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ai-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f2efff, #fbf7ff);
+  border-bottom: 1px solid #f0edff;
+  color: #4b3b63;
+  font-size: 15px;
+}
+.ai-result-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #6b5c7d;
+  cursor: pointer;
+  font-size: 14px;
+}
+.ai-result-close:hover { background: #f0edff; }
+.ai-result-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 20px;
+  color: #6b5c7d;
+  font-size: 14px;
+}
+.ai-spinner.dark {
+  border-color: rgba(108, 140, 255, 0.25);
+  border-top-color: #6c8cff;
+}
+.ai-result-text {
+  padding: 18px 20px 22px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #3f3353;
+}
+.ai-result-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 280px;
+  max-height: 56vh;
+  border: 0;
+  background: #fff;
+}
+.ai-result-foot {
+  padding: 12px 16px;
+  border-top: 1px solid #f3effa;
+  display: flex;
+  justify-content: flex-end;
+}
+.ai-result-action {
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6c8cff, #9d7bff);
+  color: #fff;
+  padding: 9px 16px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 @media screen and (max-width: 768px) {

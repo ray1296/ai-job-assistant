@@ -21,6 +21,7 @@
     "setup:ocr": "bash server/setup-ocr.sh"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
     "@vue/compiler-sfc": "^3.5.44",
     "buffer": "^6.0.3",
     "docx": "^9.5.1",

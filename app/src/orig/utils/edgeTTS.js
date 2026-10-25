@@ -188,17 +188,20 @@ export async function edgeTTSSynthesize(text, opts = {}) {
   const volume = opts.volume || '+0%'
   const instruction = opts.instruction || ''
 
+  // 本站写接口要求 CSRF；缺少时服务端会 403
+  const csrf = (typeof window !== 'undefined' && window.__zgCsrf) || ''
+  const headers = { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) }
   let resp
   if (provider === 'aliyun') {
     resp = await fetch('/api/ai/tts-aliyun', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ text: clean, voice, instruction }),
     })
   } else {
     resp = await fetch('/api/ai/tts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ text: clean, voice, rate, pitch, volume }),
     })
   }

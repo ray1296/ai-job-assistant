@@ -315,7 +315,7 @@
 .companion-chat { width: 290px; max-height: 52vh; background: #fff; border: 1px solid #e6def0; border-radius: 14px; box-shadow: 0 18px 44px rgba(60,40,90,.2); display: flex; flex-direction: column; overflow: hidden; }
 
 .settings-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #f0eaf7; font-size: 12px; color: #4b3b63; }
-.settings-row > span:first-child { width: 72px; color: #8b7d99; }
+.settings-row > span:first-child { flex: 0 0 84px; width: 84px; color: #8b7d99; white-space: nowrap; }
 .settings-row input[type=range] { flex: 1; }
 .settings-accent { display: flex; gap: 8px; }
 
@@ -546,21 +546,52 @@ body.zg-pets-hidden .agent-chip { display: none !important; }
 .live2d-pet-container .pet-input-box,
 .live2d-pet-container .pet-dialog { right: auto !important; left: 0 !important; max-width: 200px !important; }
 .live2d-pet-container .pet-input-box { width: 200px; }
+.live2d-pet-container .pet-img-chip { width: 200px; box-sizing: border-box; }
 
 
-.settings-pets { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
-.settings-pet { border: 1px solid #ece5f3; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
-.settings-pet strong { color: #3f3353; font-size: 13px; }
-.settings-pet label { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #6b5c7d; }
-.settings-pet select { border: 1px solid #e6def0; border-radius: 6px; padding: 2px 4px; font-size: 11px; }
+/* 设置页：悬浮看板娘会盖住音色/形象控件，本页暂时隐藏 */
+body.zg-settings-page .agent-chip,
+body.zg-settings-page .agent-chat,
+body.zg-settings-page .companions-v3,
+body.zg-settings-page .live2d-pet-container { display: none !important; }
 
-.settings-models { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-.settings-model { width: 68px; border: 1px solid #ece5f3; border-radius: 10px; background: #fff; padding: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.settings-grid { align-items: start; }
+.settings-voices-card { min-width: 0; }
+.settings-voices { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.settings-voice-row { display: flex; align-items: center; gap: 8px; font-size: 12px; min-width: 0; }
+.settings-voice-row strong { flex: 0 0 40px; width: 40px; color: #3f3353; white-space: nowrap; }
+.settings-voice-row select { flex: 1 1 auto; min-width: 0; width: 100%; border: 1px solid #e6def0; border-radius: 6px; padding: 3px 6px; font-size: 11px; }
+.settings-voice-row .settings-try { flex: 0 0 auto; white-space: nowrap; }
+.settings-subhead { margin-top: 18px; }
+
+.settings-models { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 8px; margin: 10px 0; }
+.settings-model { width: auto; min-width: 0; border: 1px solid #ece5f3; border-radius: 10px; background: #fff; padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .settings-model.on { border-color: #7460c9; box-shadow: 0 0 0 2px rgba(116,96,201,.2); }
-.settings-model img { width: 56px; height: 64px; object-fit: contain; }
-.settings-model span { font-size: 9px; color: #8b7d99; }
+.settings-model img { width: 100%; height: 100px; object-fit: contain; display: block; }
+.settings-model span { font-size: 10px; color: #8b7d99; white-space: nowrap; }
 
-.settings-voices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 8px 0; }
-.settings-voice-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.settings-voice-row strong { width: 36px; color: #3f3353; }
-.settings-voice-row select { flex: 1; border: 1px solid #e6def0; border-radius: 6px; padding: 3px 6px; font-size: 11px; }
+/* 每个立绘 chip 自己的对话（锚定在 chip 正上方，位置由组件按坐标计算） */
+.agent-chat { z-index: 88; }
+.agent-chat .companion-log { flex: 1; min-height: 0; }
+.agent-head-tools { display: flex; gap: 4px; align-items: center; }
+.agent-head-tools button { border: 0; background: transparent; color: #fff; cursor: pointer; font-size: 11px; padding: 2px 4px; border-radius: 6px; white-space: nowrap; }
+.agent-head-tools button:hover { background: rgba(255,255,255,.18); }
+.agent-voice-btn { opacity: .9; }
+.agent-voice-btn.on { background: rgba(255,255,255,.16); }
+.agent-typing { color: #8b7d99; font-style: italic; }
+.agent-composer { display: flex; gap: 4px; align-items: center; padding: 6px; border-top: 1px solid #f0eaf7; }
+.agent-composer input { flex: 1; min-width: 0; border: 1px solid #e6def0; border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+.agent-composer > button { border: 1px solid #e6def0; background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.agent-composer > button:last-child { background: #7460c9; border-color: #7460c9; color: #fff; }
+.agent-attach { cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 6px; }
+.agent-attach:hover { background: #f3eefb; }
+.agent-mem-warn { display: flex; flex-direction: column; gap: 6px; padding: 7px 9px; border-top: 1px dashed #f0d9c8; background: #fff9f2; font-size: 11px; color: #8a5a36; }
+.agent-mem-warn > div { display: flex; gap: 4px; flex-wrap: wrap; }
+.agent-mem-warn button { border: 1px solid #efd3bd; background: #fff; border-radius: 7px; padding: 2px 7px; font-size: 11px; color: #8a5a36; cursor: pointer; }
+.agent-mem-warn button:hover { background: #fff2e6; }
+.agent-img-preview { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px dashed #ede7f6; font-size: 11px; color: #6b5c7d; }
+.agent-img-preview img { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; }
+.agent-img-preview button { margin-left: auto; border: 0; background: #f3eefb; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; }
+.agent-bubble-img { display: block; max-width: 180px; max-height: 140px; border-radius: 8px; margin-bottom: 4px; }
+.agent-chip.on { border-color: #7460c9; box-shadow: 0 0 0 2px rgba(116,96,201,.25); }
+body.zg-pets-hidden .agent-chat { display: none !important; }

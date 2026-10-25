@@ -19,7 +19,7 @@ import {
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
 import CompanionsV3 from "./companions";
-import AgentPet, { PET_MODELS } from "./agent-pet";
+import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
 const Profile = defineAsyncComponent(() => import("./profile"));
@@ -36,6 +36,10 @@ const Housing = defineAsyncComponent(() => import("./housing"));
 const Study = defineAsyncComponent(() => import("./study"));
 const Settings = defineAsyncComponent(() => import("./settings"));
 const StudyUpload = defineAsyncComponent(() => import("./study-upload"));
+const Interview = defineAsyncComponent(() => import("./interview"));
+const Chat = defineAsyncComponent(() => import("./chat"));
+const Wish = defineAsyncComponent(() => import("./wish"));
+const Admin = defineAsyncComponent(() => import("./admin"));
 const pages = [
   ["home", "求职工作台", "✦"],
   ["profile", "个人信息", "◎"],
@@ -51,13 +55,13 @@ const pages = [
   ["interview", "模拟面试", "◉"],
   ["plan", "投递意向与方案", "↗"],
   ["chat", "AI协作空间", "✧"],
-  ["community", "互助社区 · 心愿池", "☷"],
+  ["wish", "心愿池", "☷"],
   ["study-upload", "上传题库", "⬆"],
   ["settings", "个性化设置", "⚙"],
-  ["admin", "管理中心", "⊞"],
 ];
-const known = new Set(pages.map((p) => p[0]));
-const initialRaw = location.hash.slice(1);
+const known = new Set([...pages.map((p) => p[0]), "admin"]);
+const initialRaw0 = location.hash.slice(1);
+const initialRaw = initialRaw0 === "community" ? "wish" : initialRaw0;
 const initialReview = initialRaw.startsWith("review/") ? initialRaw.slice(7).split("?")[0] : "";
 const initial = initialReview ? "practice" : initialRaw;
 const app = defineComponent({
@@ -70,7 +74,9 @@ const app = defineComponent({
       fog = ref(false),
       auth = ref(false),
       authMode = ref<"login" | "register">("login"),
+      loginRole = ref<"user" | "admin">("user"),
       email = ref(""),
+      displayName = ref(""),
       password = ref(""),
       showPassword = ref(false),
       busy = ref(false),
@@ -84,6 +90,12 @@ const app = defineComponent({
     const title = computed(
       () => pages.find((p) => p[0] === active.value)?.[1] || "求职工作台",
     );
+    const accountName = computed(() => {
+      const u = session.user;
+      return u?.displayName || u?.email?.split("@")[0] || "我";
+    });
+    const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
+    const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     onMounted(async () => {
       try {
         await loadSession();
@@ -108,6 +120,20 @@ const app = defineComponent({
         if (!known.has(id) || id === active.value) return;
         reviewId.value = "";
         go(id);
+      });
+      // 学习页 iframe 里的工具箱通过 postMessage 把「Agent 模式 / 工作状态」交给主页面看板娘。
+      window.addEventListener("message", (ev: MessageEvent) => {
+        if (ev.origin !== location.origin) return;
+        const d: any = ev.data || {};
+        if (d.type === "zg:study-mode") {
+          if (petSkin.value === "avatar") {
+            window.dispatchEvent(new CustomEvent("zg:toggle-chat", { detail: { agentId: "xingye", open: true } }));
+          } else {
+            window.dispatchEvent(new CustomEvent("kaoshibang:set-mode", { detail: { mode: d.mode || "agent" } }));
+          }
+        } else if (d.type === "zg:ai-busy") {
+          window.dispatchEvent(new CustomEvent("kaoshibang:ai-busy", { detail: { active: !!d.active, tool: d.tool || "" } }));
+        }
       });
     });
     onErrorCaptured(() => {
@@ -157,15 +183,23 @@ const app = defineComponent({
         const r = await api("/auth/" + authMode.value, "POST", {
           email: email.value,
           password: password.value,
+          role: authMode.value === "register" ? "user" : loginRole.value,
+          displayName: authMode.value === "register" ? displayName.value : undefined,
         });
         Object.assign(session, r);
         auth.value = false;
         password.value = "";
+        displayName.value = "";
         showPassword.value = false;
-        notice.value =
-          authMode.value === "register"
-            ? "账号已创建，资料将只保存在你的账号下"
-            : "登录成功";
+        if (r.user?.role === "admin") {
+          notice.value = "管理员登录成功";
+          go("admin");
+        } else {
+          notice.value =
+            authMode.value === "register"
+              ? "账号已创建，资料将只保存在你的账号下"
+              : "登录成功";
+        }
       } catch (e) {
         error.value = errorText(e);
       } finally {
@@ -317,6 +351,12 @@ const app = defineComponent({
         if (!session.user) return loginPrompt();
         return h("iframe", { class: "orig-frame", src: "/orig/#/upload", title: "上传题库" });
       }
+      // 模拟面试：真实页面（不再用原型 iframe）
+      if (active.value === "interview") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Interview, { key: session.user.id + "interview" });
+      }
       // 学习与刷题：原项目 review 页面（科目列表 / 版本 / 复习）
       if (active.value === "practice") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
@@ -363,6 +403,16 @@ const app = defineComponent({
         if (!session.user) return loginPrompt();
         return h(Dashboard, { key: session.user.id + "dashboard" });
       }
+      if (active.value === "chat") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Chat, { key: session.user.id + "chat" });
+      }
+      if (active.value === "wish") {
+        if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
+        if (!session.user) return loginPrompt();
+        return h(Wish, { key: session.user.id + "wish" });
+      }
       if (active.value === "profile" || active.value === "resume") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
@@ -387,7 +437,9 @@ const app = defineComponent({
       ]);
     }
     return () =>
-      h("div", { class: "immersive-main" }, [
+      active.value === "admin"
+        ? h(Admin, { key: "admin" })
+        : h("div", { class: "immersive-main" }, [
         h("header", { class: "sky-header" }, [
           h(
             "a",
@@ -416,9 +468,12 @@ const app = defineComponent({
             ),
             session.user
               ? h(
-                  "span",
-                  { class: "account-email", title: session.user.email },
-                  session.user.email,
+                  "button",
+                  { class: "account-chip", title: "账号设置", onClick: () => go("settings") },
+                  [
+                    h("span", { class: "account-avatar" }, accountInitial.value),
+                    h("span", { class: "account-name" }, accountName.value),
+                  ],
                 )
               : null,
             h(
@@ -428,18 +483,15 @@ const app = defineComponent({
               },
               session.user ? "退出登录" : "登录 / 注册",
             ),
-            h(
-              "button",
-              { class: "admin-portal", onClick: () => go("admin") },
-              "管理入口",
-            ),
+            session.user?.role === "admin"
+              ? h(
+                  "button",
+                  { class: "admin-portal", onClick: () => go("admin") },
+                  "管理中心",
+                )
+              : null,
           ]),
         ]),
-        h(
-          "div",
-          { class: "transport-warning" },
-          "开发验收环境 · 当前为HTTP，仅使用测试邮箱与测试密码，不上传真实敏感资料；公网正式使用前启用HTTPS。",
-        ),
         notice.value
           ? h("div", { class: "toast", role: "status" }, [
               notice.value,
@@ -453,21 +505,16 @@ const app = defineComponent({
               ),
             ])
           : null,
-        petSkin.value === "live2d" ? h(MainPet) : null,
-        petSkin.value === "avatar"
-          ? h("button", {
-              class: "agent-chip",
-              style: { left: "24px", top: (window.innerHeight - 190) + "px" },
-              onMousedown: (e: MouseEvent) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("zg:open-persona", { detail: { personaId: "xingye", persona: "星野" } })); },
-              title: "星野 · 主理人",
-            }, [h("img", { src: "/assets/companions/b-1.png", alt: "星野" }), h("span", "星野")])
+        hidePets.value ? null : petSkin.value === "live2d" ? h(MainPet) : null,
+        hidePets.value ? null : petSkin.value === "avatar"
+          ? h(AgentPet, { key: "xingye", agentId: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", slot: 0, page: active.value })
           : null,
-        ...[
+        ...(hidePets.value ? [] : [
           { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", slot: 1 },
           { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", slot: 2 },
           { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg", slot: 3 },
-        ].map((a) => h(AgentPet, { key: a.id, agentId: a.id, name: a.name, role: a.role, avatar: a.avatar, slot: a.slot, only: "avatar" })),
-        h(CompanionsV3),
+        ].map((a) => h(AgentPet, { key: a.id, agentId: a.id, name: a.name, role: a.role, avatar: a.avatar, slot: a.slot, page: active.value }))),
+        hidePets.value ? null : h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),
           h(
@@ -524,6 +571,16 @@ const app = defineComponent({
                             "plan",
                             "knowledge",
                             "practice",
+                            "interview",
+                            "chat",
+                            "wish",
+                            "companies",
+                            "housing",
+                            "map",
+                            "data",
+                            "dashboard",
+                            "settings",
+                            "study-upload",
                           ].includes(id)
                             ? "已接通"
                             : "外观原型",
@@ -574,7 +631,34 @@ const app = defineComponent({
                         : "开启你的求职旅程",
                     ),
                     h("p", "以独立账号保存经历，不使用共享演示资料。"),
+                    authMode.value === "login"
+                      ? h("div", { class: "auth-role" }, [
+                          h("button", {
+                            type: "button",
+                            class: loginRole.value === "user" ? "on" : "",
+                            onClick: () => (loginRole.value = "user"),
+                          }, "用户登录"),
+                          h("button", {
+                            type: "button",
+                            class: loginRole.value === "admin" ? "on" : "",
+                            onClick: () => (loginRole.value = "admin"),
+                          }, "管理员登录"),
+                        ])
+                      : null,
                     h("form", { onSubmit: submitAuth }, [
+                      authMode.value === "register"
+                        ? h("label", { class: "field" }, [
+                            h("span", "用户名（可选）"),
+                            h("input", {
+                              type: "text",
+                              value: displayName.value,
+                              maxlength: 24,
+                              placeholder: "不填就用邮箱前缀",
+                              autocomplete: "nickname",
+                              onInput: (e: Event) => (displayName.value = (e.target as HTMLInputElement).value),
+                            }),
+                          ])
+                        : null,
                       h("label", { class: "field" }, [
                         h("span", "邮箱"),
                         h("input", {
@@ -676,6 +760,7 @@ const app = defineComponent({
                         onClick: () => {
                           authMode.value =
                             authMode.value === "login" ? "register" : "login";
+                          loginRole.value = "user";
                           error.value = "";
                         },
                       },

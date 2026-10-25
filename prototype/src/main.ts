@@ -611,11 +611,9 @@ function chat() {
     '<div class="chat-layout">' +
     card(
       "协作任务",
-      '<div class="tool-list">' +
-        agents.map((a) => btn(a[0] + " · " + a[1])).join("") +
-        "</div>",
+      '<p class="muted">五位旧看板娘外壳已移除。真实的星野 / 知微 / 砚舟 / 栖迟在页面右下角，点开即可对话。</p>',
     ) +
-    '<section class="card conversation"><div class="chat-greeting">✦<h2>你好，我是小光。</h2><p>想先聊聊方向，还是看看喜欢的城市？</p></div><div class="prompt-chips">' +
+    '<section class="card conversation"><div class="chat-greeting">✦<h2>你好，我是逐光助手。</h2><p>想先聊聊方向，还是看看喜欢的城市？</p></div><div class="prompt-chips">' +
     btn("我还不知道适合什么岗位") +
     btn("帮我梳理杭州的机会") +
     btn("从零做一份简历") +
@@ -734,7 +732,7 @@ function avatar(i: number, large = false) {
   );
 }
 function render() {
-  mountPets();
+  // 旧的五位看板娘外壳已移除，统一使用主站右下角的四个真实 agent
   let page = pages.find((p) => p.id === active)!;
   $("#app").innerHTML =
     '<main class="immersive-main"><header class="sky-header"><a class="sky-brand" href="#home"><span>✦</span><div>逐光<small>CAREER COMPANION</small></div></a><span class="sky-now">' +

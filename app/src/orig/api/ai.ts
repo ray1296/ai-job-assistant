@@ -17,27 +17,40 @@ export const aiWrongReview = (subjectName: string, wrongQuestions: any[]) =>
   chat("请帮我复盘这些错题：\n" + JSON.stringify(wrongQuestions).slice(0, 2000));
 export const aiRagAsk = (query: string) => chat(query);
 export const aiAgentRun = (message: string) => chat(message);
-async function post(path: string, body: any) {
+async function call<T = any>(method: string, path: string, body?: any): Promise<{ code: number; data: T }> {
   const res = await fetch("/api" + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(window.__zgCsrf ? { "X-CSRF-Token": window.__zgCsrf } : {}) },
+    method,
     credentials: "same-origin",
-    body: JSON.stringify(body),
+    headers: {
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(window.__zgCsrf ? { "X-CSRF-Token": window.__zgCsrf } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "AI 请求失败");
-  return { code: 200, data: await res.json() };
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((json as any)?.error || "AI 请求失败");
+  return { code: 200, data: json as T };
 }
+const post = (path: string, body: any) => call("POST", path, body);
+
 export const aiRecognize = (text: string) => post("/ai/recognize", { text });
 export const aiRecognizeQuestion = (type: string, text: string) => post("/ai/recognize-question", { type, text });
 export const aiGenerateQuiz = (items: any[]) => post("/ai/generate-quiz", { items });
 
-export const aiStudySummary = (subjectName: string, questions: any[]) => chat("请用 150 字总结「" + subjectName + "」的重点：" + JSON.stringify(questions).slice(0, 1500));
-export const aiWrongSteps = (subjectName: string, wrongQuestions: any[]) => chat("请分步讲解这些错题（" + subjectName + "）：" + JSON.stringify(wrongQuestions).slice(0, 1500));
-export const aiShortMemo = (subjectName: string, items: any[]) => chat("请为「" + subjectName + "」编 5 条记忆口诀：" + JSON.stringify(items).slice(0, 1200));
-export const aiSubjectLink = (subjects: any[]) => chat("这些科目之间有什么关联？" + JSON.stringify(subjects).slice(0, 800));
-export const aiGeneratePage = async (subjectName: string, questions: any[], wrongQuestions: any[]) => {
-  const r = await chat("请为「" + subjectName + "」写一份 HTML 复习报告（只要正文片段）。题目：" + JSON.stringify(questions).slice(0, 1200));
-  return { code: 200, data: { html: "<div>" + String((r as any).data?.reply || "") + "</div>" } };
-};
-export const aiPageSave = () => Promise.resolve({ code: 200, data: { ok: true } });
+// 学习工具箱：走服务端独立的提示词与校验，不再借道聊天
+export const aiStudySummary = (subjectName: string, questions: any[]) =>
+  post("/ai/study-summary", { subjectName, questions });
+export const aiWrongSteps = (subjectName: string, wrongQuestions: any[]) =>
+  post("/ai/wrong-steps", { subjectName, wrongQuestions });
+export const aiShortMemo = (subjectName: string, items: any[]) =>
+  post("/ai/short-memo", { subjectName, items });
+export const aiSubjectLink = (subjects: any[]) => post("/ai/subject-link", { subjects });
+export const aiGeneratePage = (subjectName: string, questions: any[], wrongQuestions: any[]) =>
+  post("/ai/generate-page", { subjectName, questions, wrongQuestions });
+
+export const aiPageSave = (data: any) => post("/ai/pages", data);
+export const aiPageList = () => call<any[]>("GET", "/ai/pages");
+export const aiPageDetail = (id: string) => call<any>("GET", "/ai/pages/" + encodeURIComponent(id));
+export const aiPageDelete = (id: string) => call<any>("DELETE", "/ai/pages/" + encodeURIComponent(id));
+
 export default { aiChat, aiWrongReview, aiRagAsk, aiAgentRun, aiRecognize, aiRecognizeQuestion, aiGenerateQuiz };

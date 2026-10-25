@@ -1248,7 +1248,8 @@
         for (var t = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"], i = 0; i < t.length; i++)
             try {
                 var e = C.getContext(t[i], {
-                    premultipliedAlpha: !0
+                    premultipliedAlpha: !0,
+                    preserveDrawingBuffer: !0
                 });
                 if (e)
                     return e

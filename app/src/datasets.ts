@@ -196,7 +196,7 @@ export default defineComponent({
         ]),
         h("div", { class: "toolbar" }, [
           h("button", { class: "btn", onClick: () => { tab.value = 0; category.value = "jobs"; } }, "岗位 / 企业 / 租房上传"),
-          h("button", { class: "btn", onClick: () => { tab.value = 0; category.value = "knowledge"; } }, "学习资料 / 题库上传"),
+          h("a", { class: "btn", href: "#study-upload" }, "学习资料 / 题库上传"),
         ]),
         h("div", { class: "notice" }, "♧ 私人数据仅在你的账号中展示；助手可代你解析、检索和匹配，不会共享给其他用户。"),
         h("div", { class: "tabs" }, TABS.map((name, i) =>

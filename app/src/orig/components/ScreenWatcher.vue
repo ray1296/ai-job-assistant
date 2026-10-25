@@ -119,16 +119,26 @@ function grabFrame() {
   return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/jpeg', 0.75))
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader()
+    rd.onload = () => resolve(String(rd.result || ''))
+    rd.onerror = () => reject(new Error('读取截图失败'))
+    rd.readAsDataURL(blob)
+  })
+}
+
 async function sendFrames(blobs) {
-  const form = new FormData()
-  for (const b of blobs) {
-    form.append('file', b, 'frame.jpg')
-  }
-  form.append('question', '这是用户屏幕连续3帧（间隔2.5秒），分析他正在做什么操作（注意光标/滚动/输入轨迹），如果与学习备考相关给一句鼓励或建议，否则一句话描述')
+  const images = []
+  for (const b of blobs) images.push(await blobToDataUrl(b))
   const res = await fetch('/api/ai/vision-frames', {
     method: 'POST',
-    headers: { Authorization: 'Bearer ' + (localStorage.getItem('exam_prep_token') || '') },
-    body: form,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.__zgCsrf || '' },
+    body: JSON.stringify({
+      images,
+      question: '这是用户屏幕连续3帧（间隔2.5秒），分析他正在做什么操作（注意光标/滚动/输入轨迹），如果与学习备考相关给一句鼓励或建议，否则一句话描述',
+    }),
   })
   const json = await res.json()
   if (json.code !== 200) throw new Error(json.message || '分析失败')
