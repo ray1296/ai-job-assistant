@@ -417,7 +417,7 @@
           <div v-else-if="aiPanel.loading" class="ai-result-loading">
             <span class="ai-spinner dark"></span> 小帮正在整理，请稍等～
           </div>
-          <iframe v-else-if="aiPanel.html" class="ai-result-frame" :srcdoc="aiPanel.html" sandbox="allow-same-origin"></iframe>
+          <iframe v-else-if="aiPanel.html" class="ai-result-frame" :srcdoc="aiPanel.html" sandbox=""></iframe>
           <div v-else class="ai-result-text">{{ aiPanel.text }}</div>
           <footer v-if="aiPanel.action" class="ai-result-foot">
             <button class="ai-result-action" @click="runAiAction">{{ aiPanel.action.label }}</button>

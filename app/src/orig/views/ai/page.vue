@@ -21,7 +21,7 @@
     </div>
 
     <div v-if="html" class="ai-page-frame-wrap">
-      <iframe class="ai-page-frame" :srcdoc="html" sandbox="allow-same-origin"></iframe>
+      <iframe class="ai-page-frame" :srcdoc="html" sandbox=""></iframe>
     </div>
     <div v-else class="ai-page-empty">
       <div class="icon">📄</div>

@@ -13,6 +13,7 @@ import { createGeo } from "./geo.mjs";
 import { createStudy } from "./study.mjs";
 import { createAgents } from "./agents.mjs";
 import { TOOLS, callTool } from "./tools.mjs";
+import { toolPromptFor } from "./tool-rag.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
@@ -379,14 +380,14 @@ const PLAN_MAX_STEPS = 8;
 const PLAN_TOOLS = ["my_progress", "search_jobs", "find_housing", "company_review"];
 const PLANNER_SYSTEM = "你是逐光的多 agent 任务规划器。根据用户请求决定是否需要队友查数据，只输出严格 JSON {\"steps\":[...]}，不要解释。" +
   "\n队友：xingye(星野，兜底/综合/识图)、zhiwei(知微，学习/进度/错题)、yanzhou(砚舟，求职/岗位/简历/面试)、qichi(栖迟，租房/通勤/生活)。" +
-  "\n只读工具：my_progress(无参数，查本人学习进度)、search_jobs(keyword,city)、find_housing(city,maxRent)、company_review(name)。" +
+  "\n只读工具由 Tool RAG 按本轮问题动态提供，只能使用下方列出的工具；没有列出的工具不要调用。" +
   "\n规则：简单闲聊或不需要真实数据 → {\"steps\":[]}；需要真实数据或跨板块 → 1~8 步，通常 2~3 步；每步格式 {\"agent\":\"zhiwei\",\"task\":\"一句话子任务\",\"tool\":\"my_progress\"|null,\"args\":{}}。" +
   "\n只拆必要步骤，不要为了多轮而多轮；禁止写/删除/修改操作；禁止在 args 里放 userId、user_id、ownerId 等身份字段。";
 async function planSteps(userId, agentId, message) {
   const cfg = agents.read(agentId)?.config || {};
   const prompt = "用户请求：" + String(message || "").slice(0, 500) +
     "\n当前对话者：" + (AGENT_NAME_BY_ID[agentId] || "星野") +
-    "\n可用工具参数：my_progress{}；search_jobs{keyword,city}；find_housing{city,maxRent}；company_review{name}" +
+    "\n本轮 Tool RAG 检索到的只读工具：\n" + toolPromptFor(message, 3) +
     "\n请输出步骤 JSON。";
   const out = await aiGateway.plan({ system: PLANNER_SYSTEM, prompt });
   const text = String(out?.text || "");
@@ -689,11 +690,11 @@ const server = http.createServer(async (req, res) => {
     // 高德 JS 地图需要放开它自己的脚本、瓦片与接口域名（只放行 amap.com / autonavi.com）
     "default-src 'self'; " +
       // 高德 JS SDK 2.0 内部使用 eval/Function 解析矢量数据，必须放开 'unsafe-eval'
-      "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' 'unsafe-inline' https://webapi.amap.com https://*.amap.com; " +
+      "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://webapi.amap.com https://*.amap.com; " +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: blob: https://*.amap.com https://*.is.autonavi.com https://*.autonavi.com; " +
       "connect-src 'self' ws: wss: https://*.amap.com https://*.autonavi.com; " +
-      "font-src 'self' data: https://*.amap.com; " +
+      "font-src 'self' data: https://*.amap.com https://at.alicdn.com http://at.alicdn.com; " +
       "media-src 'self' blob:; " +
       // 高德 SDK 用 blob: Worker 做渲染，不显式声明 worker-src 会回退到 script-src 而被拦
       "worker-src 'self' blob:; child-src 'self' blob:; " +
@@ -814,6 +815,8 @@ const server = http.createServer(async (req, res) => {
         const salt = randomBytes(16).toString("hex");
         const hashed = await passwordHash(next, salt);
         db.prepare("UPDATE users SET password_hash=?,salt=? WHERE id=?").run(hashed, salt, s.user_id);
+        const rawToken = String(req.headers.cookie || "").match(/(?:^|;\s*)career_session=([a-f0-9]{64})(?:;|$)/)?.[1];
+        if (rawToken) db.prepare("DELETE FROM sessions WHERE user_id=? AND hash<>?").run(s.user_id, hash(rawToken));
         return send(res, 200, { ok: true });
       }
       if (p === "/api/ai/rag/stats" && m === "GET") {
@@ -1331,7 +1334,7 @@ const server = http.createServer(async (req, res) => {
         const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
         saveCompanion(s.user_id, agentId, "user", message || "[图片]");
         // 提示词驱动的工具路由（不依赖模型原生 function calling）
-        const toolTable = TOOLS.map((t) => "- " + t.name + "：" + t.description + "；参数 " + JSON.stringify(t.inputSchema.properties || {})).join("\n");
+        const toolTable = toolPromptFor(message, 3);
         let reply = "";
         let memory = "";
         let delegation = null;

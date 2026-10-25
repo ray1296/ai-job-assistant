@@ -1,5 +1,7 @@
 # RAG 知识库问答
 
+> 工具表的检索不在本文件：见 [Tool RAG](TOOL_RAG.md)。
+
 ## 做了什么
 
 - 索引：平台公开的 1761 道面经/八股、107 个岗位、27 家企业、1810 条公开房源，共 3762 个 chunk。
@@ -19,7 +21,7 @@
   - `POST /api/ai/rag/ask`
   - `POST /api/ai/rag/search`
   - `GET /api/ai/rag/stats`
-  - `POST /api/ai/rag/rebuild`
+  - `POST /api/ai/rag/rebuild`（仅管理员）
 
 ## 为什么不是只做向量
 

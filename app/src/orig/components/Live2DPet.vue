@@ -106,6 +106,7 @@ const dialogAction = ref(null)
 // ===== 输入模式：chat 闲聊 / rag 知识库问答 / agent 工具调用任务 =====
 const mode = ref('chat')
 const ragAsking = ref(false)
+const sending = ref(false)
 const inputPlaceholder = computed(() => {
   if (mode.value === 'rag') return '问我题库/资料里的知识…'
   if (mode.value === 'agent') return '给我派个任务，比如：帮我出一套机器学习小测验'
@@ -1086,9 +1087,11 @@ async function sendMessage() {
     return
   }
   // 发送时把 chip 原位替换为完整原文，一并交给 AI（已删除的 chip 不参与）
+  if (sending.value) return
   const msg = buildMessage().trim()
   const image = pendingImage.value
   if (!msg && !image) return
+  sending.value = true
   // 记忆管理口令：不调用模型，直接执行
   const plainCmd = msg.replace(/\s+/g, '')
   if (/^(清空|清除|忘记)(一下)?(我的)?记忆$/.test(plainCmd)) {
@@ -1132,6 +1135,8 @@ async function sendMessage() {
     pendingImage.value = image
     // 发送失败：把刚才的内容原样放回输入框，用户不用重写
     restoreInput(draftBackup, inputSnap)
+  } finally {
+    sending.value = false
   }
   scheduleAutoHide()
 }
