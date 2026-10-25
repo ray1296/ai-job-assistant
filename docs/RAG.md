@@ -1,6 +1,6 @@
 # RAG 知识库问答
 
-> 工具表的检索不在本文件：见 [Tool RAG](TOOL_RAG.md)。
+> 工具表的检索不在本文件：见 [Tool RAG](TOOL_RAG.md)。评测记录见 [RAG_EVAL.md](RAG_EVAL.md)。
 
 ## 做了什么
 

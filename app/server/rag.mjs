@@ -132,9 +132,27 @@ export function createRag(db, aiGateway) {
     CREATE TABLE IF NOT EXISTS rag_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);`);
   let bm25 = null;
   let dense = null;
+  let lastDigestAt = 0;
+  let lastDigest = "";
   const status = { running: false, done: 0, total: 0, error: "", startedAt: 0, finishedAt: 0 };
   const invalidate = () => { bm25 = null; dense = null; };
 
+  function sourceDigest() {
+    try {
+      const files = ["learning-catalog.json", "jobs-catalog.json", "companies-catalog.json", "housing-catalog.json"];
+      const h = createHash("sha256");
+      for (const name of files) h.update(fs.readFileSync(new URL(name, ROOT)));
+      return h.digest("hex");
+    } catch { return ""; }
+  }
+  function maybeRefresh() {
+    const now = Date.now();
+    if (now - lastDigestAt < 60000) return;
+    lastDigestAt = now;
+    lastDigest = sourceDigest();
+    if (lastDigest && meta("sourceDigest") && meta("sourceDigest") !== lastDigest && !status.running)
+      startBackgroundBuild();
+  }
   function meta(key) { return db.prepare("SELECT value FROM rag_meta WHERE key=?").get(key)?.value || ""; }
   function setMeta(key, value) { db.prepare("INSERT INTO rag_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, String(value)); }
 
@@ -213,6 +231,7 @@ export function createRag(db, aiGateway) {
     return [...scores.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id, score]) => ({ id, score }));
   }
   async function search(query, opts = {}) {
+    maybeRefresh();
     if (!db.prepare("SELECT count(*) AS n FROM rag_chunks").get().n) {
       return { hits: [], mode: "empty", candidates: 0 };
     }
@@ -296,6 +315,7 @@ export function createRag(db, aiGateway) {
       }
       setMeta("builtAt", String(Date.now()));
       setMeta("count", String(docs.length));
+      setMeta("sourceDigest", sourceDigest());
       setMeta("embeddingModel", "text-embedding-v4");
       setMeta("rerankModel", "qwen3-rerank");
       invalidate();
@@ -319,6 +339,8 @@ export function createRag(db, aiGateway) {
       count: Number(meta("count")) || total,
       embeddingModel: meta("embeddingModel") || "text-embedding-v4",
       rerankModel: meta("rerankModel") || "qwen3-rerank",
+      sourceDigest: meta("sourceDigest") || "",
+      fresh: !!meta("sourceDigest") && meta("sourceDigest") === (lastDigest || sourceDigest()),
       status: { ...status },
     };
   }

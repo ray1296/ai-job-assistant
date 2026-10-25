@@ -185,6 +185,17 @@ async function ensureInitialAdmin() {
 await ensureInitialAdmin();
 
 const rate = new Map();
+const onceMap = new Map();
+function once(key, window = 3000) {
+  const now = Date.now();
+  const end = onceMap.get(key);
+  if (end && end > now) throw failure(409, "操作正在处理，请勿重复提交");
+  if (onceMap.size > 10000) {
+    for (const [k, t] of onceMap) if (t <= now) onceMap.delete(k);
+    if (onceMap.size > 10000) onceMap.delete(onceMap.keys().next().value);
+  }
+  onceMap.set(key, now + window);
+}
 function limited(key, max, window = 60000) {
   const now = Date.now();
   let b = rate.get(key);
@@ -616,7 +627,14 @@ function credentials(x) {
     throw failure(400, "密码需10至128位");
   return { email: x.email.trim().toLowerCase(), password: x.password };
 }
-function login(res, u) {
+function isSecure(req) {
+  return !!(
+    process.env.CAREER_SECURE_COOKIE === "true" ||
+    req?.socket?.encrypted ||
+    String(req?.headers?.["x-forwarded-proto"] || "").split(",")[0].trim() === "https"
+  );
+}
+function login(res, u, req) {
   db.prepare("DELETE FROM sessions WHERE expires_at<?").run(Date.now());
   const token = randomBytes(32).toString("hex"),
     csrf = randomBytes(24).toString("hex");
@@ -631,7 +649,7 @@ function login(res, u) {
     "career_session=" +
       token +
       "; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800" +
-      (process.env.CAREER_SECURE_COOKIE === "true" ? "; Secure" : ""),
+      (isSecure(req) ? "; Secure" : ""),
   );
   return { user: { id: u.id, email: u.email, role: u.role === "admin" ? "admin" : "user", displayName: u.display_name || normalizeDisplayName("", u.email) }, csrf };
 }
@@ -682,6 +700,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  if (isSecure(req)) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader(
     "Permissions-Policy",
     "camera=(self), microphone=(self), geolocation=(self)",
@@ -772,7 +791,7 @@ const server = http.createServer(async (req, res) => {
               throw failure(409, "该邮箱无法注册，请尝试登录");
             throw e;
           }
-          return send(res, 201, login(res, { id, email: x.email, display_name: displayName }));
+          return send(res, 201, login(res, { id, email: x.email, display_name: displayName }, req));
         }
         const expected = u?.password_hash || "0".repeat(128),
           actual = await passwordHash(x.password, u?.salt || "a".repeat(32));
@@ -786,7 +805,7 @@ const server = http.createServer(async (req, res) => {
           (wantAdmin && u.role !== "admin")
         )
           throw failure(401, "邮箱或密码不正确，或该账号不是管理员");
-        return send(res, 200, login(res, u));
+        return send(res, 200, login(res, u, req));
       }
       const s = session(req);
       if (!s) throw failure(401, "请先登录，未保存内容仍保留在当前页面");
@@ -805,6 +824,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { user: { id: s.user_id, email: s.email, role: s.role === "admin" ? "admin" : "user", displayName } });
       }
       if (p === "/api/account/password" && m === "POST") {
+        once("pwd:" + s.user_id, 3000);
         const x = await body(req);
         const current = String(x.currentPassword || ""), next = String(x.newPassword || "");
         if (next.length < 10 || next.length > 128) throw failure(400, "新密码需 10 至 128 位");
@@ -870,6 +890,7 @@ const server = http.createServer(async (req, res) => {
       const wishMatch = p.match(/^\/api\/wishes\/([a-f0-9]{20})$/);
       if (wishMatch && m === "PATCH") {
         requireAdmin(s);
+        once("wish:" + wishMatch[1], 1500);
         const x = await body(req), row = db.prepare("SELECT * FROM wishes WHERE id=?").get(wishMatch[1]);
         if (!row) throw failure(404, "心愿不存在");
         const text = x.text === undefined ? row.text : String(x.text || "").trim();
@@ -882,6 +903,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (wishMatch && m === "DELETE") {
         requireAdmin(s);
+        once("wish:" + wishMatch[1], 1500);
         db.prepare("DELETE FROM wishes WHERE id=?").run(wishMatch[1]);
         return send(res, 200, { ok: true });
       }
@@ -942,6 +964,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (adminUserMatch && m === "DELETE") {
         requireAdmin(s);
+        once("admin-user:" + adminUserMatch[1], 3000);
         if (adminUserMatch[1] === s.user_id) throw failure(400, "不能删除当前登录的管理员");
         const target = db.prepare("SELECT id,role FROM users WHERE id=?").get(adminUserMatch[1]);
         if (!target) throw failure(404, "用户不存在");
@@ -955,6 +978,7 @@ const server = http.createServer(async (req, res) => {
       const resetMatch = p.match(/^\/api\/admin\/users\/([a-f0-9]{32})\/reset-password$/);
       if (resetMatch && m === "POST") {
         requireAdmin(s);
+        once("admin-reset:" + resetMatch[1], 3000);
         const target = db.prepare("SELECT id,email,role FROM users WHERE id=?").get(resetMatch[1]);
         if (!target) throw failure(404, "用户不存在");
         const password = randomBytes(9).toString("base64url") + "!A1";
@@ -2331,7 +2355,7 @@ const server = http.createServer(async (req, res) => {
         res.setHeader(
           "Set-Cookie",
           "career_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" +
-            (process.env.CAREER_SECURE_COOKIE === "true" ? "; Secure" : ""),
+            (isSecure(req) ? "; Secure" : ""),
         );
         return send(res, 200, { ok: true });
       }
@@ -2579,7 +2603,7 @@ server.listen(
   () => console.log("Career batch 3 listening on " + server.address().port),
 );
 // 首次部署没有向量索引时，后台慢慢建，不阻塞请求；已有索引不会重复烧 token。
-setTimeout(() => { try { const s = rag.stats(); if (!s.total || s.embedded < s.total) rag.startBackgroundBuild(); } catch {} }, 8000);
+setTimeout(() => { try { const s = rag.stats(); if (!s.total || s.embedded < s.total || !s.fresh) rag.startBackgroundBuild(); } catch {} }, 8000);
 let closing = false;
 function shutdown() {
   if (closing) return;

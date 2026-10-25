@@ -18,7 +18,8 @@
     "test:ai": "node tests/ai-smoke.mjs",
     "test:learning": "python3 tests/learning-api-importer.py && node --test tests/learning-api.test.mjs",
     "test:learning:browser": "node tests/learning-browser.mjs",
-    "setup:ocr": "bash server/setup-ocr.sh"
+    "setup:ocr": "bash server/setup-ocr.sh",
+    "test:review": "node tests/production-review.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.1.1",

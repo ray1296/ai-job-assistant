@@ -30,6 +30,9 @@
 - RAG / Tool RAG 说明：[RAG.md](docs/RAG.md) / [TOOL_RAG.md](docs/TOOL_RAG.md)
 - 生产审查记录：[REVIEW_2026-10-26.md](docs/REVIEW_2026-10-26.md)
 - 竞赛要求核对：[COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)
+- 国奖对比/扣分加分：[COMPETITION_GAP_ANALYSIS.md](docs/COMPETITION_GAP_ANALYSIS.md)
+- 产品价值：[PRODUCT_VALUE.md](docs/PRODUCT_VALUE.md)
+- 第三方与原创说明：[THIRD_PARTY.md](docs/THIRD_PARTY.md)
 - 保留旧外观：`/preview/index.html`
 - 注册自己的测试账号。当前本地 HTTP 环境请勿输入真实敏感资料或常用密码；未实现邮件验证/密码找回。
 
@@ -64,6 +67,8 @@ cd app
 npm run typecheck
 npm run test:smoke
 npm run test:browser
+npm run test:review
+node tests/rag-eval.mjs
 TEST_BASE_URL=http://127.0.0.1:5173 npm run test:studio
 TEST_BASE_URL=http://127.0.0.1:5173 npm run test:intake
 TEST_BASE_URL=http://127.0.0.1:5173 npm run test:extraction
@@ -73,7 +78,7 @@ node tests/worker-isolation.mjs
 - 基础10项 + 文档工作室17项真实Chromium浏览器冒烟：注册/资料与多段教育/意向chip/刷新还原/简历版本切换/安全文本渲染/退出/移动端/外观页。浏览器脚本目前使用本机地址与本机Chromium路径。
 - 本批新增12项上传/确认/拖动真实浏览器检查，10项提取安全检查，2项原生worker隔离/退出清理探针；检查仅使用合成测试简历。
 - 2026-10-26 已做一轮生产级安全/性能审查：CSP、iframe sandbox、会话撤销、RAG/Tool RAG、路径穿越、限流、双击并发；记录与残余风险见 [REVIEW_2026-10-26.md](docs/REVIEW_2026-10-26.md)。尚无全量自动化、长稳压测和第三方渗透测试，不能以自检替代正式验收。
-- 竞赛评分与“微调不是必需项”的核对见 [COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)。
+- 竞赛评分与“微调不是必需项”的核对见 [COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)；RAG 评测见 [RAG_EVAL.md](docs/RAG_EVAL.md)。
 
 ## 团队信息
 
