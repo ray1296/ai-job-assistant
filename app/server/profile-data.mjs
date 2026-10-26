@@ -1,5 +1,24 @@
 const failure = (status, message) =>
   Object.assign(new Error(message), { status });
+export function photoList(v) {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v) || v.length > 3)
+    throw failure(400, "个人照片最多3张");
+  let total = 0;
+  return v.map((x, i) => {
+    if (
+      typeof x !== "string" ||
+      !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(x) ||
+      x.length > 1_100_000
+    )
+      throw failure(400, "第" + (i + 1) + "张照片格式无效或过大");
+    total += x.length;
+    return x;
+  }).map((x) => {
+    if (total > 3_300_000) throw failure(400, "照片总大小过大，请压缩后重试");
+    return x;
+  });
+}
 const fields = {
   name: 120,
   phone: 64,
@@ -20,6 +39,7 @@ export function profileData(p) {
   const out = {};
   for (const [k, n] of Object.entries(fields))
     out[k] = string(p[k] ?? "", n, k);
+  out.photos = photoList(p.photos);
   for (const k of ["cities", "directions"]) {
     if (!Array.isArray(p[k]) || p[k].length > 40)
       throw failure(400, "意向标签过多");

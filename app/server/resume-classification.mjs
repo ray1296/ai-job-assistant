@@ -29,7 +29,8 @@ export function validateClassification(raw, sourceText, validateProfile) {
       evidence.push({path, quote:value, page:null, derived:true});
     } else if (value && typeof value === "object") for (const [key,v] of Object.entries(value)) visit(v, path + "." + key);
   };
-  visit(profile, "profile");
+  // 照片不是文字事实，不能要求它出现在 sourceText 里；由用户在页面单独确认。
+  visit({ ...profile, photos: [] }, "profile");
   extras.forEach((x,i) => visit(x.content, "extras." + i + ".content"));
   profile.notes = extras.map(x => x.title + "：\n" + x.content).join("\n\n");
   return {sourceText:source, profile, extras, evidence};

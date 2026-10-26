@@ -131,7 +131,7 @@ export function createExtractionService(privateDir, recognize) {
       child.stdout.on("data", (b) => {
         if (
           Buffer.byteLength(output) + Buffer.byteLength(b) >
-          (j.ai ? 24 * 1024 * 1024 : 600000)
+          (j.ai ? 36 * 1024 * 1024 : 600000)
         ) {
           overflow = true;
           stopChild(child);
@@ -169,6 +169,7 @@ export function createExtractionService(privateDir, recognize) {
           {
             text: result.text,
             images: result.images || [],
+            photos: result.photos || [],
             pages: result.pages,
             filename: j.name,
           },
@@ -182,6 +183,7 @@ export function createExtractionService(privateDir, recognize) {
           warnings: draft.warnings,
           draftId: draft.id,
           draftRevision: draft.revision,
+          photoCandidates: draft.photoCandidates || [],
           ai: {
             extras: draft.extras || [],
             profile: draft.profile,

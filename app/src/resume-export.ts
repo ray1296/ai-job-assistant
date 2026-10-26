@@ -37,8 +37,29 @@ export async function exportWord(d: ResumeDocument, title: string) {
         .split("\n")
         .flatMap((line, i) => [new TextRun({ text: line, break: i ? 1 : 0 })]),
     });
+  let photoChild = null;
+  const photo = Array.isArray(d.header.photos) ? d.header.photos[0] : "";
+  if (photo) {
+    try {
+      const m = photo.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/);
+      if (m) {
+        const { ImageRun } = await import("docx");
+        const data = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+        photoChild = new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 160 },
+          children: [new ImageRun({
+            type: m[1] === "image/png" ? "png" : "jpg",
+            data,
+            transformation: { width: 96, height: 124 },
+          })],
+        });
+      }
+    } catch { photoChild = null; }
+  }
   const children = [
     ...(decorChild ? [decorChild] : []),
+    ...(photoChild ? [photoChild] : []),
     paragraph(d.header.name || "简历", {
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,

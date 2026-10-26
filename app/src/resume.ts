@@ -2,6 +2,7 @@ import { defineComponent, h, ref, computed, onMounted, onUnmounted, nextTick } f
 import { api, errorText } from "./api";
 import InlineEdit from "./inline-edit";
 import ResumeImport from "./resume-import";
+import PhotoPicker from "./photo-picker";
 import AiReview from "./ai-review";
 import {
   blankDocument,
@@ -697,6 +698,19 @@ export default defineComponent({
             ),
           ]),
         ]),
+        current.value
+          ? h("div", { class: "studio-photo-tools" }, [
+              h("div", { class: "studio-photo-copy" }, [
+                h("strong", "个人照片"),
+                h("small", "最多 3 张；第一张作为简历主照片，随文档一起保存。"),
+              ]),
+              h(PhotoPicker, {
+                photos: doc.value.header.photos || [],
+                disabled: busy.value || editing.value,
+                onChange: (photos: string[]) => { change(() => { doc.value.header.photos = photos; }); },
+              }),
+            ])
+          : null,
         h("section", { class: "ai-help-strip" }, [
           h("div", { class: "ai-help-title" }, "✦ AI 助手能帮你"),
           h("div", { class: "ai-help-items" }, [
@@ -1059,6 +1073,17 @@ export default defineComponent({
                         pi === 0
                           ? [
                               h("header", { class: "document-header" }, [
+                                (doc.value.header.photos || []).length
+                                  ? h("div", { class: "document-photo-strip" },
+                                      (doc.value.header.photos || []).map((src, i) =>
+                                        h("img", {
+                                          src,
+                                          class: i === 0 ? "document-photo-main" : "document-photo-extra",
+                                          alt: "个人照片" + (i + 1),
+                                        }),
+                                      ))
+                                  : null,
+                                h("div", { class: "document-header-text" }, [
                                 edit(
                                   doc.value.header.name,
                                   "简历姓名",
@@ -1086,6 +1111,7 @@ export default defineComponent({
                                   false,
                                   600,
                                 ),
+                                ]),
                               ]),
                               edit(
                                 doc.value.header.summary,

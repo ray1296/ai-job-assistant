@@ -12,7 +12,7 @@ export interface Section {
 }
 export interface ResumeDocument {
   schemaVersion: 2;
-  header: { name: string; headline: string; contact: string; summary: string };
+  header: { name: string; headline: string; contact: string; summary: string; photos?: string[] };
   sections: Section[];
   /** 板块 id 列表：这些板块前换页（多页/无限页数）。乱序与失效 id 会被忽略。 */
   pageBreaks?: string[];
@@ -44,7 +44,7 @@ export const entry = (): Entry => ({
 });
 export const blankDocument = (): ResumeDocument => ({
   schemaVersion: 2,
-  header: { name: "", headline: "", contact: "", summary: "" },
+  header: { name: "", headline: "", contact: "", summary: "", photos: [] },
   sections: [
     "教育经历",
     "掌握技能",
@@ -79,6 +79,7 @@ export function fromProfile(p: Profile): ResumeDocument {
       .join(" · "),
     contact: [p.phone, p.email].filter(Boolean).join(" / "),
     summary: p.summary,
+    photos: Array.isArray(p.photos) ? p.photos.slice(0, 3) : [],
   };
   const sections: Section[] = [];
   for (const [key, title] of [

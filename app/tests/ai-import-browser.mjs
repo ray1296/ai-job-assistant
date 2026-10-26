@@ -41,7 +41,7 @@ async function startFakeUpstream() {
 }
 const synthetic = { name: "林测试", email: "vision.fixture@example.invalid", phone: "13812345678" };
 const reviewedName = "林测试（已核对）";
-const initialProfile = { name: "原资料合成姓名", phone: "13900000000", email: "original@example.invalid", summary: "原资料保留", skills: "原技能保留", honors: "", notes: "", cities: ["杭州"], directions: ["前端"], education: [], projects: [], experience: [] };
+const initialProfile = { name: "原资料合成姓名", phone: "13900000000", email: "original@example.invalid", summary: "原资料保留", skills: "原技能保留", honors: "", notes: "", photos: [], cities: ["杭州"], directions: ["前端"], education: [], projects: [], experience: [] };
 async function start() {
   service = spawn(process.execPath, ["server/index.mjs"], { cwd: root, env: { ...process.env, HOST: "127.0.0.1", PORT: "0", CAREER_DATA_DIR: dataDir, ...(process.env.CAREER_STATIC_DIR ? { CAREER_STATIC_DIR: process.env.CAREER_STATIC_DIR } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
   // Never forward stderr or config contents: upstream errors may contain sensitive details.
@@ -76,7 +76,12 @@ async function navigate(a, hash) {
 }
 async function openDraft(a, id) {
   const fetched = a.page.waitForResponse(r => r.request().method() === "GET" && r.url().endsWith("/api/resume-imports/" + id));
-  await a.page.locator('[data-testid="import-draft-open"][data-draft-id="' + id + '"]').click();
+  const button = a.page.locator('[data-testid="import-draft-open"][data-draft-id="' + id + '"]');
+  if (!(await button.isVisible())) {
+    const summary = a.page.locator(".studio-import-toggle > summary");
+    if (await summary.count()) await summary.click();
+  }
+  await button.click();
   const response = await fetched;
   assert.equal(response.status(), 200, "restore private draft");
   // Fetch via APIRequestContext: Chromium may evict intercepted response bodies.

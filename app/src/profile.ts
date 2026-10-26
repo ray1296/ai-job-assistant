@@ -1,5 +1,6 @@
 import { defineComponent, h, ref, onMounted, watch } from "vue";
 import ResumeImport from "./resume-import";
+import PhotoPicker from "./photo-picker";
 import {
   api,
   emptyProfile,
@@ -40,14 +41,20 @@ export default defineComponent({
         model.value = r.profile
           ? { ...emptyProfile(), ...r.profile }
           : emptyProfile();
+        model.value.photos = Array.isArray(model.value.photos) ? model.value.photos.slice(0, 3) : [];
         revision.value = r.revision;
         const staged = sessionStorage.getItem("resume-import-stage");
         if (staged) {
           sessionStorage.removeItem("resume-import-stage");
           try {
-            const ref = JSON.parse(staged) as { draftId:string; fields:(keyof Profile)[]; extraNotes?:string };
+            const ref = JSON.parse(staged) as { draftId:string; fields:(keyof Profile)[]; photos?:string[]; extraNotes?:string };
             const pending = await api<{draft:any}>("/resume-imports/" + ref.draftId);
             for (const key of ref.fields) (model.value as any)[key] = JSON.parse(JSON.stringify(pending.draft.profile[key]));
+            if (ref.photos?.length) {
+              const merged = [...(model.value.photos || [])];
+              for (const photo of ref.photos) if (!merged.includes(photo) && merged.length < 3) merged.push(photo);
+              model.value.photos = merged;
+            }
             if (ref.extraNotes) model.value.notes = [model.value.notes, ref.extraNotes].filter(Boolean).join("\n\n");
           } catch (e) { error.value = "恢复待确认简历草稿失败：" + errorText(e); }
         }
@@ -238,7 +245,15 @@ export default defineComponent({
         h(ResumeImport, {
           disabled: loading.value || busy.value,
           onProfile: (patch: Partial<Profile>, extraNotes = "") => {
-            Object.assign(model.value, patch);
+            const next = { ...patch };
+            if (Array.isArray(next.photos)) {
+              const merged = [...(model.value.photos || [])];
+              for (const photo of next.photos) {
+                if (!merged.includes(photo) && merged.length < 3) merged.push(photo);
+              }
+              next.photos = merged;
+            }
+            Object.assign(model.value, next);
             if (extraNotes) model.value.notes = [model.value.notes, extraNotes].filter(Boolean).join("\n\n");
           },
         }),
@@ -279,6 +294,15 @@ export default defineComponent({
                       "个人简介",
                     ),
                   ]),
+                ]),
+                h("section", { class: "card" }, [
+                  h("h2", "个人照片"),
+                  h("p", { class: "muted" }, "可以上传最多 3 张个人照片；第一张作为简历主照片。"),
+                  h(PhotoPicker, {
+                    photos: model.value.photos || [],
+                    disabled: busy.value,
+                    onChange: (photos: string[]) => { model.value.photos = photos; },
+                  }),
                 ]),
                 section("education", "教育经历", "学校 / 专业 / 学历"),
                 section("projects", "项目经历", "项目名称 / 担任角色"),

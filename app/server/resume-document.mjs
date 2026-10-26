@@ -1,3 +1,4 @@
+import { photoList } from "./profile-data.mjs";
 const fail = (message) => Object.assign(new Error(message), { status: 400 });
 function text(v, max, label) {
   if (typeof v !== "string" || v.length > max)
@@ -28,6 +29,7 @@ export function validateDocument(v) {
     summary: 8000,
   }))
     header[k] = text(v.header[k] ?? "", n, k);
+  header.photos = photoList(v.header.photos);
   const seen = new Set();
   const unique = (v) => {
     const x = id(v);

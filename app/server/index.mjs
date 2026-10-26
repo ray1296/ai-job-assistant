@@ -699,7 +699,7 @@ function resumeData(x) {
     const text = documentText(document);
     if (
       text.length > 60000 ||
-      Buffer.byteLength(JSON.stringify(document)) > 110000
+      Buffer.byteLength(JSON.stringify(document)) > 4_500_000
     )
       throw failure(400, "简历内容过大，请精简后保存");
     return { title, body: { text, document } };
@@ -2525,7 +2525,7 @@ const server = http.createServer(async (req, res) => {
         );
       }
       if (p === "/api/profile" && m === "PUT") {
-        const x = await body(req),
+        const x = await bodyLarge(req, 5 * 1024 * 1024),
           profile = profileData(x.profile),
           r = stmt.profile.get(s.user_id),
           revision = r?.revision || 0;
@@ -2557,7 +2557,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { resumes: rows });
       }
       if (p === "/api/resumes" && m === "POST") {
-        const x = resumeData(await body(req));
+        const x = resumeData(await bodyLarge(req, 6 * 1024 * 1024));
         const n = db
           .prepare("SELECT count(*) as n FROM resumes WHERE user_id=?")
           .get(s.user_id).n;
@@ -2584,7 +2584,7 @@ const server = http.createServer(async (req, res) => {
         if (!r) throw failure(404, "简历版本不存在或无访问权限");
         if (m === "GET") return send(res, 200, { resume: resumeOut(r) });
         if (m === "PUT") {
-          const x = await body(req),
+          const x = await bodyLarge(req, 6 * 1024 * 1024),
             v = resumeData(x);
           if (x.revision !== r.revision)
             throw failure(

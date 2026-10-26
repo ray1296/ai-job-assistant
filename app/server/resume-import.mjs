@@ -193,7 +193,7 @@ export function createResumeImports(db, privateDir, validateProfile, options = {
   }
   async function recognize(
     owner,
-    { text = "", images = [], filename = "简历", pages = [] },
+    { text = "", images = [], photos = [], filename = "简历", pages = [] },
     signal,
     replacement = null,
   ) {
@@ -326,6 +326,7 @@ export function createResumeImports(db, privateDir, validateProfile, options = {
         model,
         mode: images.length ? "vision" : "text",
         method: images.length ? "AI视觉识别" : "AI文本结构化识别",
+        photoCandidates: Array.isArray(photos) ? photos.slice(0, 3) : [],
         warnings: [
           "AI可能识别错误，请逐项核对原文证据；不会自动覆盖资料或已有简历。",
         ],
@@ -366,7 +367,7 @@ export function createResumeImports(db, privateDir, validateProfile, options = {
       if (!Number.isInteger(revision)) throw fail(400, "请提供草稿版本");
       if (old.revision !== revision) throw fail(409, "草稿版本冲突，请重新加载");
       if (typeof sourceText !== "string" || !sourceText.trim() || sourceText.length > MAX_TEXT) throw fail(400, "识别原文为空或超限");
-      return recognize(owner, { text: sourceText, filename: old.filename, pages: old.pages || [] }, signal, { id, revision, originalMode: old.provenance?.originalMode || old.mode || "unknown" });
+      return recognize(owner, { text: sourceText, filename: old.filename, pages: old.pages || [], photos: old.photoCandidates || [] }, signal, { id, revision, originalMode: old.provenance?.originalMode || old.mode || "unknown" });
     },
     get,
     list(owner) {

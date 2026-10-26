@@ -45,8 +45,25 @@ def dimensions(file):
                 f.seek(length-2,1)
     raise ValueError('不支持的图片结构，请转换成普通PNG或JPEG')
 
+def photo_candidate(data,mime,source):
+    if len(data)>800*1024:return None
+    fd,tmp=tempfile.mkstemp(dir=root,suffix='.img')
+    try:
+        with os.fdopen(fd,'wb') as f:f.write(data)
+        width,height=dimensions(tmp)
+    except Exception:
+        return None
+    finally:
+        try:os.unlink(tmp)
+        except OSError:pass
+    if width<80 or height<80 or width*height>12000000:return None
+    # 过滤长条横幅/logo，保留接近人像/照片比例的候选
+    ratio=width/height
+    if ratio<0.18 or ratio>4.5:return None
+    return {'mime':mime,'data':base64.b64encode(data).decode('ascii'),'source':source,'width':width,'height':height}
+
 def main():
-    pages=[];warnings=[];method='';images=[]
+    pages=[];warnings=[];method='';images=[];photos=[]
     if kind=='docx':
         method='DOCX正文提取'
         with zipfile.ZipFile(path) as z:
@@ -81,6 +98,17 @@ def main():
                     if value.strip():lines.append(value)
             pages=[{'page':None,'text':'\n'.join(lines),'method':method}]
             warnings.append('提取正文、表格、文本框与页眉页脚文字供AI理解；DOCX页码未知，图片内文字未提取。')
+            for item in items:
+                if len(photos)>=3:break
+                if not re.fullmatch(r'word/media/[^/]+\.(?:png|jpe?g)',item.filename,re.I):continue
+                if item.file_size<100 or item.file_size>800*1024:continue
+                if item.flag_bits&1:continue
+                try:data=z.read(item)
+                except Exception:continue
+                mime='image/png' if item.filename.lower().endswith('.png') else 'image/jpeg'
+                candidate=photo_candidate(data,mime,'DOCX内嵌图片：'+item.filename.split('/')[-1])
+                if candidate:photos.append(candidate)
+            if photos:warnings.append('从DOCX中提取到 '+str(len(photos))+' 张图片，请自行确认哪张是个人照片。')
     elif kind=='pdf':
         info=run(['/usr/bin/pdfinfo',path],10)
         n=re.search(r'^Pages:\s+(\d+)',info,re.M)
@@ -96,6 +124,28 @@ def main():
             images.append({'mime':'image/png','data':base64.b64encode(image).decode('ascii')})
             pages.append({'page':i,'text':'','method':'PDF页面视觉识别'})
             os.unlink(prefix+'.png')
+        # PDF里的照片通常是独立嵌入图片；单独提取供用户选择，不混入AI页面。
+        try:
+            pdf_prefix=os.path.join(root,'embedded')
+            subprocess.run(['/usr/bin/pdfimages','-png','-f','1','-l',str(count),path,pdf_prefix],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
+            for name in sorted(os.listdir(root)):
+                if len(photos)>=3:break
+                if not re.fullmatch(r'embedded-\d+\.png',name):continue
+                p=os.path.join(root,name)
+                try:
+                    if os.path.getsize(p)>800*1024:continue
+                    with open(p,'rb') as f:data=f.read()
+                except OSError:continue
+                candidate=photo_candidate(data,'image/png','PDF内嵌图片：'+name)
+                if candidate:photos.append(candidate)
+            if photos:warnings.append('从PDF中提取到 '+str(len(photos))+' 张图片，请自行确认哪张是个人照片。')
+        except Exception:
+            pass
+        finally:
+            for name in os.listdir(root):
+                if re.fullmatch(r'embedded-\d+\.png',name):
+                    try:os.unlink(os.path.join(root,name))
+                    except OSError:pass
     else:
         width,height=dimensions(path)
         if width<20 or height<20 or width*height>12000000 or max(width,height)>6000:raise ValueError('图片限制为1200万像素且长边≤6000，请缩小后重试')
@@ -108,6 +158,7 @@ def main():
     if len(text)>MAX_TEXT:raise ValueError('识别文字超过40000字，请精简文件')
     warnings.append('本进程仅准备原文/页面，必须经AI语义结构化后方可使用；不会本地规则归类。')
     result={'text':text,'pages':pages,'method':method,'warnings':warnings}
+    if photos:result['photos']=photos
     if vision:result['images']=images
     print(json.dumps(result,ensure_ascii=False))
 try:main()
