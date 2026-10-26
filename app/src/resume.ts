@@ -1197,7 +1197,7 @@ export default defineComponent({
                 onChange: (e: Event) => {
                   decorEnabled.value = (e.target as HTMLInputElement).checked;
                   if (!decorEnabled.value) clearDecoration();
-                  else notice.value = "已开启；点右侧「AI 审阅优化」时会一并生成装饰图（页眉+页脚）";
+                  else notice.value = "已开启；可直接在下方点「生成装饰图」，或让顶部「AI 审阅优化」一并生成";
                 },
               }),
               "让 AI 审阅时一并加生图装饰（默认关闭）",
@@ -1240,7 +1240,21 @@ export default defineComponent({
                     "移除装饰",
                   ),
                 ])
-              : h("small", "勾选只是打开开关，不会立刻调用生图；点右侧「AI 审阅优化」时才会生成（页眉 + 页脚各一张）。"),
+              : h("div", { class: "decor-actions" }, [
+                  h(
+                    "button",
+                    {
+                      class: "primary",
+                      disabled: decorBusy.value || !current.value,
+                      onClick: () => {
+                        decorEnabled.value = true;
+                        void generateDecoration();
+                      },
+                    },
+                    decorBusy.value ? "正在生成…" : "生成装饰图",
+                  ),
+                  h("small", "生成页眉 + 页脚各一张；也可勾选后让顶部「AI 审阅优化」一并生成。"),
+                ]),
             decorError.value ? h("small", { class: "decor-error", role: "alert" }, decorError.value) : null,
                 ]),
               ])

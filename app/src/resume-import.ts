@@ -1,6 +1,6 @@
 import { defineComponent, h, ref, computed, onBeforeUnmount } from "vue";
 import { api, session, errorText, type Profile } from "./api";
-import { fromProfile, withoutPhotos } from "./resume-model";
+import { fromProfile, withoutPhotos, type Resume } from "./resume-model";
 const labels: Partial<Record<keyof Profile, string>> = {
   name: "姓名",
   phone: "电话",
@@ -46,6 +46,7 @@ export default defineComponent({
       addToNotes = ref(false),
       photoCandidates = ref<{ url: string; source?: string }[]>([]),
       selectedPhotos = ref<string[]>([]),
+      createdResume = ref<Resume | null>(null),
       extraInformation = computed(() => (candidate.value?.notes || "").trim());
 
     let generation = 0,
@@ -148,7 +149,7 @@ export default defineComponent({
       source.value = "";
       candidate.value = null;
       proposal.value = null;
-      photoCandidates.value = []; selectedPhotos.value = [];
+      photoCandidates.value = []; selectedPhotos.value = []; createdResume.value = null;
       selected.value = []; addToNotes.value = false;
       // 服务端临时识别结果有名额上限（每账号4个），必须无条件释放；
       // 待确认草稿存在 resume_imports 里，与这个临时 job 无关，删掉不影响恢复。
@@ -251,7 +252,7 @@ export default defineComponent({
     }
     async function deletePending() {
       if (!pendingId.value || !confirm("删除这份待确认草稿？不会修改个人资料或简历。")) return;
-      try { await api("/resume-imports/" + pendingId.value, "DELETE", { revision: pendingRevision.value }); pendingId.value = ""; pendingRevision.value = 0; result.value = null; proposal.value = null; candidate.value = null; source.value = ""; selected.value = []; photoCandidates.value = []; selectedPhotos.value = []; addToNotes.value = false; await restoreDrafts(); } catch (e) { error.value = errorText(e); }
+      try { await api("/resume-imports/" + pendingId.value, "DELETE", { revision: pendingRevision.value }); pendingId.value = ""; pendingRevision.value = 0; result.value = null; proposal.value = null; candidate.value = null; source.value = ""; selected.value = []; photoCandidates.value = []; selectedPhotos.value = []; createdResume.value = null; addToNotes.value = false; await restoreDrafts(); } catch (e) { error.value = errorText(e); }
     }
     async function chooseDraft(id:string) {
       try { addToNotes.value=false; selected.value=[]; selectedPhotos.value=[]; const r=await api<{draft:any}>("/resume-imports/"+id); const d=r.draft; pendingId.value=d.id; pendingRevision.value=d.revision; source.value=d.sourceText; groupedSource.value=d.sourceText; candidate.value=d.profile; proposal.value={profile:d.profile,extras:d.extras||[],evidence:normalizeEvidence(d.evidence||[]),warnings:d.warnings||[]}; setPhotoCandidates(d.photoCandidates||[]); syncPhotoSelection(); result.value={text:d.sourceText,method:d.method||"待确认草稿",pages:[],warnings:d.warnings||[],ai:isAiMode(d.mode)?{profile:d.profile,extras:d.extras||[],evidence:normalizeEvidence(d.evidence||[]),provider:d.provider||"",model:d.model||"",mode:d.mode}:undefined}; } catch(e){error.value=errorText(e);}
@@ -304,6 +305,7 @@ export default defineComponent({
       )
         return;
       const document = fromProfile({ ...candidate.value, photos: selectedPhotos.value.slice(0, 3) });
+      createdResume.value = null;
       saving.value = true;
       error.value = "";
       try {
@@ -314,9 +316,9 @@ export default defineComponent({
         }
         const title = (filename.value.replace(/\.[a-zA-Z0-9]+$/, "") || "识别导入").slice(0, 90) + " · 导入";
         const r = await api("/resumes", "POST", { title, body: { document: finalDocument } });
+        createdResume.value = r.resume;
         await props.onCreated?.(r.resume);
-        notice.value =
-          "已创建独立简历版本；原有版本未改动，可在简历工作室继续双击编辑。";
+        notice.value = "";
       } catch (e) {
         error.value = errorText(e);
       } finally {
@@ -549,6 +551,20 @@ export default defineComponent({
                 h("p", { class:"notice" }, destination.value === "resume" ? "已知分类将按网站现有简历模板放置；未匹配信息会在创建时由AI自动安排到合适板块。" : "个人资料方向只处理下方有限分类勾选。"),
                 h("button", { type:"button", "data-testid":"import-save-review", disabled:saving.value || source.value!==groupedSource.value, onClick:savePending }, "保存识别结果与修改"),
                 h("button", { class:"primary", type:"button", "data-testid":"import-confirm", disabled:saving.value || props.disabled || !destination.value || source.value!==groupedSource.value || (destination.value === "profile" && (!selected.value.length && !selectedPhotos.value.length && !(addToNotes.value && extraInformation.value))), onClick:confirmDestination }, saving.value ? "正在处理…" : destination.value==="profile" ? "确认放入个人资料草稿" : "确认并创建独立简历版本"),
+                createdResume.value
+                  ? h("div", { class: "import-success", role: "status", "data-testid": "import-success" }, [
+                      h("strong", "已创建独立简历版本"),
+                      h("p", "原有版本未改动。可以现在前往简历工作室继续编辑这份新简历。"),
+                      h("button", {
+                        class: "primary",
+                        type: "button",
+                        onClick: () => {
+                          try { localStorage.setItem("zg.resumeOpenId", createdResume.value!.id); } catch {}
+                          window.location.hash = "#resume";
+                        },
+                      }, "前往简历工作室"),
+                    ])
+                  : null,
               ])
             : null,
           error.value
