@@ -727,9 +727,27 @@ export default defineComponent({
       hotels: hotels.value.length,
     }));
 
-    const slot = (label: string, item: any, hint: string) =>
-      h("div", { class: "map-slot" }, [
+    function clearSlot(kind: "job" | "housing") {
+      if (kind === "job") jobSel.value = null;
+      else houseSel.value = null;
+      routeInfo.value = null;
+      if (routeLine) { routeLine.setMap(null); routeLine = null; }
+      updateCircle();
+      notice.value = kind === "job" ? "已清除岗位地址" : "已清除住房地址";
+    }
+
+    const slot = (label: string, item: any, hint: string, kind: "job" | "housing") =>
+      h("div", { class: "map-slot" + (item ? " has-value" : "") }, [
         h("span", { class: "map-slot-label" }, label),
+        item
+          ? h("button", {
+              class: "map-slot-clear",
+              type: "button",
+              title: "清除" + label,
+              "aria-label": "清除" + label,
+              onClick: () => clearSlot(kind),
+            }, "×")
+          : null,
         h("strong", item ? (item.title || item.name || "未命名") : "未选择"),
         h("small", item?.address || hint),
       ]);
@@ -926,9 +944,9 @@ export default defineComponent({
               ]),
               h("section", { class: "map-card" }, [
                 h("h3", "通勤方向"),
-                slot("住房地址", houseSel.value, "点地图上的绿色租房点"),
+                slot("住房地址", houseSel.value, "点地图上的绿色租房点，或在卡片里设为住房地址", "housing"),
                 h("button", { class: "map-swap", onClick: swapSlots }, "⇅ 互换方向"),
-                slot("岗位地址", jobSel.value, "点地图上的紫色岗位点"),
+                slot("岗位地址", jobSel.value, "点地图上的紫色岗位点，或在卡片里设为岗位地址", "job"),
                 h("div", { class: "map-route-row" }, [
                   h("select", {
                     "aria-label": "通勤方式", value: mode.value,

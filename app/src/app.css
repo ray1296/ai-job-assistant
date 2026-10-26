@@ -2391,3 +2391,25 @@ html[data-theme="night"] .job-intent-badge.pending { color: #f0c77c; background:
 /* 地图是独立全屏空间，不显示网站顶部栏；顶部只保留地图自己的搜索栏 */
 body.map-mode .sky-header { display: none !important; }
 body.map-mode .immersive-main { min-height: 100vh; }
+
+/* 通勤方向槽位可清除已选地址 */
+.map-slot { position: relative; }
+.map-slot.has-value { padding-right: 32px; }
+.map-slot-clear {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #e3d8ee;
+  border-radius: 50%;
+  background: #fff;
+  color: #8b7d99;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.map-slot-clear:hover { color: #b04a63; border-color: #e4b8c4; background: #fff7f9; }
