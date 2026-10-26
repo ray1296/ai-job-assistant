@@ -168,6 +168,13 @@ const app = defineComponent({
           }
         } else if (d.type === "zg:ai-busy") {
           window.dispatchEvent(new CustomEvent("kaoshibang:ai-busy", { detail: { active: !!d.active, tool: d.tool || "" } }));
+        } else if (d.type === "zg:ask-learning-pet") {
+          const content = String(d.content || "").slice(0, 2000);
+          if (!content) return;
+          window.dispatchEvent(new CustomEvent("zg:open-persona", { detail: { personaId: "zhiwei" } }));
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("zg:agent-message", { detail: { agentId: "zhiwei", message: content } }));
+          }, 120);
         }
       });
     });

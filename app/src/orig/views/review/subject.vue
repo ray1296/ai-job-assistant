@@ -434,7 +434,6 @@ import { getSubjectReview } from '../../api/material'
 import { getFavoriteList, toggleFavorite } from '../../api/question'
 import { getWrongQuestions, removeWrongQuestion, addWrongQuestion as apiAddWrongQuestion } from '../../api/exam'
 import { getMarketDetail } from '../../api/market'
-import { askAI } from '../../utils/askAI'
 import { useTheme, cssVar } from '../../utils/theme'
 import AiStudyTools from '../../components/AiStudyTools.vue'
 import { showConfirmDialog, showToast } from 'vant'
@@ -1517,13 +1516,23 @@ watch(() => isMarketMode, (val) => {
 }, { immediate: true })
 
 /* ==================== 问问AI ==================== */
+function askLearningPet(content, ref) {
+  const text = String(content || "").trim()
+  if (!text) return
+  try {
+    // 学习页在 iframe 中；交给主页面打开「知微」并发送问题。
+    window.parent.postMessage({ type: "zg:ask-learning-pet", content: text, ref: ref || null }, location.origin)
+  } catch (e) { /* 直接打开 /orig 时没有父页面 */ }
+  window.dispatchEvent(new CustomEvent("zg:tutor", { detail: { stem: text, answer: "" } }))
+  if (typeof showToast === "function") showToast("已添加到知微对话")
+}
+
 // 卡片 → 问AI（带上正反面内容，让AI讲解；chip 点击跳回具体卡片）
 function askCardAI(card) {
   const arg = card;
   const stem = arg?.front || arg?.stem || arg?.question || arg?.content || String(arg || "");
   const answer = arg?.back || arg?.answer || arg?.quickAnswer || "";
-  window.dispatchEvent(new CustomEvent("zg:tutor", { detail: { stem, answer } }));
-  if (typeof showToast === "function") showToast("AI 老师准备中…");
+  askLearningPet(stem || answer, { path: "/review/" + subjectId, tab: "cards", sel: "#flash-card-" + (card?.id || "") });
 }
 
 // 当前刷题 → 问AI（按当前题型组装题干+选项）
@@ -1565,7 +1574,7 @@ function askQuizAI() {
     else if (quizType.value === 'judge') qidx = judgeIndex.value
     else if (quizType.value === 'short') qidx = shortIndex.value
     else if (quizType.value === 'code_fill') qidx = codeFillIndex.value
-    askAI(content, typeLabel, {
+    askLearningPet(content, {
       path: `/review/${subjectId}`,
       tab: 'quiz',
       sel: `#quiz-area-${quizType.value}`,
@@ -1581,7 +1590,7 @@ function askQuestionAI(q) {
   const opts = (q.options && q.options.length)
     ? '\n选项：' + q.options.map((o, i) => `${String.fromCharCode(65 + i)}.${o}`).join('  ')
     : ''
-  askAI(`帮我解答这道题：${q.stem}${opts}`, '题目', {
+  askLearningPet(`帮我解答这道题：${q.stem}${opts}`, {
     path: `/review/${subjectId}`,
     tab: 'wrong',
     sel: `#fav-item-${q.id}`,

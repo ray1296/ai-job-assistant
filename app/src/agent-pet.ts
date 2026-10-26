@@ -259,6 +259,13 @@ export default defineComponent({
         open.value = false;
       }
     }
+    function onAgentMessage(ev: any) {
+      if (ev?.detail?.agentId !== props.agentId) return;
+      const text = String(ev.detail.message || "").trim().slice(0, 4000);
+      if (!text) return;
+      openChat(true);
+      msg.value = text;
+    }
     function onResize() { vw.value = window.innerWidth; vh.value = window.innerHeight; }
     function onHashChange() {
       // 换页面时收起对话框：它是 fixed 面板，留着会盖住新页面的内容
@@ -268,12 +275,14 @@ export default defineComponent({
     onMounted(() => {
       window.addEventListener("zg:toggle-chat", onToggleChat);
       window.addEventListener("zg:chat-opened", onOtherChat);
+      window.addEventListener("zg:agent-message", onAgentMessage);
       window.addEventListener("resize", onResize);
       window.addEventListener("hashchange", onHashChange);
     });
     onBeforeUnmount(() => {
       window.removeEventListener("zg:toggle-chat", onToggleChat);
       window.removeEventListener("zg:chat-opened", onOtherChat);
+      window.removeEventListener("zg:agent-message", onAgentMessage);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("hashchange", onHashChange);
       stopSpeech();
