@@ -10,6 +10,10 @@ export interface Section {
   title: string;
   items: Entry[];
 }
+export interface Decoration {
+  image: string;
+  style: "minimal" | "tech" | "warm";
+}
 export interface ResumeDocument {
   schemaVersion: 2;
   header: { name: string; headline: string; contact: string; summary: string; photos?: string[] };
@@ -20,6 +24,8 @@ export interface ResumeDocument {
   decoration?: { image: string; style: "minimal" | "tech" | "warm" } | null;
   /** 页脚装饰；与页眉装饰独立，一张简历通常 2 张 */
   decorationFooter?: { image: string; style: "minimal" | "tech" | "warm" } | null;
+  /** AI 自由生成的装饰组，最多15张；旧字段仍兼容 */
+  decorations?: Decoration[];
   layout: {
     template: "classic" | "compact";
     fontSize: number;
@@ -55,6 +61,7 @@ export const blankDocument = (): ResumeDocument => ({
   pageBreaks: [],
   decoration: null,
   decorationFooter: null,
+  decorations: [],
   layout: { template: "classic", fontSize: 14, accent: "purple" },
 });
 export function fromLegacy(text: string): ResumeDocument {

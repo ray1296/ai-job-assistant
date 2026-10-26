@@ -2431,12 +2431,15 @@ const server = http.createServer(async (req, res) => {
         return res.end(buf);
       }
       if (p === "/api/ai/resume-decoration" && m === "POST") {
-        const x = await body(req);
+        const x = await bodyLarge(req, 2 * 1024 * 1024);
         const document = validateDocument(x.document);
-        limited("decor:" + s.user_id, 6, 600000);
+        limited("decor:" + s.user_id, 30, 600000);
         const input = {
-          style: ["minimal", "tech", "warm"].includes(x.style) ? x.style : "minimal",
-          slot: x.slot === "footer" ? "footer" : "header",
+          style: ["minimal", "tech", "warm", "auto"].includes(x.style) ? x.style : "auto",
+          slot: ["footer", "accent"].includes(x.slot) ? x.slot : "header",
+          brief: documentText(document).slice(0, 4000),
+          index: Number.isInteger(x.index) ? Math.max(0, Math.min(14, x.index)) : 0,
+          total: Number.isInteger(x.total) ? Math.max(1, Math.min(15, x.total)) : 1,
           size: /^[0-9]{3,4}x[0-9]{3,4}$/.test(String(x.size || "")) ? x.size : "1024x1024",
           accentText: typeof x.accent === "string" ? x.accent.slice(0, 40) : "",
           outputFormat: ["png", "jpeg", "webp"].includes(x.outputFormat) ? x.outputFormat : "png",

@@ -15,6 +15,7 @@ import {
   uid,
   type Resume,
   type ResumeDocument,
+  type Decoration,
   type Section,
 } from "./resume-model";
 export default defineComponent({
@@ -38,7 +39,10 @@ export default defineComponent({
       decorStyle = ref<"minimal" | "tech" | "warm">("minimal"),
       decorBusy = ref(false),
       decorError = ref(""),
-      decoration = computed(() => !!doc.value?.decoration || !!doc.value?.decorationFooter),
+      decorations = computed<Decoration[]>(() => doc.value?.decorations || []),
+      decorCount = computed(() => decorations.value.length),
+      decorPlanned = computed(() => Math.min(15, Math.max(3, (doc.value?.sections?.length || 0) + 2))),
+      decoration = computed(() => !!doc.value?.decoration || !!doc.value?.decorationFooter || !!decorations.value.length),
       // 勾选框只表示"我想让简历带装饰"，真正生成发生在点击 AI 审阅优化时
       decorEnabled = ref(false),
       decorSrc = computed(() =>
@@ -106,7 +110,7 @@ export default defineComponent({
         ? clone(r.body.document)
         : fromLegacy(r?.body.text || "");
       // 已有装饰的版本，开关默认打开
-      decorEnabled.value = !!(doc.value.decoration || doc.value.decorationFooter);
+      decorEnabled.value = !!(doc.value.decoration || doc.value.decorationFooter || doc.value.decorations?.length);
       saved = snapshot();
       dirty.value = false;
       editing.value = false;
@@ -197,44 +201,55 @@ export default defineComponent({
       change(() => { doc.value.layout = { template, fontSize, accent }; });
       layoutSuggestion.value = null; notice.value = "已应用到本地草稿，请检查后保存";
     }
-    // 一次生成两张装饰（页眉 + 页脚），都是极简纹理，只为不纯白
+    // AI 根据简历内容自由发挥，生成一组装饰图（单次最多15张）
     async function generateDecoration() {
       if (!current.value || decorBusy.value) return;
+      const total = decorPlanned.value;
       decorBusy.value = true;
       decorError.value = "";
-      notice.value = "正在生成装饰图（页眉 / 页脚各一张）…";
-      try {
-        const make = async (slot: "header" | "footer") => {
-          const r = await api(
-            "/ai/resume-decoration",
-            "POST",
-            {
-              document: withoutPhotos(doc.value),
-              style: decorStyle.value,
-              slot,
-              size: "1024x1024",
-              // 该上游只接受 png/jpeg/webp；写 b64_json 会被上游拒绝
-              outputFormat: "png",
-              accent: doc.value.layout.accent,
-            },
-            { timeoutMs: 150000 },
-          );
-          if (!r?.id) throw Error("生图未返回图片");
-          return { image: String(r.id), style: decorStyle.value };
-        };
-        const header = await make("header");
-        change(() => { doc.value.decoration = header; });
-        let footer: { image: string; style: "minimal" | "tech" | "warm" } | null = null;
-        try {
-          footer = await make("footer");
-          change(() => { doc.value.decorationFooter = footer; });
-        } catch (e) {
-          // 页脚失败不影响页眉，明确告诉用户
-          decorError.value = "页脚装饰生成失败：" + errorText(e) + "（页眉已生成）";
+      notice.value = "正在让 AI 根据简历内容生成装饰图（最多15张）…";
+      const results: (Decoration | null)[] = Array(total).fill(null);
+      let cursor = 0;
+      const take = async () => {
+        while (cursor < total) {
+          const index = cursor++;
+          const slot = index === 0 ? "header" : index === total - 1 ? "footer" : "accent";
+          try {
+            const r = await api(
+              "/ai/resume-decoration",
+              "POST",
+              {
+                document: withoutPhotos(doc.value),
+                style: "auto",
+                slot,
+                index,
+                total,
+                size: "1024x1024",
+                outputFormat: "png",
+                accent: doc.value.layout.accent,
+              },
+              { timeoutMs: 150000 },
+            );
+            if (!r?.id) throw Error("生图未返回图片");
+            results[index] = { image: String(r.id), style: decorStyle.value };
+          } catch (e) {
+            decorError.value = "部分装饰生成失败：" + errorText(e);
+          }
         }
-        const count = footer ? 2 : 1;
+      };
+      try {
+        // 只并发两张，避免把生图上游和账号额度瞬间打满。
+        await Promise.all([take(), take()]);
+        const ready = results.filter(Boolean) as Decoration[];
+        if (!ready.length) throw Error("没有生成出可用装饰图，请稍后重试");
+        change(() => {
+          doc.value.decoration = null;
+          doc.value.decorationFooter = null;
+          doc.value.decorations = ready;
+        });
+        decorEnabled.value = true;
         notice.value =
-          "已生成 " + count + " 张装饰图并并入当前草稿；保存后长期保留。";
+          "已生成 " + ready.length + " 张装饰图并并入当前草稿；保存后长期保留。";
       } catch (e) {
         decorError.value = errorText(e);
       } finally {
@@ -243,14 +258,16 @@ export default defineComponent({
     }
     function clearDecoration() {
       decorError.value = "";
-      if (!doc.value.decoration && !doc.value.decorationFooter) {
+      if (!doc.value.decoration && !doc.value.decorationFooter && !(doc.value.decorations || []).length) {
         notice.value = "已关闭生图装饰，简历为白板样式";
         return;
       }
       change(() => {
         doc.value.decoration = null;
         doc.value.decorationFooter = null;
+        doc.value.decorations = [];
       });
+      decorEnabled.value = false;
       notice.value = "已移除生图装饰，简历恢复为白板样式";
     }
     async function save() {
@@ -611,6 +628,19 @@ export default defineComponent({
         ]),
         h(AiReview, {
           document: doc.value,
+          decorEnabled: decorEnabled.value,
+          decorBusy: decorBusy.value,
+          decorCount: decorCount.value,
+          decorPlanned: decorPlanned.value,
+          decorError: decorError.value,
+          onDecorChange: (enabled: boolean) => {
+            decorEnabled.value = enabled;
+            if (!enabled) clearDecoration();
+            else if (!decoration.value) {
+              notice.value = "已勾选；点“开始审阅”时会按简历内容生成装饰图（最多15张）";
+            }
+          },
+          onClearDecor: () => clearDecoration(),
           // 勾选了装饰时，点"AI 审阅优化"顺带生成，未勾选就只做内容审阅
           onBefore: async () => {
             if (decorEnabled.value && !decoration.value) await generateDecoration();
@@ -1071,6 +1101,12 @@ export default defineComponent({
                               h("img", { src: decorSrc.value, alt: "" }),
                             ])
                           : null,
+                        pi === 0 && decorations.value.length
+                          ? h("div", { class: "decor-strip", "aria-hidden": "true" },
+                              decorations.value.slice(0, Math.ceil(decorations.value.length / 2)).map((d) =>
+                                h("img", { src: "/api/decoration-assets/" + d.image + ".png", alt: "" }),
+                              ))
+                          : null,
                         pi === 0
                           ? [
                               h("header", { class: "document-header" }, [
@@ -1143,6 +1179,12 @@ export default defineComponent({
                         ...pageSections.map((s) =>
                           section(s, doc.value.sections.indexOf(s)),
                         ),
+                        pi === pages.value.length - 1 && decorations.value.length > 1
+                          ? h("div", { class: "decor-strip decor-strip-footer", "aria-hidden": "true" },
+                              decorations.value.slice(Math.ceil(decorations.value.length / 2)).map((d) =>
+                                h("img", { src: "/api/decoration-assets/" + d.image + ".png", alt: "" }),
+                              ))
+                          : null,
                         pi === pages.value.length - 1 && decorFooterSrc.value
                           ? h("div", { class: "decor-band decor-band-footer", "aria-hidden": "true" }, [
                               h("img", { src: decorFooterSrc.value, alt: "" }),
@@ -1182,80 +1224,6 @@ export default defineComponent({
                     },
                     "删除当前版本",
                   ),
-                ]),
-                // 生图装饰是独立的"外观"功能，特意与"描述新板块"分开摆放，避免两个功能挤在一起。
-                h("section", { class: "decor-panel", "aria-label": "简历页面装饰" }, [
-                  h("div", { class: "decor-panel-head" }, [
-                    h("h3", "生图装饰"),
-                    h("small", "给白板简历加一条低调的页面装饰带，不影响正文；可选，默认关闭。"),
-                  ]),
-            h("label", { class: "decor-toggle" }, [
-              h("input", {
-                type: "checkbox",
-                checked: decorEnabled.value,
-                disabled: decorBusy.value,
-                onChange: (e: Event) => {
-                  decorEnabled.value = (e.target as HTMLInputElement).checked;
-                  if (!decorEnabled.value) clearDecoration();
-                  else notice.value = "已开启；可直接在下方点「生成装饰图」，或让顶部「AI 审阅优化」一并生成";
-                },
-              }),
-              "让 AI 审阅时一并加生图装饰（默认关闭）",
-            ]),
-            decoration.value
-              ? h("div", { class: "decor-controls" }, [
-                  h(
-                    "span",
-                    { class: "decor-label" },
-                    decorBusy.value ? "正在生成装饰图…" : "装饰风格",
-                  ),
-                  h(
-                    "select",
-                    {
-                      "aria-label": "装饰风格",
-                      disabled: decorBusy.value,
-                      value: decorStyle.value,
-                      onChange: (e: Event) => {
-                        decorStyle.value = (e.target as HTMLSelectElement)
-                          .value as "minimal" | "tech" | "warm";
-                      },
-                    },
-                    [
-                      ["minimal", "极简（推荐）"],
-                      ["tech", "科技"],
-                      ["warm", "暖色"],
-                    ].map(([v, t]) => h("option", { value: v }, t)),
-                  ),
-                  h(
-                    "button",
-                    { disabled: decorBusy.value, onClick: () => void generateDecoration() },
-                    decorBusy.value ? "生成中…" : "重新生成",
-                  ),
-                  h(
-                    "button",
-                    {
-                      disabled: decorBusy.value || !decorSrc.value,
-                      onClick: () => clearDecoration(),
-                    },
-                    "移除装饰",
-                  ),
-                ])
-              : h("div", { class: "decor-actions" }, [
-                  h(
-                    "button",
-                    {
-                      class: "primary",
-                      disabled: decorBusy.value || !current.value,
-                      onClick: () => {
-                        decorEnabled.value = true;
-                        void generateDecoration();
-                      },
-                    },
-                    decorBusy.value ? "正在生成…" : "生成装饰图",
-                  ),
-                  h("small", "生成页眉 + 页脚各一张；也可勾选后让顶部「AI 审阅优化」一并生成。"),
-                ]),
-            decorError.value ? h("small", { class: "decor-error", role: "alert" }, decorError.value) : null,
                 ]),
               ])
             : h("section", { class: "card empty" }, [

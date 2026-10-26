@@ -17,6 +17,13 @@ export default defineComponent({
     onApply: { type: Function, required: true },
     /** 审阅开始前的可选动作（例如按开关生成生图装饰） */
     onBefore: { type: Function, required: false },
+    decorEnabled: Boolean,
+    decorBusy: Boolean,
+    decorCount: { type: Number, default: 0 },
+    decorPlanned: { type: Number, default: 0 },
+    decorError: { type: String, default: "" },
+    onDecorChange: { type: Function, required: false },
+    onClearDecor: { type: Function, required: false },
     disabled: Boolean,
   },
   setup(props) {
@@ -60,7 +67,24 @@ export default defineComponent({
       h("h3", "AI 内容审阅与优化（逐项确认）"),
       h("p", "AI先标出问题并提出可编辑文本；只有你明确勾选并采纳后，内容才会写入本地草稿。"),
       h("textarea", { value: prompt.value, placeholder: "例如：针对前端岗位检查成果表达，但不要编造指标", "aria-label": "AI审阅要求", maxlength: 1000, onInput: (e: Event) => prompt.value = (e.target as HTMLTextAreaElement).value }),
-      h("button", { class: "primary", disabled: busy.value || props.disabled, onClick: review }, busy.value ? "AI处理中…" : "开始审阅并生成优化建议"),
+      h("label", { class: "ai-decor-option" }, [
+        h("input", {
+          type: "checkbox",
+          checked: props.decorEnabled,
+          disabled: busy.value || props.decorBusy || props.disabled,
+          onChange: (e: Event) => props.onDecorChange?.((e.target as HTMLInputElement).checked),
+        }),
+        h("span", "同时生成 AI 生图装饰"),
+        h("small", props.decorBusy ? "正在按简历内容生成装饰图…" : "根据简历内容自由发挥；单次最多15张" + (props.decorPlanned ? "，本次预计 " + props.decorPlanned + " 张" : "")),
+      ]),
+      props.decorCount && props.onClearDecor
+        ? h("div", { class: "ai-decor-status" }, [
+            h("span", "已生成 " + props.decorCount + " 张装饰图"),
+            h("button", { type: "button", disabled: busy.value || props.decorBusy, onClick: () => props.onClearDecor?.() }, "移除装饰"),
+          ])
+        : null,
+      props.decorError ? h("p", { class: "error", role: "alert" }, props.decorError) : null,
+      h("button", { class: "primary", disabled: busy.value || props.decorBusy || props.disabled, onClick: review }, busy.value || props.decorBusy ? "AI处理中…" : "开始审阅并生成优化建议"),
       ...suggestions.value.map(s => h("article", { class: "ai-suggestion", key: s.id }, [
         h("label", [h("input", { type: "checkbox", checked: selected.value.includes(s.id), onChange: (e: Event) => { const on = (e.target as HTMLInputElement).checked; selected.value = on ? [...selected.value, s.id] : selected.value.filter(id => id !== s.id); } }), "采纳此项"]),
         h("strong", s.field),

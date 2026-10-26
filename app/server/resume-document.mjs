@@ -29,7 +29,7 @@ export function validateDocument(v) {
     summary: 8000,
   }))
     header[k] = text(v.header[k] ?? "", n, k);
-  header.photos = photoList(v.header.photos);
+  if (Object.hasOwn(v.header, "photos")) header.photos = photoList(v.header.photos);
   const seen = new Set();
   const unique = (v) => {
     const x = id(v);
@@ -67,6 +67,9 @@ export function validateDocument(v) {
       : null;
   const decoration = decorOf(v.decoration);
   const decorationFooter = decorOf(v.decorationFooter);
+  const decorations = Array.isArray(v.decorations)
+    ? v.decorations.slice(0, 15).map(decorOf).filter(Boolean)
+    : null;
   const layout = {
     template: ["classic", "compact"].includes(v.layout?.template)
       ? v.layout.template
@@ -78,7 +81,9 @@ export function validateDocument(v) {
       ? v.layout.accent
       : "purple",
   };
-  return { schemaVersion: 2, header, sections, pageBreaks, decoration, decorationFooter, layout };
+  const result = { schemaVersion: 2, header, sections, pageBreaks, decoration, decorationFooter, layout };
+  if (decorations) result.decorations = decorations;
+  return result;
 }
 export function documentText(d) {
   return [
