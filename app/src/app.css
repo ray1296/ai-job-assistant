@@ -2329,3 +2329,61 @@ html[data-theme="night"] .job-intent-badge.pending { color: #f0c77c; background:
   inset: 0 !important;
   z-index: 30 !important;
 }
+
+/* 地图标记：按类型使用醒目 SVG 图标 */
+.map-marker {
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 4px 4px rgba(40, 30, 65, .32));
+  transition: filter .15s ease;
+}
+.map-marker:hover { filter: drop-shadow(0 6px 7px rgba(40, 30, 65, .42)) brightness(1.06); }
+.map-full .map-legend {
+  left: 16px;
+  bottom: 56px;
+  z-index: 7;
+  pointer-events: none;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 4px 16px rgba(60,40,90,.10);
+}
+.map-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.map-legend-icon {
+  display: inline-block;
+  width: 14px;
+  height: 18px;
+  border-radius: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  flex: 0 0 auto;
+}
+.map-fallback .fb-pin {
+  width: 36px !important;
+  height: 46px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  transform: translate(-50%, -100%) !important;
+  transform-origin: 50% 100%;
+  padding: 0;
+}
+.map-fallback .fb-pin:hover { transform: translate(-50%, -100%) scale(1.08) !important; }
+@media (max-width: 760px) { .map-full .map-legend { bottom: 50px; left: 10px; font-size: 9px; gap: 7px; } }
+
+/* 图例放在顶部搜索栏下方，避免被看板娘和缩放控件挡住 */
+.map-full .map-legend {
+  left: 50%;
+  right: auto;
+  top: 72px;
+  bottom: auto;
+  transform: translateX(-50%);
+}
+@media (max-width: 760px) {
+  .map-full .map-legend { left: 10px; right: 10px; top: 112px; bottom: auto; transform: none; justify-content: center; flex-wrap: wrap; }
+}

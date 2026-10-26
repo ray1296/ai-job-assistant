@@ -39,6 +39,20 @@ const KIND: Record<string, { color: string; label: string }> = {
   found: { color: "#e0473c", label: "推荐" },
 };
 
+/** 地图标记用内联 SVG，按类型区分图标；矢量在任意缩放下都清晰。 */
+function markerSvg(kind: string) {
+  const color = KIND[kind]?.color || "#7460c9";
+  const glyph: Record<string, string> = {
+    job: '<rect x="12.5" y="13.5" width="11" height="8" rx="1.6" fill="' + color + '"/><path d="M15.2 13.5v-1.1c0-.75.6-1.35 1.35-1.35h2.9c.75 0 1.35.6 1.35 1.35v1.1" fill="none" stroke="' + color + '" stroke-width="1.4" stroke-linecap="round"/><path d="M12.8 17h10.4" stroke="#fff" stroke-width="1.2"/>',
+    housing: '<path d="M11.8 17.3 18 11.8l6.2 5.5v6.2c0 .6-.5 1.1-1.1 1.1h-3.2v-4.1h-3.8v4.1h-3.2c-.6 0-1.1-.5-1.1-1.1z" fill="' + color + '"/>',
+    subway: '<rect x="12.2" y="11.4" width="11.6" height="9.2" rx="2.4" fill="' + color + '"/><path d="M15.3 13.6h5.4M15.3 16h5.4" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><circle cx="15.2" cy="18.6" r="1.05" fill="#fff"/><circle cx="20.8" cy="18.6" r="1.05" fill="#fff"/><path d="M14.3 22.1h7.4" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round"/>',
+    hotel: '<path d="M11.7 21.4v-7.1h1.9v2.8h7.8v-1.7h1.9v6h-1.9v-2.2H13.6v2.2z" fill="' + color + '"/><path d="M13.6 17.1h2.1v1.2h-2.1z" fill="#fff"/>',
+    found: '<path d="m18 10.5 1.9 4 4.4.5-3.3 3 .9 4.3-3.9-2.3-3.9 2.3.9-4.3-3.3-3 4.4-.5z" fill="' + color + '"/>',
+  };
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46"><path d="M18 2C9.7 2 3 8.7 3 17c0 10.5 15 27 15 27s15-16.5 15-27C33 8.7 26.3 2 18 2Z" fill="' + color + '" stroke="#fff" stroke-width="2.5"/><circle cx="18" cy="17" r="9.5" fill="#fff"/>' + (glyph[kind] || glyph.job) + '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
 export default defineComponent({
   setup() {
     const mapEl = ref<HTMLElement | null>(null);
@@ -157,9 +171,15 @@ export default defineComponent({
     function markerOf(kind: string, item: any, onClick: () => void) {
       if (!validPos(item?.pos)) return null;
       const el = document.createElement("div");
-      el.className = "amap-dot";
-      el.style.cssText = "width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);background:" + KIND[kind].color + ";cursor:pointer";
-      const m = new AMap.Marker({ position: [item.pos.lng, item.pos.lat], content: el, offset: new AMap.Pixel(-7, -7), title: item.title || item.name || "" });
+      el.className = "map-marker map-marker-" + kind + " amap-dot";
+      el.style.width = "36px";
+      el.style.height = "46px";
+      el.style.backgroundImage = 'url("' + markerSvg(kind) + '")';
+      el.style.backgroundSize = "100% 100%";
+      el.style.backgroundRepeat = "no-repeat";
+      el.style.cursor = "pointer";
+      el.setAttribute("aria-label", (KIND[kind]?.label || kind) + "：" + (item.title || item.name || "未命名"));
+      const m = new AMap.Marker({ position: [item.pos.lng, item.pos.lat], content: el, offset: new AMap.Pixel(-18, -46), title: item.title || item.name || "" });
       m.on("click", onClick);
       m.setMap(map);
       (markerGroups[kind] || (markerGroups[kind] = [])).push(m);
@@ -728,9 +748,10 @@ export default defineComponent({
               ...fbPins.value.map((pin) =>
                 h("button", {
                   key: pin.kind + "-" + (pin.item.id || pin.item.name),
-                  class: "fb-pin",
-                  style: { left: pin.x + "px", top: pin.y + "px", background: KIND[pin.kind]?.color || "#7460c9" },
+                  class: "fb-pin map-marker map-marker-" + pin.kind,
+                  style: { left: pin.x + "px", top: pin.y + "px", backgroundImage: 'url("' + markerSvg(pin.kind) + '")' },
                   title: pin.item.title || pin.item.name || "",
+                  "aria-label": (KIND[pin.kind]?.label || pin.kind) + "：" + (pin.item.title || pin.item.name || "未命名"),
                   onClick: (e: Event) => {
                     e.stopPropagation();
                     fbPopup.value = { item: pin.item, kind: pin.kind, x: pin.x, y: pin.y };
@@ -773,6 +794,14 @@ export default defineComponent({
               ]),
             ])
           : h("div", { ref: mapEl, class: "map-canvas amap-host" }),
+
+        h("div", { class: "map-legend", "aria-label": "地图标记类型" },
+          ["job", "housing", "subway", "hotel", "found"].map((kind) =>
+            h("span", { class: "map-legend-item" }, [
+              h("i", { class: "map-legend-icon", style: { backgroundImage: 'url("' + markerSvg(kind) + '")' } }),
+              KIND[kind].label,
+            ]),
+          )),
 
         h("div", { class: "map-topbar" }, [
           h("a", { class: "map-brand", href: "#home" }, "✦ 城市与通勤地图"),
