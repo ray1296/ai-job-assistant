@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
-import { validateClassification, validateExtras } from "./resume-classification.mjs";
+import { validateClassification, validateExtras, evidenceMatches } from "./resume-classification.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const MAX_TEXT = 40000,
@@ -61,13 +61,13 @@ export function validateRecognition(raw, validateProfile) {
       typeof e.quote !== "string" ||
       !e.quote.trim() ||
       e.quote.length > 12000 ||
-      !raw.sourceText.includes(e.quote)
+      !evidenceMatches(raw.sourceText, e.quote)
     )
       throw fail(502, "AI证据不在识别原文中");
     if (evidencePaths.has(e.path)) throw fail(502, "AI证据路径重复");
     evidencePaths.add(e.path);
     const value = atPath({ profile, document }, e.path);
-    if (typeof value !== "string" || !value.trim() || !e.quote.includes(value))
+    if (typeof value !== "string" || !value.trim() || !evidenceMatches(e.quote, value))
       throw fail(502, "AI字段与原文证据不匹配");
     return {
       path: e.path,
