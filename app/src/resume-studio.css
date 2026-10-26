@@ -393,7 +393,7 @@ html[data-theme="night"] .ai-consent { color: #c3cee3; }
 .ai-decor-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -2px 0 12px; padding: 7px 10px; border: 1px solid #d7eadf; border-radius: 8px; background: #f4fbf7; color: #4b7d63; font-size: 11px; }
 .ai-decor-status button { font-size: 10px; padding: 4px 8px; }
 .decor-strip { display: flex; align-items: stretch; gap: 2px; margin: -6px -34px 10px; overflow: hidden; line-height: 0; border-bottom: 1px solid rgba(0,0,0,.05); }
-.decor-strip img { flex: 1 1 0; min-width: 0; height: 58px; object-fit: cover; display: block; }
+.decor-strip img { flex: 1 1 0; min-width: 0; height: 58px; object-fit: cover; object-position: center top; display: block; }
 .decor-strip.decor-strip-footer { margin: 18px -34px -6px; border-top: 1px solid rgba(0,0,0,.05); border-bottom: 0; }
 html[data-theme="night"] .ai-decor-option { background: #0d192b; border-color: #3a5271; color: #c3cee3; }
 html[data-theme="night"] .ai-decor-option small { color: #8fa2c2; }

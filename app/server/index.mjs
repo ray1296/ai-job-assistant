@@ -689,6 +689,15 @@ function login(res, u, req) {
 function resumeOut(r) {
   return r ? { ...r, body: JSON.parse(r.body) } : null;
 }
+function decorationBrief(document) {
+  const parts = [document.header?.headline, document.header?.summary].filter(Boolean);
+  for (const section of document.sections || []) {
+    parts.push(section.title);
+    for (const item of section.items || []) parts.push(item.title, item.content);
+  }
+  // 不把姓名、电话、邮箱、照片发给生图上游；只给岗位/内容语义。
+  return parts.filter(Boolean).join("\n").replace(/\s+/g, " ").slice(0, 2500);
+}
 function resumeData(x) {
   const title = string(x.title, 120, "版本名称").trim();
   if (!title) throw failure(400, "请填写版本名称");
@@ -2437,7 +2446,7 @@ const server = http.createServer(async (req, res) => {
         const input = {
           style: ["minimal", "tech", "warm", "auto"].includes(x.style) ? x.style : "auto",
           slot: ["footer", "accent"].includes(x.slot) ? x.slot : "header",
-          brief: documentText(document).slice(0, 4000),
+          brief: decorationBrief(document),
           index: Number.isInteger(x.index) ? Math.max(0, Math.min(14, x.index)) : 0,
           total: Number.isInteger(x.total) ? Math.max(1, Math.min(15, x.total)) : 1,
           size: /^[0-9]{3,4}x[0-9]{3,4}$/.test(String(x.size || "")) ? x.size : "1024x1024",

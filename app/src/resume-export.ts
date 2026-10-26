@@ -37,6 +37,28 @@ export async function exportWord(d: ResumeDocument, title: string) {
         .split("\n")
         .flatMap((line, i) => [new TextRun({ text: line, break: i ? 1 : 0 })]),
     });
+  let multiDecorationChild = null;
+  if (Array.isArray(d.decorations) && d.decorations.length) {
+    try {
+      const { ImageRun } = await import("docx");
+      const images = [];
+      const width = Math.max(20, Math.floor(600 / Math.min(15, d.decorations.length)));
+      for (const item of d.decorations.slice(0, 15)) {
+        const r = await fetch("/api/decoration-assets/" + item.image + ".png");
+        if (!r.ok) continue;
+        images.push(new ImageRun({
+          type: "png",
+          data: await r.arrayBuffer(),
+          transformation: { width, height: 42 },
+        }));
+      }
+      if (images.length) multiDecorationChild = new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 140 },
+        children: images,
+      });
+    } catch { multiDecorationChild = null; }
+  }
   let photoChild = null;
   const photo = Array.isArray(d.header.photos) ? d.header.photos[0] : "";
   if (photo) {
@@ -59,6 +81,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
   }
   const children = [
     ...(decorChild ? [decorChild] : []),
+    ...(multiDecorationChild ? [multiDecorationChild] : []),
     ...(photoChild ? [photoChild] : []),
     paragraph(d.header.name || "简历", {
       heading: HeadingLevel.TITLE,
