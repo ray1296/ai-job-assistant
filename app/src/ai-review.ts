@@ -20,9 +20,10 @@ export default defineComponent({
     decorEnabled: Boolean,
     decorBusy: Boolean,
     decorCount: { type: Number, default: 0 },
-    decorPlanned: { type: Number, default: 0 },
+    decorStyle: { type: String, default: "auto" },
     decorError: { type: String, default: "" },
     onDecorChange: { type: Function, required: false },
+    onDecorStyle: { type: Function, required: false },
     onClearDecor: { type: Function, required: false },
     disabled: Boolean,
   },
@@ -85,11 +86,25 @@ export default defineComponent({
           onChange: (e: Event) => props.onDecorChange?.((e.target as HTMLInputElement).checked),
         }),
         h("span", "同时生成 AI 生图装饰"),
-        h("small", props.decorBusy ? "正在按简历内容生成装饰图…" : "根据简历内容自由发挥；单次最多15张" + (props.decorPlanned ? "，本次预计 " + props.decorPlanned + " 张" : "")),
+        h("small", props.decorBusy ? "正在按简历内容生成整页背景…" : "生成一张整页背景，AI会避开文字/照片区域；可自定义风格"),
+        h("span", { class: "ai-decor-style" }, [
+          "风格",
+          h("select", {
+            value: props.decorStyle,
+            disabled: busy.value || props.decorBusy || props.disabled,
+            "aria-label": "装饰风格",
+            onChange: (e: Event) => props.onDecorStyle?.((e.target as HTMLSelectElement).value),
+          }, [
+            ["auto", "AI 自动适配"],
+            ["minimal", "极简"],
+            ["maximal", "极繁"],
+            ["tech", "科技"],
+          ].map(([value, label]) => h("option", { value }, label))),
+        ]),
       ]),
       props.decorCount && props.onClearDecor
         ? h("div", { class: "ai-decor-status" }, [
-            h("span", "已生成 " + props.decorCount + " 张装饰图"),
+            h("span", props.decorCount === 1 ? "已生成整页背景装饰" : "已生成 " + props.decorCount + " 张装饰图"),
             h("button", { type: "button", disabled: busy.value || props.decorBusy, onClick: () => props.onClearDecor?.() }, "移除装饰"),
           ])
         : null,

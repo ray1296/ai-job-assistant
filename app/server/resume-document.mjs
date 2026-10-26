@@ -70,6 +70,14 @@ export function validateDocument(v) {
   const decorations = Array.isArray(v.decorations)
     ? v.decorations.slice(0, 15).map(decorOf).filter(Boolean)
     : null;
+  const background =
+    v.background &&
+    typeof v.background === "object" &&
+    typeof v.background.image === "string" &&
+    /^[a-f0-9]{24}$/.test(v.background.image) &&
+    ["auto", "minimal", "maximal", "tech"].includes(v.background.style)
+      ? { image: v.background.image, style: v.background.style }
+      : null;
   const layout = {
     template: ["classic", "compact"].includes(v.layout?.template)
       ? v.layout.template
@@ -83,6 +91,7 @@ export function validateDocument(v) {
   };
   const result = { schemaVersion: 2, header, sections, pageBreaks, decoration, decorationFooter, layout };
   if (decorations) result.decorations = decorations;
+  if (v.background !== undefined) result.background = background;
   return result;
 }
 export function documentText(d) {

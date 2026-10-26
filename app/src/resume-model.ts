@@ -26,6 +26,8 @@ export interface ResumeDocument {
   decorationFooter?: { image: string; style: "minimal" | "tech" | "warm" } | null;
   /** AI 自由生成的装饰组，最多15张；旧字段仍兼容 */
   decorations?: Decoration[];
+  /** 整页背景装饰；优先于装饰带 */
+  background?: { image: string; style: "auto" | "minimal" | "maximal" | "tech" } | null;
   layout: {
     template: "classic" | "compact";
     fontSize: number;
@@ -62,6 +64,7 @@ export const blankDocument = (): ResumeDocument => ({
   decoration: null,
   decorationFooter: null,
   decorations: [],
+  background: null,
   layout: { template: "classic", fontSize: 14, accent: "purple" },
 });
 export function fromLegacy(text: string): ResumeDocument {

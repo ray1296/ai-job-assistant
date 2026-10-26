@@ -2444,11 +2444,14 @@ const server = http.createServer(async (req, res) => {
         const document = validateDocument(x.document);
         limited("decor:" + s.user_id, 30, 600000);
         const input = {
-          style: ["minimal", "tech", "warm", "auto"].includes(x.style) ? x.style : "auto",
-          slot: ["footer", "accent"].includes(x.slot) ? x.slot : "header",
+          style: ["minimal", "tech", "warm", "maximal", "auto"].includes(x.style) ? x.style : "auto",
+          slot: ["footer", "accent", "background"].includes(x.slot) ? x.slot : "header",
           brief: decorationBrief(document),
           index: Number.isInteger(x.index) ? Math.max(0, Math.min(14, x.index)) : 0,
           total: Number.isInteger(x.total) ? Math.max(1, Math.min(15, x.total)) : 1,
+          occupied: Array.isArray(x.occupied)
+            ? x.occupied.slice(0, 24).filter((b) => b && ["x","y","w","h"].every((k) => typeof b[k] === "number" && b[k] >= 0 && b[k] <= 1)).map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h }))
+            : [],
           size: /^[0-9]{3,4}x[0-9]{3,4}$/.test(String(x.size || "")) ? x.size : "1024x1024",
           accentText: typeof x.accent === "string" ? x.accent.slice(0, 40) : "",
           outputFormat: ["png", "jpeg", "webp"].includes(x.outputFormat) ? x.outputFormat : "png",

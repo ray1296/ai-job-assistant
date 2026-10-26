@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { defineComponent, h, ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { api, errorText } from "./api";
 import InlineEdit from "./inline-edit";
 import ResumeImport from "./resume-import";
@@ -36,13 +36,17 @@ export default defineComponent({
       redoStack = ref<string[]>([]),
       sectionName = ref(""),
       panel = ref(""),
-      decorStyle = ref<"minimal" | "tech" | "warm">("minimal"),
+      decorStyle = ref<"auto" | "minimal" | "maximal" | "tech">("auto"),
       decorBusy = ref(false),
       decorError = ref(""),
       decorations = computed<Decoration[]>(() => doc.value?.decorations || []),
-      decorCount = computed(() => decorations.value.length),
-      decorPlanned = computed(() => Math.min(15, Math.max(3, (doc.value?.sections?.length || 0) + 2))),
-      decoration = computed(() => !!doc.value?.decoration || !!doc.value?.decorationFooter || !!decorations.value.length),
+      decorCount = computed(() => (doc.value?.background ? 1 : decorations.value.length)),
+      decoration = computed(() => !!doc.value?.background || !!doc.value?.decoration || !!doc.value?.decorationFooter || !!decorations.value.length),
+      backgroundSrc = computed(() =>
+        doc.value?.background
+          ? "/api/decoration-assets/" + doc.value.background.image + ".png"
+          : "",
+      ),
       // 勾选框只表示"我想让简历带装饰"，真正生成发生在点击 AI 审阅优化时
       decorEnabled = ref(false),
       decorSrc = computed(() =>
@@ -59,7 +63,9 @@ export default defineComponent({
       sectionBusy = ref(false),
       sectionError = ref(""),
       layoutBusy = ref(false),
-      layoutSuggestion = ref<any>(null);
+      layoutSuggestion = ref<any>(null),
+      autoPageBreaks = ref<string[]>([]);
+    let paginationBusy = false;
     let saved = "";
     const snapshot = () =>
       JSON.stringify({ title: title.value, document: doc.value });
@@ -110,7 +116,7 @@ export default defineComponent({
         ? clone(r.body.document)
         : fromLegacy(r?.body.text || "");
       // 已有装饰的版本，开关默认打开
-      decorEnabled.value = !!(doc.value.decoration || doc.value.decorationFooter || doc.value.decorations?.length);
+      decorEnabled.value = !!(doc.value.background || doc.value.decoration || doc.value.decorationFooter || doc.value.decorations?.length);
       saved = snapshot();
       dirty.value = false;
       editing.value = false;
@@ -118,6 +124,7 @@ export default defineComponent({
       props.onDirty(false);
       undoStack.value = [];
       redoStack.value = [];
+      void recalcPagination();
     }
     async function refresh() {
       versions.value = (await api("/resumes")).resumes;
@@ -148,10 +155,13 @@ export default defineComponent({
           ? wanted
           : versions.value[0]?.id;
         if (target) await load(target);
+        await recalcPagination();
       } catch (e) {
         error.value = errorText(e);
       } finally {
         loading.value = false;
+        await nextTick();
+        await recalcPagination();
       }
     });
     async function create(duplicate = false) {
@@ -201,55 +211,61 @@ export default defineComponent({
       change(() => { doc.value.layout = { template, fontSize, accent }; });
       layoutSuggestion.value = null; notice.value = "已应用到本地草稿，请检查后保存";
     }
-    // AI 根据简历内容自由发挥，生成一组装饰图（单次最多15张）
+    async function collectOccupied() {
+      await nextTick();
+      const page = document.querySelector('.resume-document[data-page="1"]') as HTMLElement | null;
+      if (!page) return [];
+      const pr = page.getBoundingClientRect();
+      if (!pr.width || !pr.height) return [];
+      const nodes = page.querySelectorAll(".document-header, .document-header + .inline-field-wrap, .document-section");
+      const boxes: { x: number; y: number; w: number; h: number }[] = [];
+      const seen = new Set<string>();
+      for (const node of Array.from(nodes)) {
+        const r = (node as HTMLElement).getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        const box = {
+          x: Math.max(0, Math.round(((r.left - pr.left) / pr.width) * 1000) / 1000),
+          y: Math.max(0, Math.round(((r.top - pr.top) / pr.height) * 1000) / 1000),
+          w: Math.min(1, Math.round((r.width / pr.width) * 1000) / 1000),
+          h: Math.min(1, Math.round((r.height / pr.height) * 1000) / 1000),
+        };
+        const key = [box.x, box.y, box.w, box.h].join(":");
+        if (!seen.has(key)) { seen.add(key); boxes.push(box); }
+        if (boxes.length >= 24) break;
+      }
+      return boxes;
+    }
+    // AI 生成一张整页背景，并根据文字/照片占用区域避开正文。
     async function generateDecoration() {
       if (!current.value || decorBusy.value) return;
-      const total = decorPlanned.value;
       decorBusy.value = true;
       decorError.value = "";
-      notice.value = "正在让 AI 根据简历内容生成装饰图（最多15张）…";
-      const results: (Decoration | null)[] = Array(total).fill(null);
-      let cursor = 0;
-      const take = async () => {
-        while (cursor < total) {
-          const index = cursor++;
-          const slot = index === 0 ? "header" : index === total - 1 ? "footer" : "accent";
-          try {
-            const r = await api(
-              "/ai/resume-decoration",
-              "POST",
-              {
-                document: withoutPhotos(doc.value),
-                style: "auto",
-                slot,
-                index,
-                total,
-                size: "1024x1024",
-                outputFormat: "png",
-                accent: doc.value.layout.accent,
-              },
-              { timeoutMs: 150000 },
-            );
-            if (!r?.id) throw Error("生图未返回图片");
-            results[index] = { image: String(r.id), style: decorStyle.value };
-          } catch (e) {
-            decorError.value = "部分装饰生成失败：" + errorText(e);
-          }
-        }
-      };
+      notice.value = "正在让 AI 读取简历版面并生成整页背景…";
       try {
-        // 只并发两张，避免把生图上游和账号额度瞬间打满。
-        await Promise.all([take(), take()]);
-        const ready = results.filter(Boolean) as Decoration[];
-        if (!ready.length) throw Error("没有生成出可用装饰图，请稍后重试");
+        const occupied = await collectOccupied();
+        const r = await api(
+          "/ai/resume-decoration",
+          "POST",
+          {
+            document: withoutPhotos(doc.value),
+            style: decorStyle.value,
+            slot: "background",
+            size: "1024x1536",
+            occupied,
+            outputFormat: "png",
+            accent: doc.value.layout.accent,
+          },
+          { timeoutMs: 180000 },
+        );
+        if (!r?.id) throw Error("生图未返回图片");
         change(() => {
+          doc.value.background = { image: String(r.id), style: decorStyle.value };
           doc.value.decoration = null;
           doc.value.decorationFooter = null;
-          doc.value.decorations = ready;
+          doc.value.decorations = [];
         });
         decorEnabled.value = true;
-        notice.value =
-          "已生成 " + ready.length + " 张装饰图并并入当前草稿；保存后长期保留。";
+        notice.value = "已生成整页背景装饰并并入当前草稿；保存后长期保留。";
       } catch (e) {
         decorError.value = errorText(e);
       } finally {
@@ -258,11 +274,12 @@ export default defineComponent({
     }
     function clearDecoration() {
       decorError.value = "";
-      if (!doc.value.decoration && !doc.value.decorationFooter && !(doc.value.decorations || []).length) {
+      if (!doc.value.background && !doc.value.decoration && !doc.value.decorationFooter && !(doc.value.decorations || []).length) {
         notice.value = "已关闭生图装饰，简历为白板样式";
         return;
       }
       change(() => {
+        doc.value.background = null;
         doc.value.decoration = null;
         doc.value.decorationFooter = null;
         doc.value.decorations = [];
@@ -433,7 +450,7 @@ export default defineComponent({
       });
     }
     const pages = computed(() => {
-      const breaks = new Set(doc.value.pageBreaks || []);
+      const breaks = new Set([...(doc.value.pageBreaks || []), ...autoPageBreaks.value]);
       const groups: Section[][] = [];
       for (const s of doc.value.sections) {
         if (breaks.has(s.id) && groups.length && groups[groups.length - 1].length)
@@ -444,6 +461,37 @@ export default defineComponent({
       if (!groups.length) groups.push([]);
       return groups;
     });
+    async function recalcPagination() {
+      if (paginationBusy) return;
+      paginationBusy = true;
+      try {
+        await nextTick();
+        const desk = document.querySelector(".resume-desk");
+        if (!desk) { autoPageBreaks.value = []; return; }
+        const first = desk.querySelector(".resume-document") as HTMLElement | null;
+        if (!first) { autoPageBreaks.value = []; return; }
+        const header = first.querySelector(".document-header") as HTMLElement | null;
+        const summary = first.querySelector(".document-header + .inline-field-wrap") as HTMLElement | null;
+        const contentHeight = 1017; // A4 1123px - 48px top - 58px bottom
+        let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 20;
+        const breaks: string[] = [];
+        const sections = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
+        for (const el of sections) {
+          const id = el.getAttribute("data-section-id") || "";
+          const h = el.getBoundingClientRect().height + 18;
+          if (used + h > contentHeight && used > 60) {
+            if (id) breaks.push(id);
+            used = 50 + h; // 后续页有 page-runner
+          } else {
+            used += h;
+          }
+        }
+        autoPageBreaks.value = breaks;
+      } finally {
+        paginationBusy = false;
+      }
+    }
+    watch(doc, () => { void recalcPagination(); }, { deep: true });
     function togglePageBreak(id: string) {
       const cur = new Set(doc.value.pageBreaks || []);
       if (cur.has(id)) cur.delete(id);
@@ -631,13 +679,14 @@ export default defineComponent({
           decorEnabled: decorEnabled.value,
           decorBusy: decorBusy.value,
           decorCount: decorCount.value,
-          decorPlanned: decorPlanned.value,
+          decorStyle: decorStyle.value,
+          onDecorStyle: (style: string) => { decorStyle.value = style as typeof decorStyle.value; },
           decorError: decorError.value,
           onDecorChange: (enabled: boolean) => {
             decorEnabled.value = enabled;
             if (!enabled) clearDecoration();
             else if (!decoration.value) {
-              notice.value = "已勾选；点“开始审阅”时会按简历内容生成装饰图（最多15张）";
+              notice.value = "已勾选；点“开始审阅”时会生成一张避开文字区域的整页背景";
             }
           },
           onClearDecor: () => clearDecoration(),
@@ -1075,6 +1124,11 @@ export default defineComponent({
                     "重做",
                   ),
                 ]),
+                h("div", { class: "resume-page-meta", "data-page-count": pages.value.length }, [
+                  h("span", "A4 · 210 × 297mm"),
+                  h("span", "共 " + pages.value.length + " 页"),
+                  h("small", "页与页之间是实际打印边界；最后一页可直接查看"),
+                ]),
                 h(
                   "div",
                   { class: "resume-desk single-document-desk" },
@@ -1086,11 +1140,13 @@ export default defineComponent({
                         class: [
                           "resume-document",
                           "paper",
+                          backgroundSrc.value ? "has-background" : "",
                           "template-" + doc.value.layout.template,
                           "accent-" + doc.value.layout.accent,
                         ],
                         style: {
                           "--resume-font": doc.value.layout.fontSize + "px",
+                          ...(backgroundSrc.value ? { backgroundImage: "url(\"" + backgroundSrc.value + "\")" } : {}),
                         },
                         "data-page": pi + 1,
                         "aria-label": "简历文档 第" + (pi + 1) + "页",
@@ -1101,7 +1157,7 @@ export default defineComponent({
                               h("img", { src: decorSrc.value, alt: "" }),
                             ])
                           : null,
-                        pi === 0 && decorations.value.length
+                        pi === 0 && !backgroundSrc.value && decorations.value.length
                           ? h("div", { class: "decor-strip", "aria-hidden": "true" },
                               decorations.value.slice(0, Math.ceil(decorations.value.length / 2)).map((d) =>
                                 h("img", { src: "/api/decoration-assets/" + d.image + ".png", alt: "" }),
@@ -1179,7 +1235,7 @@ export default defineComponent({
                         ...pageSections.map((s) =>
                           section(s, doc.value.sections.indexOf(s)),
                         ),
-                        pi === pages.value.length - 1 && decorations.value.length > 1
+                        pi === pages.value.length - 1 && !backgroundSrc.value && decorations.value.length > 1
                           ? h("div", { class: "decor-strip decor-strip-footer", "aria-hidden": "true" },
                               decorations.value.slice(Math.ceil(decorations.value.length / 2)).map((d) =>
                                 h("img", { src: "/api/decoration-assets/" + d.image + ".png", alt: "" }),
