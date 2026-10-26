@@ -73,6 +73,7 @@ import { useRouter } from '../router'
 import { showToast } from 'vant'
 import { aiWrongReview } from '../api/ai'
 import { extractFile } from '../../extract-file'
+import { confirmPendingAction } from '../../agent-action'
 import GestureCam from './GestureCam.vue'
 import ScreenWatcher from './ScreenWatcher.vue'
 import { edgeTTSSynthesize, getVoiceConfig } from '../utils/edgeTTS'
@@ -1178,6 +1179,7 @@ async function streamChatSSE(msg, history, image) {
   typingCancel = false
   let ev = ''
   let dataLines = []
+  let pendingAction = null
   const flush = () => {
     if (!ev && !dataLines.length) return
     const text = dataLines.join('\n')
@@ -1190,6 +1192,8 @@ async function streamChatSSE(msg, history, image) {
       if (text) addMemory('星野', text)
     } else if (ev === 'error') {
       throw new Error(text || 'AI失败')
+    } else if (ev === 'action') {
+      try { pendingAction = JSON.parse(text) } catch {}
     }
     ev = ''
     dataLines = []
@@ -1208,6 +1212,12 @@ async function streamChatSSE(msg, history, image) {
     }
   }
   flush()
+  if (pendingAction) {
+    const done = await confirmPendingAction(pendingAction)
+    const extra = done.cancelled ? '已取消写入。' : done.ok ? '已执行写入：' + JSON.stringify(done.result || {}).slice(0, 200) : '写入失败：' + (done.error || '未知错误')
+    full += (full ? '\n\n' : '') + extra
+    dialogText.value = full
+  }
   if (!full) throw new Error('AI返回为空')
   const plain = full.replace(/[#*`~_]/g, '').replace(/\s+/g, ' ')
   await speakReply(plain)

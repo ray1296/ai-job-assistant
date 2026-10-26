@@ -15,7 +15,6 @@
     <!-- 市场预览模式提示 -->
     <div v-if="isMarketMode" class="market-banner">
       <span>👁 预览模式 · 分享人：{{ marketOwner }}</span>
-      <button class="banner-import-btn" @click="goMarketDetail">去收录</button>
     </div>
 
     <!-- Tab导航 -->
@@ -1497,10 +1496,6 @@ watch(() => isMarketMode, (val) => {
     activeTab.value = 'cards'
   }
 }, { immediate: true })
-
-function goMarketDetail() {
-  router.push(`/market/${subjectId}`)
-}
 
 /* ==================== 问问AI ==================== */
 // 卡片 → 问AI（带上正反面内容，让AI讲解；chip 点击跳回具体卡片）

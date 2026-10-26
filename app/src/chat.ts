@@ -2,6 +2,7 @@ import { defineComponent, h, ref, computed, onMounted, nextTick } from "vue";
 import { api, errorText } from "./api";
 import { addMemory } from "./agent-memory";
 import { extractFile } from "./extract-file";
+import { confirmPendingAction } from "./agent-action";
 
 const AGENTS = [
   { id: "xingye", name: "星野", role: "主理人", tag: "方向 / 规划", avatar: "/assets/companions/b-1.png" },
@@ -136,7 +137,18 @@ export default defineComponent({
           history,
         }, { timeoutMs: 150000 });
         const reply = String(r.reply || "").trim();
-        if (!reply) throw new Error("AI 没有回复，请再说一次");
+        if (!reply && !r.pendingAction) throw new Error("AI 没有回复，请再说一次");
+        if (r.pendingAction) {
+          const done = await confirmPendingAction(r.pendingAction);
+          messages.value.push({
+            role: "assistant",
+            text: done.cancelled ? "已取消写入。" : done.ok
+              ? "已执行写入：" + JSON.stringify(done.result || {}).slice(0, 300)
+              : "写入失败：" + (done.error || "未知错误"),
+          });
+          scrollBottom();
+          return;
+        }
         messages.value.push({
           role: "assistant",
           text: reply,

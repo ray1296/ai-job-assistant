@@ -22,6 +22,7 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
+import MouseTrail from "./mouse-trail";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const Jobs = defineAsyncComponent(() => import("./jobs"));
@@ -267,6 +268,7 @@ const app = defineComponent({
       ]);
     function home() {
       return h("div", [
+        h(MouseTrail),
         h("section", { class: "journey-hero" }, [
           h("span", { class: "eyebrow" }, "YOUR NEXT CHAPTER"),
           h("h1", ["每一步，", h("em", "都离理想更近。")]),

@@ -6,6 +6,7 @@ import { petPositions, setPetPos } from "./pet-store";
 import { voiceOn, setVoiceOn, speakAs, stopSpeech } from "./voice";
 import { addMemory, clearMemory, memoryEntries, memoryStats, memoryText, MEMORY_TTL_DAYS } from "./agent-memory";
 import { extractFile } from "./extract-file";
+import { confirmPendingAction } from "./agent-action";
 
 const ROLE_SHORT: Record<string, string> = {
   主理人: "主理", 学习助教: "学习", 求职顾问: "求职", 生活管家: "生活",
@@ -150,6 +151,11 @@ export default defineComponent({
           memory: memoryText(props.name) || undefined,
         }, { timeoutMs: 120000 });
         const reply = String(r?.reply || "……我再想想。");
+        if (r?.pendingAction) {
+          const done = await confirmPendingAction(r.pendingAction);
+          log.value.push({ role: "ai", text: done.cancelled ? "已取消写入。" : done.ok ? "已执行写入：" + JSON.stringify(done.result || {}).slice(0, 300) : "写入失败：" + (done.error || "未知错误") });
+          return;
+        }
         if (Array.isArray(r?.plan) && r.plan.length) {
           log.value.push({
             role: "ai",

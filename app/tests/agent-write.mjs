@@ -1,0 +1,10 @@
+import assert from "node:assert/strict"; import fs from "node:fs";
+const base="http://127.0.0.1:5173"; const email="qa-write-"+Date.now()+"@example.invalid", password="QA-Write-12345!";
+const init=fs.readFileSync("private/admin-initial.txt","utf8"); const ae=init.match(/email:\s*(.+)/)[1].trim(), ap=init.match(/password:\s*(.+)/)[1].trim();
+const reg=await fetch(base+"/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password,displayName:"写操作"})}); const cookie=(reg.headers.get("set-cookie")||"").split(";")[0]; const s=await reg.json(); const h={Cookie:cookie,"X-CSRF-Token":s.csrf,"Content-Type":"application/json"};
+const r=await fetch(base+"/api/companion/chat",{method:"POST",headers:h,body:JSON.stringify({persona:"星野",message:"把前端岗位加入投递意向"})}); const d=await r.json(); console.log("proposal",r.status,JSON.stringify(d.pendingAction)); assert.equal(r.status,200); assert.ok(d.pendingAction?.token);
+const before=await (await fetch(base+"/api/job-intents",{headers:{Cookie:cookie}})).json();
+const c=await fetch(base+"/api/agents/actions/"+d.pendingAction.token+"/confirm",{method:"POST",headers:h}); const cd=await c.json(); console.log("confirm",c.status,JSON.stringify(cd).slice(0,300)); assert.equal(c.status,200); assert.ok(cd.ok);
+const after=await (await fetch(base+"/api/job-intents",{headers:{Cookie:cookie}})).json(); assert.ok((after.jobIds||[]).length>(before.jobIds||[]).length);
+console.log("PASS agent write requires confirmation and persists");
+const l=await fetch(base+"/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:ae,password:ap,role:"admin"})}); const ac=(l.headers.get("set-cookie")||"").split(";")[0]; const aj=await l.json(); const ah={Cookie:ac,"X-CSRF-Token":aj.csrf,"Content-Type":"application/json"}; const users=await (await fetch(base+"/api/admin/users",{headers:ah})).json(); const me=users.users.find(u=>u.email===email); if(me) await fetch(base+"/api/admin/users/"+me.id,{method:"DELETE",headers:ah});

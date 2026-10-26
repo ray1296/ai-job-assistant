@@ -6,7 +6,7 @@
 
 ## 一、结论
 
-- 自动化测试最终全部通过：197 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
+- 自动化测试最终全部通过：199 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
 - 覆盖：认证、资料/简历、岗位/投递、数据空间、大屏/地图/企业/租房、学习/刷题、上传、面试、AI 协作、RAG、Tool RAG、MCP、心愿池、管理中心、设置、安全与性能。
 - 发现并修复 1 个服务端幂等键问题（心愿“完成”后立即删除被误拦为 409），以及若干测试脚本/测试环境问题。
 - 仍存在的限制：高负载时 OCR/视觉识别会主动返回 503；只测了 Chromium；没有做正式长稳压测/渗透/跨浏览器；全双工实时音频需人工听测。
@@ -53,7 +53,9 @@
 | 并发稳定性（3 轮页面 + 并发读） | 4/4 |
 | 面试并发队列 API | 2/2 |
 | 面试队列 UI | 1/1 |
-| 合计 | 197/197 |
+| Agent 写操作确认 | 1/1 |
+| 首页鼠标拖尾 | 1/1 |
+| 合计 | 199/199 |
 
 ### 关键指标
 
@@ -175,6 +177,8 @@
 - 7 个无视觉变化候选复核后均为选中态、confirm、文件选择器或异步地图结果，不是死按钮。
 - 8 个页面 × 3 轮刷新稳定；12 并发读全部 200。
 - 模拟面试并发闸门：前 3 场直接进入，第 4 场进入队列；第 4 场 UI 显示位置并可取消，释放后自动提升。
+- Agent 写操作：add_job_intent / create_wish 两阶段确认，未确认不写库；确认后真实写入。
+- 首页鼠标拖尾：透明 canvas，实测 315 个 alpha 像素，canvas 背景 rgba(0,0,0,0)，页面背景不是黑色。
 - 详细记录：[CLICK_AUDIT.md](CLICK_AUDIT.md)
 
 ## 六、仍存在的限制/风险
@@ -205,6 +209,8 @@
     node tests/pet-features.mjs
     node tests/interview-queue.mjs
     node tests/interview-queue-browser.mjs
+    node tests/agent-write.mjs
+    node tests/mouse-trail.mjs
     node tests/stability.mjs
     node tests/click-audit.mjs
     node tests/navigation-regression.mjs

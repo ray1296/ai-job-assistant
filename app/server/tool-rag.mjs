@@ -14,6 +14,8 @@ const ALIASES = {
   find_housing: "租房 房租 租金 合租 整租 通勤 小区 房源 房子 找房 住 城市 预算",
   my_progress: "学习 刷题 刷了 多少题 做题 进度 错题 复习 收藏 掌握 题库 题目 学习进度",
   project_guide: "项目 介绍 功能 怎么用 使用说明 帮助 教程 按钮 页面 新手 项目说明",
+  add_job_intent: "加入 投递 意向 收藏 岗位 保存 求职 计划 写操作",
+  create_wish: "心愿 建议 提交 反馈 写操作",
 };
 
 function tokens(text) {

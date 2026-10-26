@@ -8,7 +8,10 @@ export const TOOLS = [
   { name: "find_housing", description: "查询城市租房（可按租金上限）", inputSchema: { type: "object", properties: { city: { type: "string" }, maxRent: { type: "number" } } } },
   { name: "my_progress", description: "查询当前用户的学习题库进度", inputSchema: { type: "object", properties: {} } },
   { name: "project_guide", description: "查项目各功能的作用和使用方法；用户问“这个功能怎么用/项目有哪些功能”时使用", inputSchema: { type: "object", properties: { topic: { type: "string" } } } },
+  { name: "add_job_intent", description: "写操作：把匹配岗位加入投递意向；必须经用户确认后才执行", inputSchema: { type: "object", properties: { jobTitle: { type: "string" }, company: { type: "string" } }, required: ["jobTitle"] } },
+  { name: "create_wish", description: "写操作：提交一条待审核心愿；必须经用户确认后才执行", inputSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] } },
 ];
+export const WRITE_TOOLS = new Set(["add_job_intent", "create_wish"]);
 
 /** 工具端强制拦截：任何删除 / 覆盖 / 执行类工具名都不会被派发。 */
 const BLOCKED_TOOL = /^(delete|drop|truncate|reset|clear|wipe|remove|purge|destroy|overwrite|format|exec|shell|run_)/i;
@@ -50,6 +53,9 @@ export function callTool(name, args = {}, ctx = {}) {
     const maxRent = Number(args.maxRent) || 0;
     const list = loadPlatformHousing(city).filter((h) => !maxRent || Number(h.rent || 0) <= maxRent).slice(0, 6);
     return { count: list.length, items: list.map((h) => ({ community: h.community, rent: h.rent, layout: h.layout, url: h.url })) };
+  }
+  if (WRITE_TOOLS.has(toolName)) {
+    return { requiresConfirmation: true, tool: toolName, args, summary: toolName === "add_job_intent" ? "把岗位「" + String(args.jobTitle || args.title || "匹配岗位") + "」加入投递意向" : "提交心愿：" + String(args.text || "").slice(0, 80) };
   }
   if (toolName === "project_guide") {
     const topic = String(args.topic || "").trim();

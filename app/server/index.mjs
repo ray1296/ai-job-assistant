@@ -19,6 +19,7 @@ import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.m
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
 import { createInterviewQueue } from "./interview-queue.mjs";
+import { createAgentActions } from "./agent-actions.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
@@ -112,6 +113,7 @@ db.exec("CREATE TABLE IF NOT EXISTS interview_sessions(id TEXT PRIMARY KEY, user
 db.exec("CREATE INDEX IF NOT EXISTS interview_sessions_owner ON interview_sessions(user_id, created_at);");
 try { db.exec("ALTER TABLE interview_sessions ADD COLUMN difficulty TEXT"); } catch {}
 const applicationPlan = createApplicationPlan(db, getJob);
+const agentActions = createAgentActions({ db, plan: applicationPlan, listJobs });
 const learning = createLearning(db);
 const resumeImports = createResumeImports(db, dataDir, profileData);
 const applicationCopy = createApplicationCopy(dataDir);
@@ -300,6 +302,10 @@ function serverMemory(userId, agentId) {
 function agentSystem(agentId, extra = "") {
   const ctx = agents.context(agentId);
   return ctx.system + "\n" + TONE_RULE + "\n" + AGENT_SAFETY + (extra ? "\n" + extra : "");
+}
+function proposalFor(userId, result) {
+  if (!result?.requiresConfirmation) return null;
+  return agentActions.propose(userId, result.tool, result.args || {}, result.summary || result.tool);
 }
 function agentSystemWithMemory(userId, agentId, extra = "", localMemory = "") {
   const parts = [agentSystem(agentId, extra)];
@@ -1474,6 +1480,7 @@ const server = http.createServer(async (req, res) => {
         let memory = "";
         let delegation = null;
         let planTrace = null;
+        let pendingAction = null;
         const used = [];
         try {
           const peerMatch = message.match(/让\s*(知微|砚舟|栖迟)\s*(?:帮(?:我)?|去|来)?\s*([\s\S]{2,200})/);
@@ -1510,18 +1517,25 @@ const server = http.createServer(async (req, res) => {
             const hitCompany = companies.find((c) => message.includes(c.name));
             let direct = null;
             if (hitCompany) direct = { tool: "company_review", args: { name: hitCompany.name } };
+            else if (/加入.*(投递|意向)|投递意向/.test(message)) direct = { tool: "add_job_intent", args: { jobTitle: jobArgsFromMessage(message).keyword || message.slice(0, 80), company: "" } };
+            else if (/提交.*(心愿|建议)|写.*(心愿|建议)/.test(message)) direct = { tool: "create_wish", args: { text: message.slice(0, 500) } };
             else if (/租房|房租|租金|合租/.test(message)) direct = { tool: "find_housing", args: {} };
             else if (/岗位|招聘|职位|工作机会/.test(message)) direct = { tool: "search_jobs", args: jobArgsFromMessage(message) };
             if (direct) {
               const result = callTool(direct.tool, direct.args, { study, userId: s.user_id });
               used.push(direct.tool);
-              const answer = await aiGateway.chat(s.user_id, {
-                message: "用户问题：" + message + "\n\n已调用工具 " + direct.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
-                  "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
-                persona: personaName, model: agentCfg.model, system,
-              }, undefined);
-              reply = String(answer.reply || "").trim();
-              memory = String(answer.memory || "").trim();
+              if (result?.requiresConfirmation) {
+                pendingAction = proposalFor(s.user_id, result);
+                reply = "这个写操作需要你确认：" + (result.summary || direct.tool);
+              } else {
+                const answer = await aiGateway.chat(s.user_id, {
+                  message: "用户问题：" + message + "\n\n已调用工具 " + direct.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
+                    "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
+                  persona: personaName, model: agentCfg.model, system,
+                }, undefined);
+                reply = String(answer.reply || "").trim();
+                memory = String(answer.memory || "").trim();
+              }
             } else {
               const route = await aiGateway.chat(s.user_id, {
                 message: "用户问题：" + message + "\n\n可用工具：\n" + toolTable +
@@ -1543,13 +1557,18 @@ const server = http.createServer(async (req, res) => {
               } else if (decision.tool) {
                 const result = callTool(decision.tool, decision.args || {}, { study, userId: s.user_id });
                 used.push(decision.tool);
-                const answer = await aiGateway.chat(s.user_id, {
-                  message: "用户问题：" + message + "\n\n已调用工具 " + decision.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
-                    "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
-                  persona: personaName, model: agentCfg.model, system,
-                }, undefined);
-                reply = String(answer.reply || "").trim();
-                memory = String(answer.memory || "").trim();
+                if (result?.requiresConfirmation) {
+                  pendingAction = proposalFor(s.user_id, result);
+                  reply = "这个写操作需要你确认：" + (result.summary || decision.tool);
+                } else {
+                  const answer = await aiGateway.chat(s.user_id, {
+                    message: "用户问题：" + message + "\n\n已调用工具 " + decision.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
+                      "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
+                    persona: personaName, model: agentCfg.model, system,
+                  }, undefined);
+                  reply = String(answer.reply || "").trim();
+                  memory = String(answer.memory || "").trim();
+                }
               } else {
                 const plain = await aiGateway.chat(s.user_id, {
                   message, persona: personaName, system, model: agentCfg.model,
@@ -1584,7 +1603,7 @@ const server = http.createServer(async (req, res) => {
         saveCompanion(s.user_id, agentId, "assistant", cleanReply);
         saveAgentRun(s.user_id, agentId, message, planTrace || delegation, used);
         if (ragCtx.sources.length) used.push("rag:" + ragCtx.sources.length);
-        return send(res, 200, { reply: cleanReply, handoff, tools: used, memory, delegation, plan: planTrace, ragSources: ragCtx.sources });
+        return send(res, 200, { reply: cleanReply, handoff, tools: used, memory, delegation, plan: planTrace, ragSources: ragCtx.sources, pendingAction });
       }
       if (p === "/api/study/tutor" && m === "POST") {
         const payload = await body(req);
@@ -1808,6 +1827,7 @@ const server = http.createServer(async (req, res) => {
         let memory = "";
         let delegation = null;
         let planTrace = null;
+        let pendingAction = null;
         const used = [];
         try {
           const peerMatch = message.match(/让\s*(知微|砚舟|栖迟)\s*(?:帮(?:我)?|去|来)?\s*([\s\S]{2,200})/);
@@ -1841,18 +1861,25 @@ const server = http.createServer(async (req, res) => {
             const hitCompany = companies.find((c) => message.includes(c.name));
             let direct = null;
             if (hitCompany) direct = { tool: "company_review", args: { name: hitCompany.name } };
+            else if (/加入.*(投递|意向)|投递意向/.test(message)) direct = { tool: "add_job_intent", args: { jobTitle: jobArgsFromMessage(message).keyword || message.slice(0, 80), company: "" } };
+            else if (/提交.*(心愿|建议)|写.*(心愿|建议)/.test(message)) direct = { tool: "create_wish", args: { text: message.slice(0, 500) } };
             else if (/租房|房租|租金|合租/.test(message)) direct = { tool: "find_housing", args: {} };
             else if (/岗位|招聘|职位|工作机会/.test(message)) direct = { tool: "search_jobs", args: jobArgsFromMessage(message) };
             if (direct) {
               const result = callTool(direct.tool, direct.args, { study, userId: s.user_id });
               used.push(direct.tool);
-              const a = await aiGateway.chat(s.user_id, {
-                message: "用户问题：" + message + "\n\n已调用工具 " + direct.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
-                  "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
-                persona: "星野", system, model: agentCfg.model,
-              }, undefined);
-              reply = String(a.reply || "").trim();
-              memory = String(a.memory || "").trim();
+              if (result?.requiresConfirmation) {
+                pendingAction = proposalFor(s.user_id, result);
+                reply = "这个写操作需要你确认：" + (result.summary || direct.tool);
+              } else {
+                const a = await aiGateway.chat(s.user_id, {
+                  message: "用户问题：" + message + "\n\n已调用工具 " + direct.tool + "，结果（JSON）：" + JSON.stringify(result).slice(0, 2000) +
+                    "\n\n请基于真实结果用中文简洁回答（150 字内），不要编造结果里没有的数据。",
+                  persona: "星野", system, model: agentCfg.model,
+                }, undefined);
+                reply = String(a.reply || "").trim();
+                memory = String(a.memory || "").trim();
+              }
             } else {
               const plain = await aiGateway.chat(s.user_id, {
                 message, persona: "星野", system, history, model: agentCfg.model,
@@ -1890,6 +1917,7 @@ const server = http.createServer(async (req, res) => {
             await new Promise((r) => setTimeout(r, 12));
           }
           if (memory) res.write("event: memory\ndata: " + memory.replace(/[\r\n]+/g, " ") + "\n\n");
+          if (pendingAction) res.write("event: action\ndata: " + JSON.stringify(pendingAction).replace(/[\r\n]+/g, " ") + "\n\n");
           res.write("event: done\ndata: \n\n");
         } catch {}
         return res.end();
@@ -2062,6 +2090,12 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { runs: rows.map((r) => ({ ...r, plan: (() => { try { return JSON.parse(r.plan); } catch { return null; } })(), tools: (() => { try { return JSON.parse(r.tools); } catch { return []; } })() })) });
       }
       if (p === "/api/agents/tools" && m === "GET") return send(res, 200, { tools: TOOLS });
+      {
+        const mm = p.match(/^\/api\/agents\/actions\/([a-f0-9]{32})\/(confirm|cancel)$/);
+        if (mm && m === "POST") {
+          return send(res, 200, mm[2] === "confirm" ? agentActions.confirm(s.user_id, mm[1]) : agentActions.cancel(s.user_id, mm[1]));
+        }
+      }
       if (p === "/api/agents/tool-call" && m === "POST") {
         const payload = await body(req);
         try {
