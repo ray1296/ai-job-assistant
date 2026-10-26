@@ -82,6 +82,27 @@
   gap: 15px;
   flex-wrap: wrap;
 }
+.ai-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 6px 0 8px;
+  color: #6f5f8c;
+  font-size: 12px;
+  line-height: 1.7;
+  cursor: pointer;
+}
+.ai-consent input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #7460c9;
+  cursor: pointer;
+}
+html[data-theme="night"] .ai-consent { color: #c3cee3; }
 .resume-import h2 {
   font-size: 20px;
   margin: 5px 0 12px;
