@@ -242,7 +242,7 @@ export default defineComponent({
                           new Date(d.createdAt).toLocaleString("zh-CN"),
                           h("span", { class: "proto-ops" }, [
                             h("button", { class: "btn", onClick: () => open(d.id) }, "查看"),
-                            h("button", { class: "btn", onClick: () => remove(d) }, "删除"),
+                            h("button", { class: "btn", onClick: () => remove(d, true), title: "删除这次上传的数据集和数据行" }, "撤销上传"),
                           ]),
                         ]),
                       )
