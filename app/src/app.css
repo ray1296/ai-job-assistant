@@ -2413,3 +2413,47 @@ body.map-mode .immersive-main { min-height: 100vh; }
   cursor: pointer;
 }
 .map-slot-clear:hover { color: #b04a63; border-color: #e4b8c4; background: #fff7f9; }
+
+/* 企业详情：风评/工商信息可读性优先，不再沿用列表的 10px 字号 */
+.company-detail { padding: 22px 24px; }
+.company-detail-head h2 { font-size: 24px; }
+.company-detail-head small { font-size: 13px; color: #7d6f8c; }
+.company-detail .company-summary { font-size: 15px; line-height: 1.8; padding: 11px 15px; }
+.company-detail h3 { font-size: 19px; margin: 20px 0 8px; }
+.company-detail .tr {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #3f3353;
+  padding: 13px 12px;
+  gap: 14px;
+}
+.company-detail .tr span:first-child { color: #7d6f8c; font-weight: 500; }
+.company-detail .tr span:last-child { color: #3f3353; }
+.company-detail .muted { font-size: 13px; line-height: 1.8; }
+html[data-theme="night"] .company-detail .tr, html[data-theme="night"] .company-detail .tr span:last-child { color: #e6edf9; }
+html[data-theme="night"] .company-detail .tr span:first-child, html[data-theme="night"] .company-detail-head small { color: #9fb0d0; }
+@media (max-width: 760px) {
+  .company-detail { padding: 16px 14px; }
+  .company-detail .tr { font-size: 13px; grid-template-columns: 104px 1fr !important; }
+}
+
+/* 提高优先级，压过 prototype 作用域的 .proto-page .tr */
+.proto-page .company-detail .tr {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #3f3353;
+  padding: 13px 12px;
+  gap: 14px;
+}
+.proto-page .company-detail .tr span:first-child { color: #7d6f8c; font-weight: 500; }
+.proto-page .company-detail .tr span:last-child { color: #3f3353; }
+.proto-page .company-detail .company-summary { font-size: 15px; line-height: 1.8; }
+.proto-page .company-detail h3 { font-size: 19px; }
+.proto-page .company-detail-head h2 { font-size: 24px; }
+.proto-page .company-detail-head small { font-size: 13px; }
+html[data-theme="night"] .proto-page .company-detail .tr,
+html[data-theme="night"] .proto-page .company-detail .tr span:last-child { color: #e6edf9; }
+html[data-theme="night"] .proto-page .company-detail .tr span:first-child { color: #9fb0d0; }
+@media (max-width: 760px) {
+  .proto-page .company-detail .tr { font-size: 13px; grid-template-columns: 104px 1fr !important; }
+}
