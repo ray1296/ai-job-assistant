@@ -641,20 +641,24 @@ function normalizeDisplayName(v, email) {
   if (!name) name = String(email || "").split("@")[0].slice(0, 24);
   return name || "用户";
 }
-function credentials(x) {
+function credentials(x, register = false) {
+  const email = typeof x.email === "string" ? x.email.trim() : "";
   if (
-    typeof x.email !== "string" ||
-    x.email.length > 254 ||
-    !/^\S+@\S+\.\S+$/.test(x.email)
+    !email ||
+    email.length > 254 ||
+    !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)
   )
-    throw failure(400, "请输入有效邮箱");
+    throw failure(400, "请输入有效邮箱，例如 name@example.com");
   if (
     typeof x.password !== "string" ||
     x.password.length < 10 ||
     x.password.length > 128
   )
     throw failure(400, "密码需10至128位");
-  return { email: x.email.trim().toLowerCase(), password: x.password };
+  // 注册必须同时有字母和数字；登录不追加新限制，避免历史账号无法登录。
+  if (register && (!/[A-Za-z]/.test(x.password) || !/\d/.test(x.password)))
+    throw failure(400, "密码需同时包含字母和数字");
+  return { email, password: x.password };
 }
 function isSecure(req) {
   return !!(
@@ -798,7 +802,7 @@ const server = http.createServer(async (req, res) => {
       ) {
         limited("auth:" + req.socket.remoteAddress, 20, 15 * 60000);
         const rawAuth = await body(req);
-        const x = credentials(rawAuth);
+        const x = credentials(rawAuth, p.endsWith("register"));
         const wantAdmin = rawAuth?.role === "admin";
         let u = stmt.user.get(x.email);
         if (p.endsWith("register")) {

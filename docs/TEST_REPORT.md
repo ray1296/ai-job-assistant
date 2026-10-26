@@ -6,7 +6,7 @@
 
 ## 一、结论
 
-- 自动化测试最终全部通过：200 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
+- 自动化测试最终全部通过：207 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
 - 覆盖：认证、资料/简历、岗位/投递、数据空间、大屏/地图/企业/租房、学习/刷题、上传、面试、AI 协作、RAG、Tool RAG、MCP、心愿池、管理中心、设置、安全与性能。
 - 发现并修复 1 个服务端幂等键问题（心愿“完成”后立即删除被误拦为 409），以及若干测试脚本/测试环境问题。
 - 仍存在的限制：高负载时 OCR/视觉识别会主动返回 503；只测了 Chromium；没有做正式长稳压测/渗透/跨浏览器；全双工实时音频需人工听测。
@@ -56,7 +56,9 @@
 | Agent 写操作确认 | 1/1 |
 | 首页鼠标拖尾 | 1/1 |
 | 日夜主题切换 | 1/1 |
-| 合计 | 200/200 |
+| 注册格式/注册后登录（API） | 5/5 |
+| 注册后登录（UI） | 2/2 |
+| 合计 | 207/207 |
 
 ### 关键指标
 
@@ -181,6 +183,7 @@
 - Agent 写操作：add_job_intent / create_wish 两阶段确认，未确认不写库；确认后真实写入。
 - 首页鼠标拖尾：按 bigdata_analysis 的 Tendril 弹簧曲线移植，20 条 × 50 节点；透明 canvas，不覆盖页面背景、不拦截点击；夜间模式在黑底上更明显。
 - 日夜主题：默认日间，头像旁切换，刷新保持；夜间全站深色。
+- 注册/登录：邮箱格式、密码字母+数字校验；注册成功后退出再登录通过。修复了退出后登录弹窗仍停留在注册模式的问题。
 - 详细记录：[CLICK_AUDIT.md](CLICK_AUDIT.md)
 
 ## 六、仍存在的限制/风险
@@ -214,6 +217,8 @@
     node tests/agent-write.mjs
     node tests/mouse-trail.mjs
     node tests/theme-toggle.mjs
+    node tests/auth-registration.mjs
+    node tests/auth-registration-ui.mjs
     node tests/stability.mjs
     node tests/click-audit.mjs
     node tests/navigation-regression.mjs

@@ -214,6 +214,15 @@ const app = defineComponent({
     async function submitAuth(e: Event) {
       e.preventDefault();
       if (busy.value) return;
+      const em = email.value.trim();
+      if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(em)) {
+        error.value = "请输入有效邮箱，例如 name@example.com";
+        return;
+      }
+      if (authMode.value === "register" && (!/[A-Za-z]/.test(password.value) || !/\d/.test(password.value))) {
+        error.value = "密码需同时包含字母和数字";
+        return;
+      }
       busy.value = true;
       error.value = "";
       try {
@@ -251,6 +260,8 @@ const app = defineComponent({
         session.user = null;
         session.csrf = null;
         dirty.value = false;
+        authMode.value = "login";
+        loginRole.value = "user";
         active.value = "home";
         history.replaceState(null, "", "#home");
         notice.value = "已退出，私人资料不会展示给下一个账号";
@@ -530,7 +541,13 @@ const app = defineComponent({
             h(
               "button",
               {
-                onClick: () => (session.user ? logout() : (auth.value = true)),
+                onClick: () => {
+                if (session.user) return void logout();
+                authMode.value = "login";
+                loginRole.value = "user";
+                error.value = "";
+                auth.value = true;
+              },
               },
               session.user ? "退出登录" : "登录 / 注册",
             ),
@@ -728,6 +745,8 @@ const app = defineComponent({
                           type: "email",
                           value: email.value,
                           required: true,
+                          pattern: "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}",
+                          title: "请输入有效邮箱，例如 name@example.com",
                           autocomplete: "username",
                           maxlength: 254,
                           onInput: (e: Event) =>
@@ -740,7 +759,7 @@ const app = defineComponent({
                         h(
                           "label",
                           { for: "auth-password" },
-                          "密码（10—128位）",
+                          authMode.value === "register" ? "密码（10—128位，至少含字母和数字）" : "密码（10—128位）",
                         ),
                         h("div", { class: "password-field" }, [
                           h("input", {
@@ -750,6 +769,8 @@ const app = defineComponent({
                             required: true,
                             minlength: 10,
                             maxlength: 128,
+                            pattern: authMode.value === "register" ? "(?=.*[A-Za-z])(?=.*\\d).{10,128}" : undefined,
+                            title: authMode.value === "register" ? "密码需 10—128 位，且同时包含字母和数字" : undefined,
                             autocomplete:
                               authMode.value === "login"
                                 ? "current-password"
