@@ -96,20 +96,17 @@ export default defineComponent({
       if (!ctx) return;
       // 透明画布上的淡出：只降低旧像素 alpha，不填任何背景色。
       ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = "rgba(0,0,0,0.14)";
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
       ctx.fillRect(0, 0, width, height);
-      ctx.globalCompositeOperation = "source-over";
-      phase += 0.0015;
-      const hue = 255 + Math.sin(phase) * 65;
-      ctx.globalCompositeOperation = "source-over";
-      ctx.lineWidth = 0.85;
+      phase += 0.005;
+      // 原版核心：lighter 叠加让曲线交叠处自然变亮，中心比边缘亮。
+      ctx.globalCompositeOperation = "lighter";
+      const hue = 285 + Math.sin(phase) * 85;
+      ctx.lineWidth = 0.9;
       ctx.lineCap = "round";
-      // 浅色站点上用深一点的青/紫，保留原效果的色相变化
-      ctx.strokeStyle = "hsla(" + Math.round(hue) + ", 78%, 45%, .22)";
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = "hsla(" + Math.round(hue) + ", 85%, 55%, .16)";
+      ctx.strokeStyle = "hsla(" + Math.round(hue) + ", 90%, 50%, .22)";
       for (const t of tendrils) { t.update(); t.draw(); }
-      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = "source-over";
     }
     onMounted(() => {
       if (reduced) return;
