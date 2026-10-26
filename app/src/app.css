@@ -2387,3 +2387,7 @@ html[data-theme="night"] .job-intent-badge.pending { color: #f0c77c; background:
 @media (max-width: 760px) {
   .map-full .map-legend { left: 10px; right: 10px; top: 112px; bottom: auto; transform: none; justify-content: center; flex-wrap: wrap; }
 }
+
+/* 地图是独立全屏空间，不显示网站顶部栏；顶部只保留地图自己的搜索栏 */
+body.map-mode .sky-header { display: none !important; }
+body.map-mode .immersive-main { min-height: 100vh; }

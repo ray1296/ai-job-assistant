@@ -560,6 +560,7 @@ export default defineComponent({
     function fbZoom(d: number) { fb.value = { ...fb.value, zoom: Math.max(5, Math.min(18, fb.value.zoom + d)) }; }
 
     onMounted(async () => {
+      document.body.classList.add("map-mode");
       try {
         if (!hasWebGL()) {
           useFallback.value = true;
@@ -713,6 +714,7 @@ export default defineComponent({
       } catch (e) { error.value = errorText(e); }
     });
     onBeforeUnmount(() => {
+      document.body.classList.remove("map-mode");
       try { ruler?.turnOff(); } catch {}
       try { map?.destroy(); } catch {}
       map = null;
