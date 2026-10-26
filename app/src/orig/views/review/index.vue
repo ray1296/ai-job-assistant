@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page review-page">
     <!-- 头部 -->
     <div class="page-header review-header">
@@ -155,16 +155,25 @@ async function loadStats() {
   }
 }
 
+let loadingData = false
 async function loadData() {
-  loading.value = true
-  if (!userStore.subjects.length) {
-    await userStore.fetchSubjects()
+  // onMounted + onActivated 在 keep-alive 首屏会同时触发；
+  // 并发重载会让科目卡片在用户点击时被替换，表现为“点几次才响应”。
+  if (loadingData) return
+  loadingData = true
+  try {
+    loading.value = true
+    if (!userStore.subjects.length) {
+      await userStore.fetchSubjects()
+    }
+    subjects.value = userStore.subjects
+    const overview = await statsStore.fetchOverview()
+    stats.value = overview
+    await loadStats()
+  } finally {
+    loading.value = false
+    loadingData = false
   }
-  subjects.value = userStore.subjects
-  const overview = await statsStore.fetchOverview()
-  stats.value = overview
-  await loadStats()
-  loading.value = false
 }
 
 onMounted(loadData)
