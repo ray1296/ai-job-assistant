@@ -99,7 +99,7 @@
             <div class="quiz-header">
               <span class="q-type" style="background:var(--danger)">代码完形填空</span>
               <span class="q-num">第 {{ codeFillIndex + 1 }} / {{ codeFillQuestions.length }} 题</span>
-              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentCodeFill.id) }" @click="handleFavorite(currentCodeFill.id)">{{ isFavorited(currentCodeFill.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" @click="addWrongQuestion(currentCodeFill.id)">📕 错题</button>
+              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentCodeFill.id) }" @click="handleFavorite(currentCodeFill.id)">{{ isFavorited(currentCodeFill.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" :class="{ active: isWrong(currentCodeFill.id) }" @click="toggleWrong(currentCodeFill.id)">{{ isWrong(currentCodeFill.id) ? '✓ 错题' : '📕 错题' }}</button>
               <button class="ask-ai-btn" @click="askQuizAI()">🤖 问问AI</button>
               <span class="blank-count" style="margin-left:auto;color:var(--text-light);font-size:13px;">
                 已填: {{ codeFillFilledCount }} / {{ currentCodeFill.blanks?.length || 0 }}
@@ -174,7 +174,7 @@
             <div class="quiz-header">
               <span class="q-type" style="background:var(--primary)">选择题</span>
               <span class="q-num">第 {{ choiceIndex + 1 }} / {{ choiceQuestions.length }} 题</span>
-              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentChoice.id) }" @click="handleFavorite(currentChoice.id)">{{ isFavorited(currentChoice.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" @click="addWrongQuestion(currentChoice.id)">📕 错题</button>
+              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentChoice.id) }" @click="handleFavorite(currentChoice.id)">{{ isFavorited(currentChoice.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" :class="{ active: isWrong(currentChoice.id) }" @click="toggleWrong(currentChoice.id)">{{ isWrong(currentChoice.id) ? '✓ 错题' : '📕 错题' }}</button>
               <button class="ask-ai-btn" @click="askQuizAI()">🤖 问问AI</button>
               <label class="auto-toggle" style="margin-left:auto"><input type="checkbox" v-model="shuffleQuestions"> 题目乱序</label>
               <label class="auto-toggle"><input type="checkbox" v-model="shuffleOptions"> 选项乱序</label>
@@ -216,7 +216,7 @@
             <div class="quiz-header">
               <span class="q-type" style="background:var(--warning)">判断题</span>
               <span class="q-num">第 {{ judgeIndex + 1 }} / {{ judgeQuestions.length }} 题</span>
-              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentJudge.id) }" @click="handleFavorite(currentJudge.id)">{{ isFavorited(currentJudge.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" @click="addWrongQuestion(currentJudge.id)">📕 错题</button>
+              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentJudge.id) }" @click="handleFavorite(currentJudge.id)">{{ isFavorited(currentJudge.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" :class="{ active: isWrong(currentJudge.id) }" @click="toggleWrong(currentJudge.id)">{{ isWrong(currentJudge.id) ? '✓ 错题' : '📕 错题' }}</button>
               <button class="ask-ai-btn" @click="askQuizAI()">🤖 问问AI</button>
               <label class="auto-toggle" style="margin-left:auto"><input type="checkbox" v-model="shuffleQuestions"> 题目乱序</label>
             </div>
@@ -249,7 +249,7 @@
             <div class="quiz-header">
               <span class="q-type" style="background:var(--success)">简答题</span>
               <span class="q-num">第 {{ shortIndex + 1 }} / {{ shortQuestions.length }} 题</span>
-              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentShort.id) }" @click="handleFavorite(currentShort.id)">{{ isFavorited(currentShort.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" @click="addWrongQuestion(currentShort.id)">📕 错题</button>
+              <button v-if="!isMarketMode" class="fav-btn" :class="{ active: isFavorited(currentShort.id) }" @click="handleFavorite(currentShort.id)">{{ isFavorited(currentShort.id) ? '★' : '☆' }}</button><button class="wrong-add-btn" :class="{ active: isWrong(currentShort.id) }" @click="toggleWrong(currentShort.id)">{{ isWrong(currentShort.id) ? '✓ 错题' : '📕 错题' }}</button>
               <button class="ask-ai-btn" @click="askQuizAI()">🤖 问问AI</button>
               <label class="auto-toggle" style="margin-left:auto"><input type="checkbox" v-model="shuffleQuestions"> 题目乱序</label>
             </div>
@@ -1084,28 +1084,34 @@ function resetCurrentQuiz() {
   }
 }
 
-// 收藏相关
+// 收藏 / 错题相关
 const favoriteIds = ref(new Set())
+const wrongIds = ref(new Set())
 
 function isFavorited(qid) {
   return favoriteIds.value.has(qid)
+}
+function isWrong(qid) {
+  return wrongIds.value.has(qid)
 }
 
 async function handleFavorite(qid) {
   if (!qid) return
   try {
+    const was = favoriteIds.value.has(qid)
     await toggleFavorite(qid)
-    if (favoriteIds.value.has(qid)) {
-      favoriteIds.value.delete(qid)
-    } else {
+    if (was) favoriteIds.value.delete(qid)
+    else {
       favoriteIds.value.add(qid)
       window.dispatchEvent(new CustomEvent('kaoshibang:favorited'))
     }
-    // 更新收藏列表
+    showToast(was ? '已取消收藏' : '已收藏，可在收藏 Tab 查看')
+    // 更新收藏列表；后端返回完整题目，不再只返回 id。
     const favRes = await getFavoriteList()
     favorites.value = (favRes.data || []).filter(q => q.subjectId == subjectId || q.subject_id == subjectId)
   } catch (e) {
     console.error('收藏失败:', e)
+    showToast('收藏失败，请重试')
   }
 }
 
@@ -1187,7 +1193,8 @@ async function loadData() {
       } catch (e) {}
       try {
         const wrongRes = await getWrongQuestions()
-        wrongQuestions.value = (wrongRes.data || []).filter(q => Number(q.subjectId) === Number(subjectId))
+        wrongQuestions.value = (wrongRes.data || []).filter(q => q.subjectId == subjectId || q.subject_id == subjectId)
+        wrongIds.value = new Set(wrongQuestions.value.map(q => q.id))
       } catch (e) {}
 
       // 看板娘错题知识点主动讲解：用户在人物壁纸页勾选后才触发，节省 token
@@ -1404,24 +1411,35 @@ async function markWrongLearned(qid) {
   try {
     await showConfirmDialog({ title: '已学会', message: '标记为已学会？将从错题本移除' })
     await removeWrongQuestion(qid)
+    wrongIds.value.delete(qid)
     wrongQuestions.value = wrongQuestions.value.filter(q => q.id !== qid)
     showToast('已从错题本移除')
   } catch (e) {}
 }
-async function addWrongQuestion(qid) {
+async function toggleWrong(qid) {
+  if (!qid) return
   try {
-    const res = await apiAddWrongQuestion(qid)
-    showToast(res.message || '已加入错题集')
+    if (wrongIds.value.has(qid)) {
+      await removeWrongQuestion(qid)
+      wrongIds.value.delete(qid)
+      wrongQuestions.value = wrongQuestions.value.filter(q => q.id !== qid)
+      showToast('已从错题本移除')
+      return
+    }
+    await apiAddWrongQuestion(qid)
+    wrongIds.value.add(qid)
+    showToast('已加入错题本，可在错题 Tab 查看')
     const wrongRes = await getWrongQuestions()
-    wrongQuestions.value = (wrongRes.data || []).filter(q => Number(q.subjectId) === Number(subjectId))
+    wrongQuestions.value = (wrongRes.data || []).filter(q => q.subjectId == subjectId || q.subject_id == subjectId)
   } catch (e) {
-    showToast('加入失败')
+    showToast('错题操作失败，请重试')
   }
 }
 async function removeWrong(qid) {
   try {
     await showConfirmDialog({ title: '删除错题', message: '确定删除这条错题记录？' })
     await removeWrongQuestion(qid)
+    wrongIds.value.delete(qid)
     wrongQuestions.value = wrongQuestions.value.filter(q => q.id !== qid)
     showToast('已删除')
   } catch (e) {}
@@ -1688,6 +1706,7 @@ function askQuestionAI(q) {
 }
 
 .wrong-add-btn:hover { background: var(--danger); color: #fff; }
+.wrong-add-btn.active { background: var(--danger); color: #fff; }
 
 /* ===== 卡片（大模型样式） ===== */
 .cards-controls {

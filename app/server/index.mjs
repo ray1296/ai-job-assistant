@@ -1786,8 +1786,12 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (p === "/api/question/favorites/list" && m === "GET") {
-        const rows = db.prepare("SELECT question_id FROM study_favorites WHERE user_id=?").all(s.user_id);
-        return send(res, 200, rows.map((r) => ({ id: r.question_id })));
+        const rows = db.prepare(
+          "SELECT q.id,q.version_id AS versionId,v.subject_id AS subjectId,q.type,q.stem,q.options,q.answer,q.analysis,q.source,q.tags,q.difficulty,q.answer_source AS answerSource,f.created_at AS createdAt " +
+          "FROM study_favorites f JOIN study_questions q ON q.id=f.question_id JOIN study_versions v ON v.id=q.version_id " +
+          "WHERE f.user_id=? AND q.user_id=? ORDER BY f.created_at DESC",
+        ).all(s.user_id, s.user_id);
+        return send(res, 200, rows.map((r) => ({ ...r, options: JSON.parse(r.options || "[]"), tags: JSON.parse(r.tags || "[]") })));
       }
       {
         const mm = p.match(/^\/api\/question\/([a-z0-9]+)\/favorite$/);
@@ -1798,8 +1802,14 @@ const server = http.createServer(async (req, res) => {
           return send(res, 200, { favorited: !has });
         }
       }
-      if (p === "/api/exam/wrong-questions" && m === "GET")
-        return send(res, 200, db.prepare("SELECT question_id AS id FROM study_wrong WHERE user_id=?").all(s.user_id));
+      if (p === "/api/exam/wrong-questions" && m === "GET") {
+        const rows = db.prepare(
+          "SELECT q.id,q.version_id AS versionId,v.subject_id AS subjectId,q.type,q.stem,q.options,q.answer,q.analysis,q.source,q.tags,q.difficulty,q.answer_source AS answerSource,w.created_at AS createdAt " +
+          "FROM study_wrong w JOIN study_questions q ON q.id=w.question_id JOIN study_versions v ON v.id=q.version_id " +
+          "WHERE w.user_id=? AND q.user_id=? ORDER BY w.created_at DESC",
+        ).all(s.user_id, s.user_id);
+        return send(res, 200, rows.map((r) => ({ ...r, options: JSON.parse(r.options || "[]"), tags: JSON.parse(r.tags || "[]") })));
+      }
       {
         const mm = p.match(/^\/api\/exam\/wrong-questions\/([a-z0-9]+)$/);
         if (mm && m === "POST") {
