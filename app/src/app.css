@@ -2457,3 +2457,89 @@ html[data-theme="night"] .proto-page .company-detail .tr span:first-child { colo
 @media (max-width: 760px) {
   .proto-page .company-detail .tr { font-size: 13px; grid-template-columns: 104px 1fr !important; }
 }
+
+/* 租房筛选条：城市 chip、搜索和租金在同一组里，不再被 space-between 拉开 */
+.proto-page .housing-toolbar {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px 16px;
+  margin: 14px 0 18px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.86);
+  border: 1px solid #ece5f3;
+  border-radius: 14px;
+}
+.housing-cities { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; flex: 1 1 560px; }
+.proto-page .housing-chip {
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1;
+  color: #5c4b6e;
+  background: #fff;
+  border: 1px solid #e6def0;
+}
+.proto-page .housing-chip:hover { border-color: #cbb9e4; background: #faf7ff; }
+.proto-page .housing-chip.primary { color: #fff; background: #7460c9; border-color: #7460c9; }
+.housing-filters { display: flex; align-items: center; gap: 8px; flex: 1 1 380px; justify-content: flex-end; }
+.proto-page .housing-search {
+  flex: 1 1 190px;
+  max-width: 280px;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid #e1d7ec;
+  border-radius: 10px;
+  background: #fbf9fe;
+  color: #3f3353;
+  font-size: 13px;
+  outline: none;
+}
+.proto-page .housing-search:focus { border-color: #9d86db; box-shadow: 0 0 0 3px rgba(116,96,201,.12); background: #fff; }
+.proto-page .housing-search-btn { height: 40px; min-width: 66px; padding: 0 16px; border-radius: 10px; font-size: 13px; }
+.housing-rent {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #e1d7ec;
+  border-radius: 10px;
+  background: #fbf9fe;
+  color: #8b7d99;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.housing-rent select {
+  min-width: 82px;
+  height: 30px;
+  padding: 0 18px 0 2px;
+  border: 0;
+  background: transparent;
+  color: #4b3b63;
+  font-size: 12px;
+  font-weight: 600;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #7460c9 50%), linear-gradient(135deg, #7460c9 50%, transparent 50%);
+  background-position: calc(100% - 8px) 12px, calc(100% - 4px) 12px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  outline: none;
+}
+html[data-theme="night"] .proto-page .housing-toolbar { background: #16243a; border-color: #30445f; }
+html[data-theme="night"] .proto-page .housing-chip { background: #1b2c45; border-color: #3a506e; color: #dfe9f8; }
+html[data-theme="night"] .proto-page .housing-search,
+html[data-theme="night"] .housing-rent { background: #101d31; border-color: #3a506e; color: #dfe9f8; }
+html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
+@media (max-width: 1000px) {
+  .housing-cities { flex-basis: 100%; }
+  .housing-filters { flex-basis: 100%; justify-content: flex-start; }
+  .proto-page .housing-search { max-width: none; }
+}
+@media (max-width: 600px) {
+  .housing-filters { flex-wrap: wrap; }
+  .proto-page .housing-search { flex-basis: 100%; }
+  .proto-page .housing-search-btn { flex: 1 1 90px; }
+  .housing-rent { flex: 1 1 150px; }
+}

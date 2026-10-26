@@ -52,24 +52,31 @@ export default defineComponent({
           h("h1", "租房与生活"),
           h("p", "先按区域看清租金，再决定住在哪"),
         ]),
-        h("div", { class: "toolbar" }, [
-          h("button", { class: "btn" + (city.value === "" ? " primary" : ""), onClick: () => { city.value = ""; area.value = ""; void load(1); } }, "全部城市"),
-          ...cities.value.map((c) => h("button", {
-            class: "btn" + (city.value === c ? " primary" : ""),
-            onClick: () => { city.value = c; area.value = ""; void load(1); },
-          }, c)),
-          h("input", {
-            class: "map-input", style: "max-width:220px", placeholder: "搜小区或区域",
-            value: q.value, onInput: (e: Event) => (q.value = (e.target as HTMLInputElement).value),
-            onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void load(1); },
-          }),
-          h("button", { class: "btn", onClick: () => void load(1) }, "搜索"),
-          h("select", {
-            "aria-label": "租金上限",
-            value: String(maxRent.value),
-            onChange: (e: Event) => { maxRent.value = Number((e.target as HTMLSelectElement).value); void load(1); },
-          }, [["0", "不限租金"], ["2000", "≤2000"], ["3000", "≤3000"], ["5000", "≤5000"], ["8000", "≤8000"], ["12000", "≤12000"]]
-            .map(([v, t]) => h("option", { value: v }, t))),
+        h("div", { class: "toolbar housing-toolbar" }, [
+          h("div", { class: "housing-cities" }, [
+            h("button", { class: "btn housing-chip" + (city.value === "" ? " primary" : ""), onClick: () => { city.value = ""; area.value = ""; void load(1); } }, "全部城市"),
+            ...cities.value.map((c) => h("button", {
+              class: "btn housing-chip" + (city.value === c ? " primary" : ""),
+              onClick: () => { city.value = c; area.value = ""; void load(1); },
+            }, c)),
+          ]),
+          h("div", { class: "housing-filters" }, [
+            h("input", {
+              class: "map-input housing-search", placeholder: "搜小区或区域",
+              value: q.value, onInput: (e: Event) => (q.value = (e.target as HTMLInputElement).value),
+              onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void load(1); },
+            }),
+            h("button", { class: "btn primary housing-search-btn", onClick: () => void load(1) }, "搜索"),
+            h("label", { class: "housing-rent" }, [
+              h("span", "租金"),
+              h("select", {
+                "aria-label": "租金上限",
+                value: String(maxRent.value),
+                onChange: (e: Event) => { maxRent.value = Number((e.target as HTMLSelectElement).value); void load(1); },
+              }, [["0", "不限"], ["2000", "≤2000"], ["3000", "≤3000"], ["5000", "≤5000"], ["8000", "≤8000"], ["12000", "≤12000"]]
+                .map(([v, t]) => h("option", { value: v }, t))),
+            ]),
+          ]),
         ]),
         error.value ? h("p", { class: "error", role: "alert" }, error.value) : null,
 
