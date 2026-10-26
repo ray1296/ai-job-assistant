@@ -1,5 +1,6 @@
 import { defineComponent, h, ref } from "vue";
 import { api, errorText } from "./api";
+import { withoutPhotos } from "./resume-model";
 
 interface Suggestion {
   id: string;
@@ -33,7 +34,7 @@ export default defineComponent({
         // 先执行可选的前置动作（生图装饰），再做内容审阅
         if (props.onBefore) await props.onBefore();
         // AI 审阅耗时远超 api() 的 12s 默认超时，必须显式放宽。
-        const r = await api("/ai/resume-review", "POST", { document: props.document, prompt: prompt.value }, { timeoutMs: 150000 });
+        const r = await api("/ai/resume-review", "POST", { document: withoutPhotos(props.document as any), prompt: prompt.value }, { timeoutMs: 150000 });
         suggestions.value = r.suggestions;
         selected.value = [];
         notice.value = suggestions.value.length

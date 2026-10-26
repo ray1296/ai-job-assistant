@@ -1152,7 +1152,7 @@ const server = http.createServer(async (req, res) => {
           return send(res, 200, { draft: resumeImports.get(id, s.user_id) });
         if (m === "PUT")
           return send(res, 200, {
-            draft: resumeImports.update(id, s.user_id, await body(req)),
+            draft: resumeImports.update(id, s.user_id, await bodyLarge(req, 5 * 1024 * 1024)),
           });
         if (m === "DELETE") {
           const x = await body(req);
@@ -2403,7 +2403,7 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/ai/status" && m === "GET")
         return send(res, 200, aiGateway.status());
       if (p === "/api/ai/resume-review" && m === "POST") {
-        const x = await body(req);
+        const x = await bodyLarge(req, 2 * 1024 * 1024);
         const document = validateDocument(x.document);
         return send(
           res,
@@ -2446,7 +2446,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, result);
       }
       if (p === "/api/ai/resume-appearance" && m === "POST") {
-        const x = await body(req);
+        const x = await bodyLarge(req, 2 * 1024 * 1024);
         const document = validateDocument(x.document);
         limited("appearance:" + s.user_id, 20, 600000);
         return send(
@@ -2459,7 +2459,7 @@ const server = http.createServer(async (req, res) => {
         );
       }
       if (p === "/api/ai/resume-section" && m === "POST") {
-        const x = await body(req);
+        const x = await bodyLarge(req, 2 * 1024 * 1024);
         const document = validateDocument(x.document);
         limited("section:" + s.user_id, 12, 600000);
         return send(
@@ -2472,7 +2472,7 @@ const server = http.createServer(async (req, res) => {
         );
       }
       if (p === "/api/ai/resume-layout" && m === "POST") {
-        const x = await body(req);
+        const x = await bodyLarge(req, 2 * 1024 * 1024);
         const document = validateDocument(x.document);
         const layoutInput = validateLayoutInput({ document, extras: x.extras, prompt: typeof x.prompt === "string" ? x.prompt.slice(0, 1000) : "" });
         return send(res, 200, await aiGateway.layout(s.user_id, layoutInput));

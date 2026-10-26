@@ -130,3 +130,9 @@ export function plainText(d: ResumeDocument) {
 }
 export const clone = (d: ResumeDocument): ResumeDocument =>
   JSON.parse(JSON.stringify(d));
+
+/** AI 只处理文字/结构，不把照片 data URL 发给模型。 */
+export const withoutPhotos = (d: ResumeDocument): ResumeDocument => ({
+  ...d,
+  header: { ...d.header, photos: [] },
+});

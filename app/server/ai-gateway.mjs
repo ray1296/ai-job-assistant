@@ -8,6 +8,14 @@ function effectiveImageUrl(base) {
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const MAX_IN = 50000,
   MAX_OUT = 30000;
+/** 个人照片只属于文档展示，不参与 AI 排版/审阅，避免 data URL 把输入撑爆。 */
+function stripPhotos(input) {
+  if (!input || typeof input !== "object") return input;
+  const copy = JSON.parse(JSON.stringify(input));
+  if (copy.document?.header && Object.hasOwn(copy.document.header, "photos"))
+    delete copy.document.header.photos;
+  return copy;
+}
 function clean(v, max) {
   return typeof v === "string" ? v.slice(0, max) : "";
 }
@@ -461,7 +469,7 @@ export function createAiGateway(privateDir) {
     }
   }
   function layout(userId, input, signal) {
-    input = validateLayoutInput(input);
+    input = validateLayoutInput(stripPhotos(input));
     const serialized = JSON.stringify(input);
     if (serialized.length > MAX_IN) throw fail(413, "简历内容过大，请先精简");
     if (queue.length >= 2) throw fail(429, "AI建议队列已满，请稍后重试");
@@ -530,7 +538,7 @@ export function createAiGateway(privateDir) {
   }
   function appearance(userId, input, signal) {
     if (!input || typeof input !== "object" || !input.document) throw fail(400, "AI输入格式无效");
-    const snapshot = { document: input.document, prompt: typeof input.prompt === "string" ? input.prompt.slice(0, 1000) : "" };
+    const snapshot = { document: stripPhotos(input).document, prompt: typeof input.prompt === "string" ? input.prompt.slice(0, 1000) : "" };
     const serialized = JSON.stringify(snapshot);
     if (serialized.length > MAX_IN) throw fail(413, "简历内容过大，请先精简");
     if (queue.length >= 2) throw fail(429, "AI建议队列已满，请稍后重试");
@@ -545,7 +553,7 @@ export function createAiGateway(privateDir) {
     if (!description) throw fail(400, "请先描述你想要的新板块");
     if (description.length > 2000) throw fail(400, "描述过长，请精简到2000字内");
     // 只快照支持的字段，调用方无法覆盖 task 或注入其他键。
-    const snapshot = { document: input.document, description };
+    const snapshot = { document: stripPhotos(input).document, description };
     const serialized = JSON.stringify(snapshot);
     if (serialized.length > MAX_IN) throw fail(413, "简历内容过大，请先精简");
     if (queue.length >= 2) throw fail(429, "AI建议队列已满，请稍后重试");
@@ -556,6 +564,7 @@ export function createAiGateway(privateDir) {
   }
   function review(userId, input, signal) {
     if (!input || typeof input !== "object") throw fail(400, "AI输入格式无效");
+    input = stripPhotos(input);
     const serialized = JSON.stringify(input);
     if (serialized.length > MAX_IN) throw fail(413, "简历内容过大，请先精简");
     if (queue.length >= 2) throw fail(429, "AI建议队列已满，请稍后重试");

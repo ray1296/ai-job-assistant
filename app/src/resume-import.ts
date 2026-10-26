@@ -1,6 +1,6 @@
 import { defineComponent, h, ref, computed, onBeforeUnmount } from "vue";
 import { api, session, errorText, type Profile } from "./api";
-import { fromProfile } from "./resume-model";
+import { fromProfile, withoutPhotos } from "./resume-model";
 const labels: Partial<Record<keyof Profile, string>> = {
   name: "姓名",
   phone: "电话",
@@ -309,7 +309,7 @@ export default defineComponent({
       try {
         let finalDocument = document;
         if (extraInformation.value) {
-          const placed = await api<{layout:{document:{sections:any[]}}}>("/ai/resume-layout", "POST", { document, extras: proposal.value.extras || [], prompt: "以下内容是已识别并保留原文的未匹配分类信息，请按分类决定合适的简历位置：\n" + extraInformation.value }, { timeoutMs: 150000 });
+          const placed = await api<{layout:{document:{sections:any[]}}}>("/ai/resume-layout", "POST", { document: withoutPhotos(document), extras: proposal.value.extras || [], prompt: "以下内容是已识别并保留原文的未匹配分类信息，请按分类决定合适的简历位置：\n" + extraInformation.value }, { timeoutMs: 150000 });
           finalDocument = { ...document, sections: placed.layout.document.sections };
         }
         const title = (filename.value.replace(/\.[a-zA-Z0-9]+$/, "") || "识别导入").slice(0, 90) + " · 导入";

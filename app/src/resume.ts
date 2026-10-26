@@ -8,6 +8,7 @@ import {
   blankDocument,
   fromLegacy,
   fromProfile,
+  withoutPhotos,
   plainText,
   clone,
   entry,
@@ -180,7 +181,7 @@ export default defineComponent({
       const sent = JSON.stringify(doc.value);
       try {
         // 外观建议是独立任务；/ai/resume-layout 只负责"未匹配信息放哪"，输出结构不同。
-        const r = await api("/ai/resume-appearance", "POST", { document: doc.value, prompt: aiPrompt.value }, { timeoutMs: 150000 });
+        const r = await api("/ai/resume-appearance", "POST", { document: withoutPhotos(doc.value), prompt: aiPrompt.value }, { timeoutMs: 150000 });
         if (JSON.stringify(doc.value) !== sent) throw Error("文档已变更，请针对最新内容重新生成布局建议");
         layoutSource = sent; layoutSuggestion.value = r.layout;
       } catch (e) { error.value = errorText(e); }
@@ -208,7 +209,7 @@ export default defineComponent({
             "/ai/resume-decoration",
             "POST",
             {
-              document: doc.value,
+              document: withoutPhotos(doc.value),
               style: decorStyle.value,
               slot,
               size: "1024x1024",
@@ -380,7 +381,7 @@ export default defineComponent({
         const r = await api<any>(
           "/ai/resume-section",
           "POST",
-          { document: doc.value, description },
+          { document: withoutPhotos(doc.value), description },
           { timeoutMs: 150000 },
         );
         const sec = r?.section;
