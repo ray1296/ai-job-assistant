@@ -35,6 +35,7 @@ export default defineComponent({
     const loading = ref(true);
     const error = ref("");
     const now = ref(new Date());
+    const isFullscreen = ref(false);
     let timer: any = null;
     let tagsTimer: any = null;
     let disposed = false;
@@ -287,6 +288,17 @@ export default defineComponent({
 
     function resize() { for (const c of charts) c.resize(); }
 
+    function syncFullscreen() {
+      isFullscreen.value = !!document.fullscreenElement;
+    }
+    async function toggleFullscreen() {
+      const el = document.querySelector(".dash-dark") as HTMLElement | null;
+      if (!el) return;
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await el.requestFullscreen();
+      } catch {}
+    }
     onMounted(async () => {
       await ensureEcharts();
       try {
@@ -296,11 +308,14 @@ export default defineComponent({
       } catch (e) { error.value = errorText(e); }
       void load();
       window.addEventListener("resize", resize);
+      document.addEventListener("fullscreenchange", syncFullscreen);
+      syncFullscreen();
       timer = setInterval(() => (now.value = new Date()), 30000);
     });
     onBeforeUnmount(() => {
       disposed = true;
       window.removeEventListener("resize", resize);
+      document.removeEventListener("fullscreenchange", syncFullscreen);
       if (timer) clearInterval(timer);
       if (tagsTimer) clearTimeout(tagsTimer);
       stopCloud();
@@ -324,13 +339,8 @@ export default defineComponent({
         h("div", { class: "dash-toolbar" }, [
           h("button", {
             class: "btn",
-            onClick: () => {
-              const el = document.querySelector(".dash-dark") as HTMLElement | null;
-              if (!el) return;
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void el.requestFullscreen?.().catch(() => {});
-            },
-          }, "⤢ 全屏大屏"),
+            onClick: () => void toggleFullscreen(),
+          }, isFullscreen.value ? "⛶ 退出全屏" : "⤢ 全屏大屏"),
         ]),
         h("p", { class: "muted" },
           (loading.value ? "正在统计…" : "共 " + kpi.value.jobs + " 个岗位参与统计") +
@@ -339,8 +349,18 @@ export default defineComponent({
 
         h("div", { class: "dash-dark" }, [
           h("header", { class: "dash-dark-head" }, [
+            h("div", { class: "dash-dark-head-left" }, [
+              isFullscreen.value
+                ? h("button", {
+                    class: "dash-dark-exit",
+                    "aria-label": "退出全屏",
+                    title: "退出全屏",
+                    onClick: () => void toggleFullscreen(),
+                  }, [h("span", { "aria-hidden": "true" }, "⤡"), "退出全屏"])
+                : null,
+            ]),
             h("h2", "职业规划智慧大屏"),
-            h("span", now.value.toLocaleString("zh-CN", { hour12: false })),
+            h("span", { class: "dash-dark-clock" }, now.value.toLocaleString("zh-CN", { hour12: false })),
           ]),
           h("div", { class: "dash-dark-kpis" }, [
             ["在招岗位", kpi.value.jobs], ["覆盖企业", kpi.value.companies], ["覆盖城市", kpi.value.cities],

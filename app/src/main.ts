@@ -185,6 +185,9 @@ const app = defineComponent({
       }
       if (id === active.value) {
         orbit.value = false;
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
         return;
       }
       if (dirty.value && !confirm("当前页面有未保存修改，确认离开？")) {
