@@ -17,6 +17,7 @@ import {
   type ResumeDocument,
   type Decoration,
   type Section,
+  type Entry,
 } from "./resume-model";
 export default defineComponent({
   props: { onDirty: { type: Function, required: true } },
@@ -65,7 +66,7 @@ export default defineComponent({
       layoutBusy = ref(false),
       layoutSuggestion = ref<any>(null),
       summaryOpen = ref(false),
-      autoPageBreaks = ref<string[]>([]);
+      pagePlan = ref<{ section: Section; items: Entry[]; first: boolean; last: boolean }[][]>([]);
     let paginationBusy = false;
     let saved = "";
     const snapshot = () =>
@@ -126,6 +127,7 @@ export default defineComponent({
       props.onDirty(false);
       undoStack.value = [];
       redoStack.value = [];
+      pagePlan.value = [];
       void recalcPagination();
     }
     async function refresh() {
@@ -498,14 +500,16 @@ export default defineComponent({
         doc.value.sections.splice(i + delta, 0, s);
       });
     }
-    const pages = computed(() => {
-      const breaks = new Set([...(doc.value.pageBreaks || []), ...autoPageBreaks.value]);
-      const groups: Section[][] = [];
+    type PageFragment = { section: Section; items: Entry[]; first: boolean; last: boolean };
+    const pages = computed<PageFragment[][]>(() => {
+      if (pagePlan.value.length) return pagePlan.value;
+      const breaks = new Set(doc.value.pageBreaks || []);
+      const groups: PageFragment[][] = [];
       for (const s of doc.value.sections) {
         if (breaks.has(s.id) && groups.length && groups[groups.length - 1].length)
           groups.push([]);
         if (!groups.length) groups.push([]);
-        groups[groups.length - 1].push(s);
+        groups[groups.length - 1].push({ section: s, items: s.items, first: true, last: true });
       }
       if (!groups.length) groups.push([]);
       return groups;
@@ -516,26 +520,62 @@ export default defineComponent({
       try {
         await nextTick();
         const desk = document.querySelector(".resume-desk");
-        if (!desk) { autoPageBreaks.value = []; return; }
+        if (!desk) { pagePlan.value = []; return; }
         const first = desk.querySelector(".resume-document") as HTMLElement | null;
-        if (!first) { autoPageBreaks.value = []; return; }
+        if (!first) { pagePlan.value = []; return; }
         const header = first.querySelector(".document-header") as HTMLElement | null;
         const summary = first.querySelector(".document-summary") as HTMLElement | null;
-        const contentHeight = 1017; // A4 1123px - 48px top - 58px bottom
+        const contentHeight = 1017;
         let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 20;
-        const breaks: string[] = [];
-        const sections = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
-        for (const el of sections) {
+        const sectionsEl = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
+        const headerH = new Map<string, number>();
+        const entryH = new Map<string, number>();
+        for (const el of sectionsEl) {
           const id = el.getAttribute("data-section-id") || "";
-          const h = el.getBoundingClientRect().height + 18;
-          if (used + h > contentHeight && used > 60) {
-            if (id) breaks.push(id);
-            used = 50 + h; // 后续页有 page-runner
-          } else {
-            used += h;
+          if (id && !headerH.has(id)) headerH.set(id, (el.querySelector(".section-heading") as HTMLElement | null)?.getBoundingClientRect().height || 36);
+          for (const entry of Array.from(el.querySelectorAll(".document-entry"))) {
+            const eid = (entry as HTMLElement).getAttribute("data-entry-id") || "";
+            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 16);
           }
         }
-        autoPageBreaks.value = breaks;
+        const plan: PageFragment[][] = [];
+        let page: PageFragment[] = [];
+        const finish = () => { if (page.length) plan.push(page); page = []; };
+        const newPage = () => { finish(); used = 50; };
+        const breaks = new Set(doc.value.pageBreaks || []);
+        for (const s of doc.value.sections) {
+          if (breaks.has(s.id) && page.length) newPage();
+          const sh = headerH.get(s.id) || 36;
+          const hs = s.items.map((i) => entryH.get(i.id) || 70);
+          const totalH = sh + hs.reduce((a, b) => a + b, 0) + 18;
+          // 两栏短板块保持整体，避免拆栏导致错位；普通板块按条目跨页。
+          if (s.columns === 2 || s.items.length === 0) {
+            if (page.length && used + totalH > contentHeight) newPage();
+            page.push({ section: s, items: s.items, first: true, last: true });
+            used += totalH;
+            continue;
+          }
+          let first = true;
+          let part: Entry[] = [];
+          for (let i = 0; i < s.items.length; i++) {
+            const eh = hs[i];
+            const need = (first ? sh : 28) + eh;
+            if (part.length && used + need > contentHeight) {
+              page.push({ section: s, items: part, first, last: false });
+              finish();
+              used = 50;
+              first = false;
+              part = [];
+            } else if (!part.length && used + need > contentHeight && page.length) {
+              newPage();
+            }
+            used += need;
+            part.push(s.items[i]);
+          }
+          if (part.length) page.push({ section: s, items: part, first, last: true });
+        }
+        finish();
+        pagePlan.value = plan.length ? plan : [];
       } finally {
         paginationBusy = false;
       }
@@ -586,12 +626,13 @@ export default defineComponent({
     }
     onMounted(() => window.addEventListener("keydown", keydown));
     onUnmounted(() => window.removeEventListener("keydown", keydown));
-    function section(s: Section, index: number) {
+    function section(s: Section, index: number, items = s.items, first = true, last = true) {
       return h(
         "section",
-        { key: s.id, class: "document-section" + (s.columns === 2 ? " columns-2" : ""), "data-section-id": s.id },
+        { key: s.id + "-" + (items[0]?.id || "empty") + (first ? "-first" : "-cont"), class: "document-section" + (s.columns === 2 ? " columns-2" : "") + (first ? "" : " section-continuation"), "data-section-id": s.id },
         [
-          h("div", { class: "section-heading" }, [
+          first
+            ? h("div", { class: "section-heading" }, [
             edit(
               s.title,
               "板块标题-" + s.id,
@@ -652,9 +693,12 @@ export default defineComponent({
                 "×",
               ),
             ]),
-          ]),
-          h("div", { class: "section-items" }, s.items.map((item, i) =>
-            h("div", { key: item.id, class: "document-entry" }, [
+            ])
+            : h("div", { class: "section-heading section-continued" }, [
+                h("span", { class: "section-continued-title" }, s.title),
+              ]),
+          h("div", { class: "section-items" }, items.map((item, i) =>
+            h("div", { key: item.id, class: "document-entry", "data-entry-id": item.id }, [
               h("div", { class: "entry-line" }, [
                 edit(
                   item.title,
@@ -685,15 +729,17 @@ export default defineComponent({
                 "双击写下你的经历与成果，支持多行",
                 true,
               ),
-              s.items.length > 1
+              s.items.length > 1 && last
                 ? h(
                     "button",
                     {
                       class: "entry-remove",
                       "aria-label": "删除条目" + (i + 1) + "-" + s.title,
                       onClick: () => {
-                        if (confirm("删除此条目？可以撤销。"))
-                          change(() => s.items.splice(i, 1));
+                        if (confirm("删除此条目？可以撤销。")) {
+                          const at = s.items.indexOf(item);
+                          if (at >= 0) change(() => s.items.splice(at, 1));
+                        }
                       },
                     },
                     "删除此条",
@@ -701,15 +747,17 @@ export default defineComponent({
                 : null,
             ]),
           )),
-          h(
-            "button",
-            {
-              class: "add-document-entry",
-              disabled: s.items.length >= 40,
-              onClick: () => change(() => s.items.push(entry())),
-            },
-            "＋ 添加" + s.title + "条目",
-          ),
+          last
+            ? h(
+                "button",
+                {
+                  class: "add-document-entry",
+                  disabled: s.items.length >= 40,
+                  onClick: () => change(() => s.items.push(entry())),
+                },
+                "＋ 添加" + s.title + "条目",
+              )
+            : null,
         ],
       );
     }
@@ -1321,8 +1369,8 @@ export default defineComponent({
                                   " 页",
                               ),
                             ]),
-                        ...pageSections.map((s) =>
-                          section(s, doc.value.sections.indexOf(s)),
+                        ...pageSections.map((frag) =>
+                          section(frag.section, doc.value.sections.indexOf(frag.section), frag.items, frag.first, frag.last),
                         ),
                         pi === pages.value.length - 1 && !backgroundSrc.value && decorations.value.length > 1
                           ? h("div", { class: "decor-strip decor-strip-footer", "aria-hidden": "true" },
