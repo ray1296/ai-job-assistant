@@ -621,3 +621,37 @@ body.zg-settings-page .live2d-pet-container { display: none !important; }
 .agent-bubble-img { display: block; max-width: 180px; max-height: 140px; border-radius: 8px; margin-bottom: 4px; }
 .agent-chip.on { border-color: #7460c9; box-shadow: 0 0 0 2px rgba(116,96,201,.25); }
 body.zg-pets-hidden .agent-chat { display: none !important; }
+
+/* 统一关闭按钮的字符居中 */
+.notice-modal-head button,
+.modal-close,
+.panel-close,
+.toast button,
+.job-detail-close,
+.amap-card-close {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  text-align: center;
+}
+.notice-modal-head button { font-size: 16px; }
+.modal-close { width: 34px; height: 34px; font-size: 20px; }
+.panel-close { width: 28px; height: 28px; font-size: 18px; }
+.toast button { width: 22px; height: 22px; }
+.job-detail-close, .amap-card-close { width: 22px; height: 22px; }
+
+/* 看板娘圆盘中心对齐 */
+.companions-dial {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  font-size: 20px;
+}
+.companions-form {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

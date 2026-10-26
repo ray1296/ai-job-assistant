@@ -7,7 +7,7 @@ const CATS = [
   ["housing", "租房", "地址 / 房源 / 租金 / 联系人 / 电话"],
   ["knowledge", "面经八股", "方向 / 问题 / 要点 / 来源"],
 ] as const;
-const TABS = ["我的数据", "上传记录", "数据获取指南", "平台数据"];
+const TABS = ["我的数据", "上传记录", "数据获取指南", "数据概览"];
 
 interface Dataset {
   id: string;
@@ -87,7 +87,9 @@ export default defineComponent({
         notice.value =
           "已导入 " + d.rowCount + " 行到「" + labelOf(d.category) + "」，字段对应" +
           (d.mappedBy === "ai" ? "由 AI 完成" : "按列名规则完成") +
-          "（" + Object.keys(d.mapping).length + "/" + d.columns.length + " 列已对应）。";
+          "（" + Object.keys(d.mapping).length + "/" + d.columns.length + " 列已对应）" +
+          (d.replaced ? "；已替换 " + d.replaced + " 条旧数据" : "") +
+          (d.deduped ? "，文件内去重 " + d.deduped + " 条" : "") + "。";
         file.value = null;
         const input = document.querySelector<HTMLInputElement>("#dataset-file");
         if (input) input.value = "";
@@ -119,12 +121,12 @@ export default defineComponent({
       }
     }
 
-    async function remove(d: Dataset) {
-      if (!confirm("删除「" + d.name + "」以及它的 " + d.rowCount + " 行数据？")) return;
+    async function remove(d: Dataset, fromHistory = false) {
+      if (!confirm("撤销「" + d.name + "」这次上传，并删除它的 " + d.rowCount + " 行数据？")) return;
       try {
         await api("/datasets/" + d.id, "DELETE");
         if (detail.value?.id === d.id) detail.value = null;
-        notice.value = "已删除该数据集";
+        notice.value = fromHistory ? "已撤销这次上传，相关数据已删除" : "已删除该数据集";
         await load();
       } catch (e) {
         error.value = errorText(e);
@@ -150,7 +152,7 @@ export default defineComponent({
       CATS.map(([key, name, fields]) => {
         const sets = byCat.value[key] || [];
         const rows = sets.reduce((n, d) => n + d.rowCount, 0);
-        return [name, fields, rows ? rows + " 行 / " + sets.length + " 份" : "用户本次提供", rows ? "已接入" : "待上传"];
+        return [name, fields, rows ? rows + " 行 / " + sets.length + " 份" : "0 行 / 0 份", rows ? "已接入" : "未上传"];
       }),
     );
 
@@ -159,6 +161,7 @@ export default defineComponent({
         h("span", "↥"),
         h("h3", "把你的数据放进来"),
         h("p", "岗位 / 企业 / 租房 / 面经 · CSV、Excel、JSON、XML"),
+        h("p", { class: "muted" }, "AI 负责字段映射与薪资归一；文件需要能解析成记录。完全自由文本请先整理成列。"),
         h("input", {
           id: "dataset-file",
           type: "file",
@@ -254,13 +257,14 @@ export default defineComponent({
               h("h3", "上传记录"),
               list.value.length
                 ? table(
-                    ["时间", "文件", "类型", "行数", "字段映射方式"],
+                    ["时间", "文件", "类型", "行数", "字段映射方式", "操作"],
                     list.value.map((d) => [
                       new Date(d.createdAt).toLocaleString("zh-CN"),
                       d.name,
                       labelOf(d.category),
                       d.rowCount + " 行",
                       d.mappedBy === "ai" ? "AI 自动对应" : "按列名规则对应",
+                      h("button", { class: "btn", onClick: () => remove(d, true) }, "撤销上传"),
                     ]),
                   )
                 : h("p", { class: "muted" }, "暂无记录。"),
@@ -291,7 +295,8 @@ export default defineComponent({
         // 平台数据
         tab.value === 3
           ? h("section", { class: "card" }, [
-              h("h3", "数据集概览"),
+              h("h3", "本账号数据接入概览"),
+              h("p", { class: "muted" }, "这里不是平台公共数据，而是你这个账号已上传数据按类别的汇总。“未上传”表示当前账号还没有该类数据；上传后会显示实际行数和份数。"),
               table(["数据类型", "可用字段", "当前数据量", "状态"], overviewRows.value),
             ])
           : null,

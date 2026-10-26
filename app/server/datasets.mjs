@@ -41,6 +41,31 @@ function heuristicMap(category, columns) {
   return map;
 }
 
+const normKey = (v) => String(v ?? "").toLowerCase().replace(/[\s\-_/\\|,，。.;；:：()（）\[\]【】]/g, "");
+
+function identityOf(category, mapping, obj) {
+  const get = (field) => normKey(obj?.[mapping?.[field]] ?? "");
+  if (category === "jobs") {
+    const link = get("link");
+    if (link) return "link:" + link;
+    const title = get("title"), company = get("company"), city = get("city");
+    return title || company ? "job:" + company + "|" + title + "|" + city : "";
+  }
+  if (category === "companies") {
+    const key = get("name") || get("website");
+    return key ? "company:" + key : "";
+  }
+  if (category === "housing") {
+    const address = get("address");
+    return address ? "house:" + address + "|" + get("title") : "";
+  }
+  if (category === "knowledge") {
+    const question = get("question");
+    return question ? "knowledge:" + question + "|" + get("source") : "";
+  }
+  return "";
+}
+
 function runParser(script, file, ext) {
   return new Promise((resolve, reject) => {
     const child = spawn("python3", [script, file, ext], { stdio: ["ignore", "pipe", "pipe"] });
@@ -145,28 +170,71 @@ export function createDatasets(db, privateDir, options = {}) {
           }
         }
       }
+      const rowObjects = rows.map((row) => {
+        const obj = Object.fromEntries(columns.map((c, k) => [c, row[k]]));
+        if (salaryCol) {
+          const v = salaryValues[String(row[columns.indexOf(salaryCol)] || "").trim()];
+          obj["月薪(K)"] = v == null ? "" : String(v);
+        }
+        return obj;
+      });
+      // 同一份文件内按业务主键去重，保留最后出现的那一行。
+      const seen = new Map();
+      const uniqueRows = [];
+      let deduped = 0;
+      for (const obj of rowObjects) {
+        const key = identityOf(category, mapping, obj);
+        if (key && seen.has(key)) {
+          uniqueRows[seen.get(key)] = obj;
+          deduped++;
+        } else {
+          if (key) seen.set(key, uniqueRows.length);
+          uniqueRows.push(obj);
+        }
+      }
+      const newKeys = new Set(uniqueRows.map((obj) => identityOf(category, mapping, obj)).filter(Boolean));
       const id = randomUUID().replace(/-/g, "").slice(0, 24);
       const insertRow = db.prepare("INSERT INTO dataset_rows(dataset_id,row_index,data) VALUES(?,?,?)");
       db.exec("BEGIN");
+      let replaced = 0;
       try {
+        // 同一岗位/企业/房源/问题在旧上传里再次出现时，以本次为准，删除旧行。
+        const oldSets = db.prepare("SELECT id,field_map FROM datasets WHERE user_id=? AND category=?").all(userId, category);
+        for (const old of oldSets) {
+          let oldMap = {};
+          try { oldMap = JSON.parse(old.field_map) || {}; } catch {}
+          const oldRows = db.prepare("SELECT row_index,data FROM dataset_rows WHERE dataset_id=? ORDER BY row_index").all(old.id);
+          let removed = 0;
+          for (const row of oldRows) {
+            let obj = {};
+            try { obj = JSON.parse(row.data) || {}; } catch {}
+            const key = identityOf(category, oldMap, obj);
+            if (key && newKeys.has(key)) {
+              db.prepare("DELETE FROM dataset_rows WHERE dataset_id=? AND row_index=?").run(old.id, row.row_index);
+              removed++;
+            }
+          }
+          if (removed) {
+            replaced += removed;
+            const remaining = db.prepare("SELECT count(*) AS n FROM dataset_rows WHERE dataset_id=?").get(old.id).n;
+            if (remaining) db.prepare("UPDATE datasets SET row_count=? WHERE id=?").run(remaining, old.id);
+            else {
+              db.prepare("DELETE FROM datasets WHERE id=?").run(old.id);
+              db.prepare("DELETE FROM dataset_rows WHERE dataset_id=?").run(old.id);
+            }
+          }
+        }
         db.prepare(
           "INSERT INTO datasets(id,user_id,category,name,source,columns,field_map,mapped_by,row_count,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-        ).run(id, userId, category, String(name || "未命名数据").slice(0, 120), e, JSON.stringify(columns), JSON.stringify(mapping), mappedBy, rows.length, Date.now());
-        rows.forEach((row, i) => {
-          const obj = Object.fromEntries(columns.map((c, k) => [c, row[k]]));
-          if (salaryCol) {
-            const v = salaryValues[String(row[columns.indexOf(salaryCol)] || "").trim()];
-            obj["月薪(K)"] = v == null ? "" : String(v);
-          }
-          insertRow.run(id, i, JSON.stringify(obj));
-        });
+        ).run(id, userId, category, String(name || "未命名数据").slice(0, 120), e, JSON.stringify(columns), JSON.stringify(mapping), mappedBy, uniqueRows.length, Date.now());
+        uniqueRows.forEach((obj, i) => insertRow.run(id, i, JSON.stringify(obj)));
         db.exec("COMMIT");
       } catch (err) {
         db.exec("ROLLBACK");
         throw err;
       }
       const finalColumns = salaryCol ? [...columns, "月薪(K)"] : columns;
-      return { id, category, name, columns: finalColumns, mapping, mappedBy, rowCount: rows.length, truncated: !!parsed.truncated };
+      return { id, category, name, columns: finalColumns, mapping, mappedBy, rowCount: uniqueRows.length, deduped, replaced, truncated: !!parsed.truncated };
     } finally {
       fs.rm(tmp, { force: true }).catch(() => {});
     }
