@@ -1054,3 +1054,23 @@ html[data-theme="night"] .ai-decor-style { color: #a9bbd6; }
   background: rgba(255, 255, 255, .42);
 }
 .resume-document.has-background > * { position: relative; z-index: 1; }
+
+/* AI 可把短板块排成两栏，例如基本信息与求职意向 */
+.section-items { display: grid; gap: 0; }
+.document-section.columns-2 .section-items { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 26px; }
+.document-section.columns-2 .document-entry { break-inside: avoid; }
+.document-section.columns-2 .add-document-entry { grid-column: 1 / -1; }
+@media print { .document-section.columns-2 .section-items { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ai-layout-groups { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ai-layout-group { font-size: 10px; color: #6b5b7e; background: #f5effc; border: 1px solid #e4d9f1; border-radius: 999px; padding: 4px 8px; }
+html[data-theme="night"] .ai-layout-group { color: #c3cee3; background: #14223a; border-color: #334963; }
+
+/* 个人简介不是板块，空时收成添加按钮，非空可删除 */
+.document-summary { position: relative; margin: 0 0 4px; }
+.summary-remove { position: absolute; top: 0; right: 0; padding: 3px 7px; font-size: 9px; border-radius: 5px; opacity: 0; transition: opacity .15s; color: #9b6b78; background: #fff; border: 1px solid #e5d4db; }
+.document-summary:hover .summary-remove, .document-summary:focus-within .summary-remove { opacity: 1; }
+.add-summary { display: block; margin: 4px auto 8px; padding: 4px 9px; font-size: 10px; color: #9a86ae; background: transparent; border: 1px dashed #ddd0e8; border-radius: 6px; }
+.add-summary:hover { color: #7460c9; border-color: #c4b0de; background: #fbf8ff; }
+html[data-theme="night"] .add-summary { color: #9fb0d0; border-color: #334963; }
+html[data-theme="night"] .summary-remove { background: #101a2d; border-color: #425a79; color: #e0b7c2; }
+@media print { .add-summary, .summary-remove { display: none !important; } }

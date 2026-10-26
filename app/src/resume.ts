@@ -64,6 +64,7 @@ export default defineComponent({
       sectionError = ref(""),
       layoutBusy = ref(false),
       layoutSuggestion = ref<any>(null),
+      summaryOpen = ref(false),
       autoPageBreaks = ref<string[]>([]);
     let paginationBusy = false;
     let saved = "";
@@ -117,6 +118,7 @@ export default defineComponent({
         : fromLegacy(r?.body.text || "");
       // 已有装饰的版本，开关默认打开
       decorEnabled.value = !!(doc.value.background || doc.value.decoration || doc.value.decorationFooter || doc.value.decorations?.length);
+      summaryOpen.value = !!doc.value.header.summary;
       saved = snapshot();
       dirty.value = false;
       editing.value = false;
@@ -208,8 +210,55 @@ export default defineComponent({
       const template = ["classic", "compact"].includes(x.template) ? x.template : doc.value.layout.template;
       const fontSize = [13, 14, 15, 16].includes(x.fontSize) ? x.fontSize : doc.value.layout.fontSize;
       const accent = ["purple", "navy", "charcoal"].includes(x.accent) ? x.accent : doc.value.layout.accent;
-      change(() => { doc.value.layout = { template, fontSize, accent }; });
-      layoutSuggestion.value = null; notice.value = "已应用到本地草稿，请检查后保存";
+      change(() => {
+        doc.value.layout = { template, fontSize, accent };
+        const groups = x.structure?.groups;
+        if (Array.isArray(groups) && groups.length) {
+          const byId = new Map(doc.value.sections.map((s) => [s.id, s]));
+          const next: Section[] = [];
+          for (const g of groups) {
+            const parts = (Array.isArray(g.ids) ? g.ids : [])
+              .map((id: string) => byId.get(id))
+              .filter(Boolean) as Section[];
+            if (!parts.length) continue;
+            if (parts.length === 1) {
+              next.push({
+                ...parts[0],
+                title: g.title || parts[0].title,
+                columns: g.columns === 2 ? 2 : undefined,
+              });
+            } else {
+              next.push({
+                id: uid(),
+                title: g.title || parts.map((s) => s.title).join(" / ").slice(0, 80),
+                items: parts.flatMap((s) => s.items),
+                columns: g.columns === 2 ? 2 : 1,
+              });
+            }
+          }
+          if (next.length) {
+            // 简历惯例：基本信息与求职意向应合并为一个短板块；即使 AI 分组保守，
+            // 这里也做一次结构归一化，避免两个小板块各占半页。
+            const info = next.filter((s) => /基本信息|求职意向|求职意愿/.test(s.title));
+            if (info.length) {
+              const firstIndex = next.findIndex((s) => info.includes(s));
+              const merged = {
+                ...next[firstIndex],
+                title: info.length > 1 ? "基本信息与求职意向" : "基本信息",
+                items: info.flatMap((s) => s.items),
+                columns: 2 as const,
+              };
+              const rest = next.filter((s) => !info.includes(s));
+              rest.splice(firstIndex, 0, merged);
+              next.splice(0, next.length, ...rest);
+            }
+            doc.value.sections = next;
+            const ids = new Set(next.map((s) => s.id));
+            doc.value.pageBreaks = (doc.value.pageBreaks || []).filter((id) => ids.has(id));
+          }
+        }
+      });
+      layoutSuggestion.value = null; notice.value = "已应用 AI 布局与外观，请检查后保存";
     }
     async function collectOccupied() {
       await nextTick();
@@ -471,7 +520,7 @@ export default defineComponent({
         const first = desk.querySelector(".resume-document") as HTMLElement | null;
         if (!first) { autoPageBreaks.value = []; return; }
         const header = first.querySelector(".document-header") as HTMLElement | null;
-        const summary = first.querySelector(".document-header + .inline-field-wrap") as HTMLElement | null;
+        const summary = first.querySelector(".document-summary") as HTMLElement | null;
         const contentHeight = 1017; // A4 1123px - 48px top - 58px bottom
         let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 20;
         const breaks: string[] = [];
@@ -540,7 +589,7 @@ export default defineComponent({
     function section(s: Section, index: number) {
       return h(
         "section",
-        { key: s.id, class: "document-section", "data-section-id": s.id },
+        { key: s.id, class: "document-section" + (s.columns === 2 ? " columns-2" : ""), "data-section-id": s.id },
         [
           h("div", { class: "section-heading" }, [
             edit(
@@ -604,7 +653,7 @@ export default defineComponent({
               ),
             ]),
           ]),
-          ...s.items.map((item, i) =>
+          h("div", { class: "section-items" }, s.items.map((item, i) =>
             h("div", { key: item.id, class: "document-entry" }, [
               h("div", { class: "entry-line" }, [
                 edit(
@@ -651,7 +700,7 @@ export default defineComponent({
                   )
                 : null,
             ]),
-          ),
+          )),
           h(
             "button",
             {
@@ -1018,6 +1067,15 @@ export default defineComponent({
                                     h("h3", "AI布局建议（尚未应用）"),
                                     h("p", `${layoutSuggestion.value.template === "compact" ? "紧凑" : "经典"}模板 · ${layoutSuggestion.value.fontSize}px · ${layoutSuggestion.value.accent}`),
                                     h("p", layoutSuggestion.value.reason),
+                                    layoutSuggestion.value.structure?.groups?.length
+                                      ? h("div", { class: "ai-layout-groups" },
+                                          layoutSuggestion.value.structure.groups.map((g: any, i: number) =>
+                                            h("span", { class: "ai-layout-group" }, [
+                                              h("b", "#" + (i + 1)),
+                                              " " + (g.title || "保留原板块") + (g.columns === 2 ? " · 两栏" : ""),
+                                            ]),
+                                          ))
+                                      : null,
                                     ...(layoutSuggestion.value.changes || []).map((text: string) => h("p", text)),
                                     h("button", { onClick: applyLayout }, "应用此布局到草稿"),
                                     h("button", { onClick: () => layoutSuggestion.value = null }, "放弃建议"),
@@ -1206,15 +1264,46 @@ export default defineComponent({
                                 ),
                                 ]),
                               ]),
-                              edit(
-                                doc.value.header.summary,
-                                "简历个人简介",
-                                (v) => (doc.value.header.summary = v),
-                                "p",
-                                "双击填写个人简介（可留空）",
-                                true,
-                                8000,
-                              ),
+                              doc.value.header.summary || summaryOpen.value
+                                ? h("div", { class: "document-summary" }, [
+                                    h(InlineEdit, {
+                                      key: "summary",
+                                      value: doc.value.header.summary,
+                                      label: "简历个人简介",
+                                      tag: "p",
+                                      placeholder: "填写个人简介（可留空）",
+                                      multiline: true,
+                                      max: 8000,
+                                      disabled: busy.value,
+                                      autoFocus: summaryOpen.value && !doc.value.header.summary,
+                                      onCommit: (v: string) => {
+                                        change(() => { doc.value.header.summary = v; });
+                                        summaryOpen.value = !!v.trim();
+                                      },
+                                      onEditing: (active: boolean, changed: boolean) => {
+                                        editing.value = active;
+                                        editDirty.value = active && changed;
+                                        props.onDirty(dirty.value || editDirty.value);
+                                        if (!active && !doc.value.header.summary) summaryOpen.value = false;
+                                      },
+                                    }),
+                                    doc.value.header.summary
+                                      ? h("button", {
+                                          class: "summary-remove",
+                                          type: "button",
+                                          title: "删除个人简介",
+                                          onClick: () => {
+                                            change(() => { doc.value.header.summary = ""; });
+                                            summaryOpen.value = false;
+                                          },
+                                        }, "删除个人简介")
+                                      : null,
+                                  ])
+                                : h("button", {
+                                    class: "add-summary",
+                                    type: "button",
+                                    onClick: () => { summaryOpen.value = true; },
+                                  }, "＋ 添加个人简介"),
                             ]
                           : h("header", { class: "document-header page-runner" }, [
                               h(

@@ -43,6 +43,7 @@ export function validateDocument(v) {
     return {
       id: unique(s.id),
       title: text(s.title, 160, "板块名称"),
+      ...(s.columns === 2 ? { columns: 2 } : {}),
       items: s.items.map((i) => {
         if (!i || typeof i !== "object") throw fail("简历条目格式无效");
         return {

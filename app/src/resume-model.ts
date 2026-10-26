@@ -9,6 +9,8 @@ export interface Section {
   id: string;
   title: string;
   items: Entry[];
+  /** 1=单栏，2=两栏（适合基本信息/求职意向等短条目） */
+  columns?: 1 | 2;
 }
 export interface Decoration {
   image: string;

@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, nextTick, watch } from "vue";
+import { defineComponent, h, ref, nextTick, watch, onMounted } from "vue";
 export default defineComponent({
   props: {
     value: { type: String, default: "" },
@@ -10,6 +10,7 @@ export default defineComponent({
     disabled: { type: Boolean, default: false },
     onCommit: { type: Function, required: true },
     onEditing: { type: Function, required: true },
+    autoFocus: { type: Boolean, default: false },
   },
   setup(props) {
     const element = ref<HTMLElement | null>(null),
@@ -79,6 +80,7 @@ export default defineComponent({
       props.onEditing(false, false);
       message.value = "";
     }
+    onMounted(() => { if (props.autoFocus) void begin(); });
     function insert(text: string) {
       const el = element.value!;
       const sel = window.getSelection();
