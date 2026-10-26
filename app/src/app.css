@@ -2308,3 +2308,17 @@ html[data-theme="night"] .path-items button span { background: #20395f; color: #
 html[data-theme="night"] .job-intent-badge { color: #9fb0d0; background: #14223a; border-color: #334963; }
 html[data-theme="night"] .job-intent-badge.confirmed { color: #8fe0c8; background: #12352f; border-color: #245e50; }
 html[data-theme="night"] .job-intent-badge.pending { color: #f0c77c; background: #3a2b15; border-color: #6b5124; }
+
+/* 岗位筛选：搜索/方向/城市/投递意向/按钮保持一行 */
+.jobs-toolbar {
+  grid-template-columns: minmax(240px, 2.2fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(128px, 0.95fr) auto;
+}
+@media (max-width: 1000px) {
+  .jobs-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .jobs-toolbar input { grid-column: 1 / -1; }
+  .jobs-toolbar button.primary { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .jobs-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jobs-toolbar input, .jobs-toolbar button.primary { grid-column: 1 / -1; }
+}
