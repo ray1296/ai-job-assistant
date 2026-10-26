@@ -96,7 +96,7 @@ export default defineComponent({
       if (!ctx) return;
       // 透明画布上的淡出：只降低旧像素 alpha，不填任何背景色。
       ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
       ctx.fillRect(0, 0, width, height);
       phase += 0.005;
       // 原版核心：lighter 叠加让曲线交叠处自然变亮，中心比边缘亮。
@@ -104,7 +104,7 @@ export default defineComponent({
       const hue = 285 + Math.sin(phase) * 85;
       ctx.lineWidth = 0.9;
       ctx.lineCap = "round";
-      ctx.strokeStyle = "hsla(" + Math.round(hue) + ", 90%, 50%, .22)";
+      ctx.strokeStyle = "hsla(" + Math.round(hue) + ", 90%, 50%, .14)";
       for (const t of tendrils) { t.update(); t.draw(); }
       ctx.globalCompositeOperation = "source-over";
     }

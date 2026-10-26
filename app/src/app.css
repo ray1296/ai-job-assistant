@@ -2141,3 +2141,151 @@ textarea {
 .guide-prompt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; padding: 10px 13px; border-radius: 12px; background: #f7f3ff; border: 1px solid #e7dcf6; color: #7460c9; font-size: 12px; }
 .guide-prompt button { border: 1px solid #d6c5ee; background: #fff; color: #6b50b5; border-radius: 999px; padding: 4px 10px; font-size: 11px; cursor: pointer; }
 
+
+
+/* ===== 用户端夜间主题（默认日间；头像旁切换） ===== */
+.theme-toggle {
+  border: 1px solid #e2d8ee;
+  background: #f7f3fc;
+  color: #5c4b6e;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover { background: #ece4f8; }
+
+html[data-theme="night"] {
+  --border: #273553;
+  color-scheme: dark;
+  background: #050914;
+}
+html[data-theme="night"] body {
+  background: radial-gradient(ellipse at 15% 0, #12244166, transparent 55%), #050914;
+  color: #e7e9f6;
+}
+html[data-theme="night"] .sky-header {
+  background: rgba(5, 9, 20, .92);
+  border-bottom-color: #1d2a44;
+}
+html[data-theme="night"] .sky-brand,
+html[data-theme="night"] .sky-brand strong,
+html[data-theme="night"] .sky-brand small,
+html[data-theme="night"] .sky-now,
+html[data-theme="night"] .account-name { color: #eef1ff; }
+html[data-theme="night"] .sky-brand small { color: #8ea4c8; }
+html[data-theme="night"] .account-chip { color: #dfe7ff; }
+html[data-theme="night"] .account-avatar { background: #223a68; color: #cfe6ff; }
+html[data-theme="night"] .guide-link,
+html[data-theme="night"] .notice-entry,
+html[data-theme="night"] .theme-toggle {
+  background: #12213a;
+  border-color: #2c4266;
+  color: #cfe3ff;
+}
+html[data-theme="night"] .guide-link:hover,
+html[data-theme="night"] .notice-entry:hover,
+html[data-theme="night"] .theme-toggle:hover { background: #1a2e4f; }
+html[data-theme="night"] button {
+  background: #111d32;
+  border-color: #2b405f;
+  color: #dbe6fb;
+}
+html[data-theme="night"] button:hover:not(:disabled) { background: #182b49; border-color: #4e6f9f; }
+html[data-theme="night"] button.primary { background: #6f5ac4; border-color: #6f5ac4; color: #fff; }
+html[data-theme="night"] input,
+html[data-theme="night"] textarea,
+html[data-theme="night"] select {
+  background: #0b1628;
+  border-color: #2a3d5e;
+  color: #e6edff;
+}
+html[data-theme="night"] input::placeholder,
+html[data-theme="night"] textarea::placeholder { color: #7184a7; }
+html[data-theme="night"] a { color: #8bdcff; }
+html[data-theme="night"] h1, html[data-theme="night"] h2,
+html[data-theme="night"] h3, html[data-theme="night"] h4 { color: #f3f2ff; }
+html[data-theme="night"] .scene-heading p,
+html[data-theme="night"] .scene-heading .eyebrow,
+html[data-theme="night"] .muted,
+html[data-theme="night"] .jobs-summary,
+html[data-theme="night"] .learning-heading p,
+html[data-theme="night"] .learning-disclaimer,
+html[data-theme="night"] .learning-self-note,
+html[data-theme="night"] .page-footer { color: #9eafd0; }
+html[data-theme="night"] .card,
+html[data-theme="night"] .dash-card,
+html[data-theme="night"] .job-card,
+html[data-theme="night"] .dataset-item,
+html[data-theme="night"] .dataset-detail,
+html[data-theme="night"] .notice,
+html[data-theme="night"] .wish-item,
+html[data-theme="night"] .guide-card,
+html[data-theme="night"] .learning-summary > div,
+html[data-theme="night"] .learning-filters,
+html[data-theme="night"] .practice-card,
+html[data-theme="night"] .study-card,
+html[data-theme="night"] .interview-setup .card,
+html[data-theme="night"] .interview-feedback,
+html[data-theme="night"] .interview-side,
+html[data-theme="night"] .interview-agent,
+html[data-theme="night"] .interview-history-item,
+html[data-theme="night"] .interview-queue-card,
+html[data-theme="night"] .ds-chat-sidebar,
+html[data-theme="night"] .ds-chat-main,
+html[data-theme="night"] .ds-msg-body,
+html[data-theme="night"] .ds-composer,
+html[data-theme="night"] .ds-attachment,
+html[data-theme="night"] .map-toolbox,
+html[data-theme="night"] .map-toolbox .map-card,
+html[data-theme="night"] .amap-card,
+html[data-theme="night"] .amap-info,
+html[data-theme="night"] .settings-account-card,
+html[data-theme="night"] .admin-panel {
+  background: #101a2d;
+  border-color: #273a5a;
+  color: #e7ebf8;
+}
+html[data-theme="night"] .card,
+html[data-theme="night"] .dashboard-page,
+html[data-theme="night"] .jobs-page,
+html[data-theme="night"] .dataset-page,
+html[data-theme="night"] .interview-page,
+html[data-theme="night"] .chat-page,
+html[data-theme="night"] .wish-page,
+html[data-theme="night"] .settings-page { color: #e7ebf8; }
+html[data-theme="night"] .tabs,
+html[data-theme="night"] .dataset-tabs { border-color: #273a5a; }
+html[data-theme="night"] .tabs .tab,
+html[data-theme="night"] .dataset-tabs .tab {
+  background: transparent;
+  color: #9fb0d0;
+  border-color: transparent;
+}
+html[data-theme="night"] .tabs .tab.chosen,
+html[data-theme="night"] .dataset-tabs .tab.chosen { background: #213653; color: #eaf2ff; }
+html[data-theme="night"] .table,
+html[data-theme="night"] .dataset-table,
+html[data-theme="night"] .admin-table { color: #dce6f7; }
+html[data-theme="night"] .dataset-note,
+html[data-theme="night"] .jobs-footer,
+html[data-theme="night"] .job-snippet { color: #9eb0d0; }
+
+/* 首页夜景：让 Tendril 在黑底上凸显 */
+html[data-theme="night"] .journey-hero h1 { color: #f6f3ff; text-shadow: 0 0 28px rgba(92, 164, 255, .24); }
+html[data-theme="night"] .journey-hero em { color: #77d8ff; text-shadow: 0 0 22px rgba(0, 189, 255, .35); }
+html[data-theme="night"] .journey-hero p,
+html[data-theme="night"] .hero-status { color: #aebce0; }
+html[data-theme="night"] .guide-prompt { background: #101d34; border-color: #294364; color: #c5d7f4; }
+html[data-theme="night"] .guide-prompt button { background: #182d4c; color: #9bdcff; border-color: #35577f; }
+html[data-theme="night"] .journey-choices > button { background: linear-gradient(145deg, #0e1a30, #141f3a); border: 1px solid #263b5d; }
+html[data-theme="night"] .journey-choices > button > span { color: #75a9df; }
+html[data-theme="night"] .journey-choices h2 { color: #f1f4ff; }
+html[data-theme="night"] .journey-choices p { color: #a2b1d3; }
+html[data-theme="night"] .journey-choices b { color: #74d4ff; }
+html[data-theme="night"] .journey-path { background: #0d182b; border-color: #273b5d; }
+html[data-theme="night"] .journey-path h2 { color: #e9efff; }
+html[data-theme="night"] .path-items button { color: #bcc9e8; }
+html[data-theme="night"] .path-items button span { background: #20395f; color: #83d8ff; }
+

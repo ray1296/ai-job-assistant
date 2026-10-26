@@ -89,7 +89,10 @@ const app = defineComponent({
       crash = ref(false),
       announcements = ref<Array<{ id: string; title: string; body: string; createdAt: number }>>([]),
       noticeOpen = ref(false),
-      readNoticeIds = ref<string[]>([]);
+      readNoticeIds = ref<string[]>([]),
+      theme = ref<"light" | "night">((() => {
+        try { return localStorage.getItem("zg.theme") === "night" ? "night" : "light"; } catch { return "light"; }
+      })());
     let navigating = false,
       queued: string | null = null;
     const dashboardMode = ref<"city" | "career">("city");
@@ -100,6 +103,13 @@ const app = defineComponent({
         announcements.value = Array.isArray(r.items) ? r.items : [];
       } catch { announcements.value = []; }
     }
+    function applyTheme(t: "light" | "night") {
+      theme.value = t;
+      try { localStorage.setItem("zg.theme", t); } catch {}
+      document.documentElement.dataset.theme = t;
+      document.documentElement.style.colorScheme = t === "night" ? "dark" : "light";
+    }
+    function toggleTheme() { applyTheme(theme.value === "night" ? "light" : "night"); }
     function markNoticeRead(id: string) {
       if (!readNoticeIds.value.includes(id)) {
         readNoticeIds.value = [...readNoticeIds.value, id];
@@ -116,6 +126,7 @@ const app = defineComponent({
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     onMounted(async () => {
+      applyTheme(theme.value);
       try {
         await loadSession();
         try { readNoticeIds.value = JSON.parse(localStorage.getItem("zg.readNotices") || "[]") || []; } catch { readNoticeIds.value = []; }
@@ -505,6 +516,7 @@ const app = defineComponent({
               unreadNotices.value.length ? h("b", unreadNotices.value.length > 9 ? "9+" : String(unreadNotices.value.length)) : null,
             ]),
             h("button", { class: "guide-link", title: "查看项目功能说明", onClick: () => go("guide") }, "功能说明"),
+            h("button", { class: "theme-toggle", title: theme.value === "night" ? "切换到日间主题" : "切换到夜间主题", "aria-label": theme.value === "night" ? "切换到日间主题" : "切换到夜间主题", onClick: toggleTheme }, theme.value === "night" ? "☀️" : "🌙"),
             session.user
               ? h(
                   "button",
