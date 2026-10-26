@@ -525,7 +525,8 @@ export default defineComponent({
         if (!first) { pagePlan.value = []; return; }
         const header = first.querySelector(".document-header") as HTMLElement | null;
         const summary = first.querySelector(".document-summary") as HTMLElement | null;
-        const contentHeight = 1017;
+        // 预留 30px 余量，避免条目 margin/续页标题把页面撑过 A4。
+        const contentHeight = 985;
         let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 20;
         const sectionsEl = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
         const headerH = new Map<string, number>();
@@ -535,7 +536,7 @@ export default defineComponent({
           if (id && !headerH.has(id)) headerH.set(id, (el.querySelector(".section-heading") as HTMLElement | null)?.getBoundingClientRect().height || 36);
           for (const entry of Array.from(el.querySelectorAll(".document-entry"))) {
             const eid = (entry as HTMLElement).getAttribute("data-entry-id") || "";
-            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 16);
+            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 30);
           }
         }
         const plan: PageFragment[][] = [];
@@ -548,28 +549,35 @@ export default defineComponent({
           const sh = headerH.get(s.id) || 36;
           const hs = s.items.map((i) => entryH.get(i.id) || 70);
           const totalH = sh + hs.reduce((a, b) => a + b, 0) + 18;
-          // 两栏短板块保持整体，避免拆栏导致错位；普通板块按条目跨页。
-          if (s.columns === 2 || s.items.length === 0) {
+          if (s.items.length === 0) {
             if (page.length && used + totalH > contentHeight) newPage();
             page.push({ section: s, items: s.items, first: true, last: true });
             used += totalH;
             continue;
           }
           let first = true;
+          let headerPriced = false;
           let part: Entry[] = [];
           for (let i = 0; i < s.items.length; i++) {
-            const eh = hs[i];
-            const need = (first ? sh : 28) + eh;
+            // 两栏板块按“每两项约一行”估算，仍允许跨页补满当前页；
+            // 否则一页只放一个两栏板块，后面会留下大片空白。
+            const eh = s.columns === 2 ? hs[i] / 2 : hs[i];
+            let headerCost = headerPriced ? 28 : sh;
+            let need = headerCost + eh;
             if (part.length && used + need > contentHeight) {
               page.push({ section: s, items: part, first, last: false });
               finish();
               used = 50;
               first = false;
+              headerPriced = true;
               part = [];
+              headerCost = 28;
+              need = headerCost + eh;
             } else if (!part.length && used + need > contentHeight && page.length) {
               newPage();
             }
             used += need;
+            headerPriced = true;
             part.push(s.items[i]);
           }
           if (part.length) page.push({ section: s, items: part, first, last: true });
