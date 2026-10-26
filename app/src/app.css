@@ -2322,3 +2322,10 @@ html[data-theme="night"] .job-intent-badge.pending { color: #f0c77c; background:
   .jobs-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .jobs-toolbar input, .jobs-toolbar button.primary { grid-column: 1 / -1; }
 }
+
+/* 地图是全屏层，不能被 .page-content > * 的 relative 规则压成 0 高度 */
+.page-content > .map-full {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 30 !important;
+}
