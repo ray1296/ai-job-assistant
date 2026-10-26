@@ -1792,6 +1792,12 @@ textarea {
 .interview-resume-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 14px 0 6px; font-size: 12px; color: #6b5c7d; }
 .interview-resume-line a { color: #7460c9; }
 .interview-start { margin-top: 14px; width: 100%; }
+.interview-queue-mask { position: fixed; inset: 0; z-index: 10060; background: rgba(24,18,38,.55); display: grid; place-items: center; padding: 20px; }
+.interview-queue-card { width: min(440px, 94vw); background: #fff; border-radius: 16px; padding: 22px; box-shadow: 0 24px 70px rgba(0,0,0,.3); }
+.interview-queue-card h2 { margin: 6px 0 8px; color: #3f3353; }
+.interview-queue-card p { color: #6f627f; line-height: 1.8; font-size: 12px; }
+.interview-queue-position { display: block; margin: 14px 0; font-size: 28px; color: #7460c9; }
+.interview-queue-card .btn { margin-top: 8px; }
 .interview-privacy { font-size: 11px; line-height: 1.7; color: #9c8fae; margin-top: 10px; }
 .interview-history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .interview-history-head h2 { margin-bottom: 10px; }

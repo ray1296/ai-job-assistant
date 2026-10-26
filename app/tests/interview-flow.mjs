@@ -31,6 +31,8 @@ try {
   const video = await p.locator("video").count();
   console.log("PASS interview start with fake media; video elements=" + video);
   console.log("INFO body excerpt", text.slice(-500));
+  const end = p.getByRole("button", { name: "结束面试" });
+  if (await end.count()) { await end.click().catch(() => {}); await p.waitForTimeout(600); }
   console.log("ERRORS", errors.slice(0, 6));
   assert.equal(errors.filter((x) => !/favicon|Failed to load resource|TensorFlow Lite|XNNPACK/.test(x)).length, 0);
   console.log("PASS interview no page errors");

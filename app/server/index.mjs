@@ -18,6 +18,7 @@ import { allGuide } from "./project-guide.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
+import { createInterviewQueue } from "./interview-queue.mjs";
 import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
@@ -124,6 +125,7 @@ const datasets = createDatasets(db, dataDir, {
 // 学习与刷题：科目/版本/题库 + AI 讲题与出题
 const study = createStudy(db, { ai: aiGateway });
 const agents = createAgents(dataDir);
+const interviewQueue = createInterviewQueue(Number(process.env.INTERVIEW_MAX_ACTIVE || 3));
 // 启动时补齐四只 agent 的默认 prompt / 记忆文件（老配置无 prompt 会自动迁移）
 try { agents.list(); } catch {}
 // 地图与通勤：高德 REST 只在服务端调用，key 不落前端包
@@ -1412,6 +1414,14 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/interview/sessions" && m === "DELETE") {
         db.prepare("DELETE FROM interview_sessions WHERE user_id=?").run(s.user_id);
         return send(res, 200, { ok: true });
+      }
+      // 模拟面试并发闸门：超过 3 场时排队，不把 AI/摄像头压力直接打到所有人。
+      if (p === "/api/interview/queue" && m === "POST")
+        return send(res, 200, interviewQueue.join(s.user_id));
+      {
+        const mm = p.match(/^\/api\/interview\/queue\/([a-z0-9]+)$/);
+        if (mm && m === "GET") return send(res, 200, interviewQueue.status(mm[1]));
+        if (mm && m === "DELETE") return send(res, 200, interviewQueue.leave(mm[1]));
       }
       if (p === "/api/interview/sessions" && m === "GET") {
         purgeInterviewSessions(s.user_id);

@@ -70,6 +70,11 @@ export default defineComponent({
     const started = ref(false);
     const busy = ref(false);
     const starting = ref(false);
+    const queueInfo = ref<any>(null);
+    const queueToken = ref("");
+    const queueBusy = ref(false);
+    let queueTimer = 0;
+    let queueHeartbeat = 0;
     const error = ref("");
     const messages = ref<Msg[]>([]);
     const draft = ref("");
@@ -636,10 +641,51 @@ export default defineComponent({
       }
     }
 
+    async function releaseQueue() {
+      if (queueTimer) { clearInterval(queueTimer); queueTimer = 0; }
+      if (queueHeartbeat) { clearInterval(queueHeartbeat); queueHeartbeat = 0; }
+      const token = queueToken.value;
+      queueToken.value = "";
+      queueInfo.value = null;
+      if (token) { try { await api("/interview/queue/" + token, "DELETE", undefined, { timeoutMs: 8000 }); } catch {} }
+    }
+    async function pollQueue() {
+      const token = queueToken.value;
+      if (!token || starting.value) return;
+      try {
+        const r = await api<any>("/interview/queue/" + token, "GET", undefined, { timeoutMs: 10000 });
+        queueInfo.value = r;
+        if (r.state === "active") {
+          if (queueTimer) { clearInterval(queueTimer); queueTimer = 0; }
+          starting.value = true;
+          try { await startInternal(); } finally { starting.value = false; if (!started.value) void releaseQueue(); }
+          if (queueTimer === 0 && started.value) {
+            queueHeartbeat = window.setInterval(async () => {
+              if (!queueToken.value) return;
+              try { queueInfo.value = await api("/interview/queue/" + queueToken.value, "GET", undefined, { timeoutMs: 10000 }); } catch {}
+            }, 60000);
+          }
+        } else if (r.state === "expired") {
+          queueInfo.value = null; queueToken.value = ""; setupError.value = "排队已过期，请重新开始。";
+        }
+      } catch (e) { setupError.value = errorText(e); }
+    }
     async function start() {
-      if (starting.value) return;
-      starting.value = true;
-      try { await startInternal(); } finally { starting.value = false; }
+      if (starting.value || queueBusy.value) return;
+      queueBusy.value = true;
+      setupError.value = "";
+      try {
+        const r = await api<any>("/interview/queue", "POST", undefined, { timeoutMs: 10000 });
+        queueToken.value = String(r.token || "");
+        queueInfo.value = r;
+        if (r.state === "active") {
+          starting.value = true;
+          try { await startInternal(); } finally { starting.value = false; if (!started.value) void releaseQueue(); }
+        } else {
+          queueTimer = window.setInterval(() => void pollQueue(), 3500);
+        }
+      } catch (e) { setupError.value = errorText(e); }
+      finally { queueBusy.value = false; }
     }
 
     async function startInternal() {
@@ -786,6 +832,7 @@ export default defineComponent({
         closeRealtime();
         stopMedia();
         stopSpeech();
+        await releaseQueue();
         return;
       }
       feedbackBusy.value = true;
@@ -824,6 +871,7 @@ export default defineComponent({
         speaking.value = false;
         stopMedia();
         stopSpeech();
+        await releaseQueue();
       }
     }
 
@@ -854,6 +902,7 @@ export default defineComponent({
     onMounted(() => { void loadSetup(); });
     onBeforeUnmount(() => {
       alive = false;
+      void releaseQueue();
       stopTimers();
       pauseRecognition();
       closeRealtime();
@@ -1088,6 +1137,16 @@ export default defineComponent({
 
     return () => h("div", { class: "interview-page" }, [
       started.value ? roomView() : setupView(),
+      queueInfo.value?.state === "queued"
+        ? h("div", { class: "interview-queue-mask" }, h("div", { class: "interview-queue-card", role: "dialog", "aria-modal": "true" }, [
+            h("span", { class: "eyebrow" }, "INTERVIEW QUEUE"),
+            h("h2", "模拟面试正在排队"),
+            h("p", "同时进行 " + (queueInfo.value.active || 0) + " / " + (queueInfo.value.max || 3) + " 场。为了保护 AI 和摄像头体验，超过 3 场需要排队。"),
+            h("strong", { class: "interview-queue-position" }, "你在第 " + queueInfo.value.position + " 位"),
+            h("p", { class: "muted" }, "轮到你时会自动进入面试；可以先去别的页面，回来仍在队列。"),
+            h("button", { class: "btn", onClick: () => void releaseQueue() }, "取消排队"),
+          ]))
+        : null,
       feedbackView(),
     ]);
   },

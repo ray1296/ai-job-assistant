@@ -34,6 +34,7 @@
 - 功能清单：[FEATURES.md](docs/FEATURES.md)
 - 完整测试报告：[TEST_REPORT.md](docs/TEST_REPORT.md)
 - 手动测试流程/素材：[MANUAL_TESTING.md](docs/MANUAL_TESTING.md) / [fixtures](app/tests/fixtures/README.md)
+- 全站点击审计：[CLICK_AUDIT.md](docs/CLICK_AUDIT.md)
 - 产品价值：[PRODUCT_VALUE.md](docs/PRODUCT_VALUE.md)
 - 第三方与原创说明：[THIRD_PARTY.md](docs/THIRD_PARTY.md)
 - 保留旧外观：`/preview/index.html`
