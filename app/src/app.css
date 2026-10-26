@@ -2543,3 +2543,16 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
   .proto-page .housing-search-btn { flex: 1 1 90px; }
   .housing-rent { flex: 1 1 150px; }
 }
+
+/* 学习/题库 iframe 与地图一样是独立整页层；page-content 的 relative 规则不能再把它推下去 */
+.page-content > .orig-frame {
+  position: fixed !important;
+  left: 0;
+  top: 69px !important;
+  width: 100vw;
+  height: calc(100vh - 69px);
+  z-index: 1;
+}
+@media (max-width: 900px) {
+  .page-content > .orig-frame { top: 130px !important; height: calc(100vh - 130px); }
+}
