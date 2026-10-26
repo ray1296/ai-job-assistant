@@ -122,7 +122,7 @@ export default defineComponent({
     });
     return () => h("canvas", {
       ref: canvas, class: "mouse-trail-canvas", "aria-hidden": "true",
-      style: { position: "fixed", inset: "0", width: "100vw", height: "100vh", pointerEvents: "none", zIndex: "2147483000", background: "transparent" },
+      style: { position: "fixed", inset: "0", width: "100vw", height: "100vh", pointerEvents: "none", zIndex: "0", background: "transparent" },
     });
   },
 });
