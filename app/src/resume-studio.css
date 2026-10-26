@@ -17,6 +17,12 @@
   min-height: 64px;
   margin: 8px 0 12px;
 }
+.ai-review-prompt { display: grid; gap: 4px; margin: 8px 0 0; }
+.ai-review-prompt > span { font-size: 12px; color: #5c4b6e; font-weight: 600; }
+.ai-review-prompt > small { font-size: 10px; color: #9a89a9; line-height: 1.6; }
+.ai-review-prompt textarea { margin: 4px 0 12px; }
+html[data-theme="night"] .ai-review-prompt > span { color: #dfe6f5; }
+html[data-theme="night"] .ai-review-prompt > small { color: #8fa2c2; }
 .ai-suggestion {
   margin-top: 12px;
   padding: 14px;

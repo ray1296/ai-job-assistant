@@ -66,7 +66,17 @@ export default defineComponent({
     return () => h("section", { class: "ai-review-panel", "aria-label": "AI简历审阅与优化" }, [
       h("h3", "AI 内容审阅与优化（逐项确认）"),
       h("p", "AI先标出问题并提出可编辑文本；只有你明确勾选并采纳后，内容才会写入本地草稿。"),
-      h("textarea", { value: prompt.value, placeholder: "例如：针对前端岗位检查成果表达，但不要编造指标", "aria-label": "AI审阅要求", maxlength: 1000, onInput: (e: Event) => prompt.value = (e.target as HTMLTextAreaElement).value }),
+      h("label", { class: "ai-review-prompt" }, [
+        h("span", "补充审阅要求（可选）"),
+        h("small", "默认优化当前选中的简历；有特殊要求可以填写，没有可留空。"),
+        h("textarea", {
+          value: prompt.value,
+          placeholder: "默认优化当前选中的简历；有特殊要求可填写，没有可留空。例如：目标岗位是 Agent 开发，重点检查项目成果表达，不要编造指标",
+          "aria-label": "补充审阅要求（可选）",
+          maxlength: 1000,
+          onInput: (e: Event) => prompt.value = (e.target as HTMLTextAreaElement).value,
+        }),
+      ]),
       h("label", { class: "ai-decor-option" }, [
         h("input", {
           type: "checkbox",
