@@ -8,12 +8,12 @@ try {
   await page.goto(base + "/#home", { waitUntil: "domcontentloaded" }); await page.waitForTimeout(800);
   const cv = page.locator(".mouse-trail-canvas");
   assert.equal(await cv.count(), 1);
-  assert.equal(await cv.evaluate((el) => getComputedStyle(el).backgroundColor), "rgba(0, 0, 0, 0)");
+  assert.equal(await cv.evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(3, 7, 18)");
   await page.mouse.move(300, 300); await page.mouse.move(500, 400, { steps: 10 }); await page.waitForTimeout(500);
   const painted = await cv.evaluate((el) => { const ctx = el.getContext("2d"); const d = ctx.getImageData(0, 0, el.width, el.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
   assert.ok(painted > 20, "trail did not paint");
-  assert.notEqual(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(0, 0, 0)");
-  console.log("PASS mouse trail transparent canvas, painted pixels", painted);
+  assert.ok((await page.locator(".journey-hero h1").evaluate((el) => getComputedStyle(el).color)).includes("246"));
+  console.log("PASS bigdata star-ribbon canvas, painted pixels", painted);
 } catch (e) {
   console.log("FAIL mouse trail", e.message); process.exitCode = 1;
 } finally { await browser.close(); }

@@ -599,6 +599,27 @@ h2 {
   border-top: 1px solid #ece6f3;
   padding: 6px 4px 8px;
 }
+.cosmic-home { position: relative; z-index: 1; }
+.cosmic-home > .mouse-trail-canvas { z-index: 0; }
+.cosmic-home > *:not(.mouse-trail-canvas) { position: relative; z-index: 1; }
+.cosmic-home .journey-hero { padding: 55px 20px 48px; text-align: center; }
+.cosmic-home .journey-hero h1 { color: #f6f3ff; text-shadow: 0 0 28px rgba(92, 164, 255, .28); }
+.cosmic-home .journey-hero em { color: #77d8ff; text-shadow: 0 0 22px rgba(0, 189, 255, .4); }
+.cosmic-home .journey-hero p, .cosmic-home .hero-status { color: #aebce0; }
+.cosmic-home .eyebrow { color: #7fb9e8; }
+.cosmic-home .guide-prompt { background: rgba(12, 23, 48, .72); border-color: rgba(102, 164, 230, .35); color: #c5d7f4; }
+.cosmic-home .guide-prompt button { background: rgba(28, 45, 87, .9); color: #9bdcff; border-color: rgba(102, 164, 230, .45); }
+.cosmic-home .journey-choices > button { background: linear-gradient(145deg, rgba(10, 20, 42, .9), rgba(16, 25, 57, .78)); border: 1px solid rgba(90, 142, 220, .3); }
+.cosmic-home .journey-choices > button > span { color: #75a9df; }
+.cosmic-home .journey-choices h2 { color: #f1f4ff; }
+.cosmic-home .journey-choices p { color: #a2b1d3; }
+.cosmic-home .journey-choices b { color: #74d4ff; }
+.cosmic-home .journey-path { background: rgba(8, 17, 36, .78); border-color: rgba(88, 137, 208, .28); }
+.cosmic-home .journey-path h2 { color: #e9efff; }
+.cosmic-home .path-items button { color: #bcc9e8; }
+.cosmic-home .path-items button span { background: rgba(35, 64, 116, .9); color: #83d8ff; }
+.cosmic-home ~ .page-footer { color: #899bc0; }
+.cosmic-home .page-footer { color: #899bc0; }
 .journey-hero {
   padding: 55px 20px 48px;
   text-align: center;

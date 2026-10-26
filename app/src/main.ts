@@ -267,7 +267,7 @@ const app = defineComponent({
         ),
       ]);
     function home() {
-      return h("div", [
+      return h("div", { class: "cosmic-home" }, [
         h(MouseTrail),
         h("section", { class: "journey-hero" }, [
           h("span", { class: "eyebrow" }, "YOUR NEXT CHAPTER"),
