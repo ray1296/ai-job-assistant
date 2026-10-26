@@ -46,7 +46,7 @@ export function loadCatalog() {
   });
 }
 const jobs = loadCatalog();
-export function listJobs(q = {}) {
+export function listJobs(q = {}, selectedIds = []) {
   let a = jobs;
   const term = String(q.q || "")
     .trim()
@@ -77,6 +77,10 @@ export function listJobs(q = {}) {
       a = a.filter((j) =>
         f === "cities" ? j.cities.includes(String(q[k])) : j[f] === q[k],
       );
+  if (q.intent === "confirmed" || q.intent === "unconfirmed") {
+    const selected = new Set(selectedIds);
+    a = a.filter((j) => q.intent === "confirmed" ? selected.has(j.id) : !selected.has(j.id));
+  }
   const page = boundedInteger(q.page, 1, 1000000),
     size = boundedInteger(q.pageSize, 20, 50);
   return {

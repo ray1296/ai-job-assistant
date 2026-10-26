@@ -33,6 +33,7 @@ export default defineComponent({
     const q = ref(""),
       direction = ref(""),
       city = ref(""),
+      intentFilter = ref(""),
       page = ref(1);
     const facets = ref<{ directions: string[]; cities: string[] }>({
       directions: [],
@@ -79,6 +80,7 @@ export default defineComponent({
         if (q.value.trim()) p.set("q", q.value.trim());
         if (direction.value) p.set("direction", direction.value);
         if (city.value) p.set("city", city.value);
+        if (intentFilter.value) p.set("intent", intentFilter.value);
         const result = await api("/jobs?" + p, "GET", undefined, {
           signal: c.signal,
         });
@@ -146,6 +148,7 @@ export default defineComponent({
             : baseline.value.filter((x) => x !== id);
         }
         notice.value = "投递意向已保存（包括清空选择）";
+        if (intentFilter.value) { page.value = 1; void load(); }
       } catch (e) {
         if (current() && !c.signal.aborted)
           error.value = errorText(e) + "；未保存的选择仍保留，可重试。";
@@ -242,6 +245,22 @@ export default defineComponent({
               ),
             ),
             h(
+              "select",
+              {
+                "aria-label": "投递意向状态",
+                value: intentFilter.value,
+                onChange: (e: any) => {
+                  intentFilter.value = e.target.value;
+                  search();
+                },
+              },
+              [
+                h("option", { value: "" }, "全部投递意向"),
+                h("option", { value: "confirmed" }, "已确认投递意向"),
+                h("option", { value: "unconfirmed" }, "未确认投递意向"),
+              ],
+            ),
+            h(
               "button",
               { class: "primary", type: "submit", disabled: !ready.value },
               "搜索",
@@ -254,7 +273,9 @@ export default defineComponent({
             { role: "status" },
             "共 " +
               total.value +
-              " 个岗位 · 已选 " +
+              " 个岗位 · 已确认 " +
+              baseline.value.length +
+              " · 当前选择 " +
               intents.value.length +
               (dirty.value ? " · 有未保存选择" : ""),
           ),
@@ -296,6 +317,9 @@ export default defineComponent({
                   " · " +
                   job.addressPrecision,
               ),
+              h("div", {
+                class: "job-intent-badge" + (baseline.value.includes(job.id) ? " confirmed" : intents.value.includes(job.id) ? " pending" : ""),
+              }, baseline.value.includes(job.id) ? "已确认投递意向" : intents.value.includes(job.id) ? "待保存投递意向" : "未确认投递意向"),
               h("div", { class: "job-actions" }, [
                 h(
                   "button",
@@ -314,7 +338,7 @@ export default defineComponent({
                     onClick: () => toggle(job.id),
                   },
                   intents.value.includes(job.id)
-                    ? "已选投递意向"
+                    ? baseline.value.includes(job.id) ? "已确认投递意向" : "待保存投递意向"
                     : "加入投递意向",
                 ),
               ]),

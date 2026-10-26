@@ -2303,6 +2303,7 @@ const server = http.createServer(async (req, res) => {
           "education",
           "recruitmentType",
           "source",
+          "intent",
           "page",
           "pageSize",
         ];
@@ -2313,7 +2314,9 @@ const server = http.createServer(async (req, res) => {
             .map((k) => [k, u.searchParams.get(k)]),
         );
         if ((q.q || "").length > 100) throw failure(400, "搜索词过长");
-        return send(res, 200, listJobs(q));
+        if (q.intent && q.intent !== "confirmed" && q.intent !== "unconfirmed")
+          throw failure(400, "投递意向筛选无效");
+        return send(res, 200, listJobs(q, q.intent ? applicationPlan.jobIds(s.user_id) : []));
       }
       if (p === "/api/jobs/facets" && m === "GET")
         return send(res, 200, facets());
