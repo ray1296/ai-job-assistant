@@ -116,6 +116,11 @@ def main():
         count=int(n[1])
         if count<1 or count>4:raise ValueError('本机保护上限为4页，请只保留简历页面后再上传')
         method='PDF页面渲染供AI视觉识别'
+        pdf_text=''
+        try:
+            pdf_text=run(['/usr/bin/pdftotext','-layout',path,'-'],20).strip()
+        except Exception:
+            pdf_text=''
         for i in range(1,count+1):
             prefix=os.path.join(root,'page-'+str(i))
             run(['/usr/bin/pdftoppm','-f',str(i),'-l',str(i),'-singlefile','-scale-to','1800','-png',path,prefix],15)
@@ -124,6 +129,9 @@ def main():
             images.append({'mime':'image/png','data':base64.b64encode(image).decode('ascii')})
             pages.append({'page':i,'text':'','method':'PDF页面视觉识别'})
             os.unlink(prefix+'.png')
+        if pdf_text:
+            pages=[{'page':1,'text':pdf_text[:MAX_TEXT],'method':'PDF文本层 + 页面视觉识别'}]
+            warnings.append('已提取PDF文本层，并与页面视觉一起交给AI；文本层可用于逐字核对。')
         # PDF里的照片通常是独立嵌入图片；单独提取供用户选择，不混入AI页面。
         try:
             pdf_prefix=os.path.join(root,'embedded')
@@ -153,7 +161,6 @@ def main():
         images=[{'mime':'image/png' if kind=='png' else 'image/jpeg','data':base64.b64encode(image).decode('ascii')}]
         method='图片供AI视觉识别';pages=[{'page':1,'text':'','method':method}]
     text='\n\n'.join(p['text'] for p in pages)
-    if images:text=''
     if not text.strip() and not images:raise ValueError('未识别到可用文字，请使用清晰正向图片或文字型PDF')
     if len(text)>MAX_TEXT:raise ValueError('识别文字超过40000字，请精简文件')
     warnings.append('本进程仅准备原文/页面，必须经AI语义结构化后方可使用；不会本地规则归类。')

@@ -307,10 +307,10 @@ export function createResumeImports(db, privateDir, validateProfile, options = {
       } catch {
         throw fail(502, "AI未返回完整可核对结构，请重试");
       }
-      if (text) {
-        if (raw.sourceText !== undefined && raw.sourceText !== text)
-          throw fail(502, "AI改动了已确认原文，结果未采用");
-      }
+      // 有本地文本层时以本地原文为准；AI返回的sourceText可能因图像识别
+      // 或排版差异而变化，不再用它覆盖/否决本地逐字原文。
+      if (text && raw.sourceText !== undefined && typeof raw.sourceText !== "string")
+        throw fail(502, "AI原文结构无效，结果未采用");
       const result = raw.document
         ? validateRecognition(expandRecognition(raw, text), validateProfile)
         : validateClassification({ ...raw, sourceText: text || raw.sourceText }, text || raw.sourceText, validateProfile);

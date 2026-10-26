@@ -19,7 +19,8 @@ export function validateExtras(rawExtras) {
 }
 export function validateClassification(raw, sourceText, validateProfile) {
   const source = sourceText || raw?.sourceText;
-  if (typeof source !== "string" || !source.trim() || source.length > 40000) throw fail("AI原文识别无效");
+  if (typeof source !== "string" || !source.trim() || source.length > 40000)
+    throw fail("AI未返回可核对的原文（可能内容过长或页面不清晰），请重试或换一份清晰 PDF");
   const profile = validateProfile({ ...raw?.profile, notes: "" });
   const extras = validateExtras(raw?.extras);
   const evidence = [];

@@ -164,17 +164,35 @@ export function createExtractionService(privateDir, recognize) {
       if (j.ai) {
         if (!recognize) throw Error("AI识别未配置");
         j.controller = new AbortController();
-        const draft = await recognize(
-          j.owner,
-          {
-            text: result.text,
-            images: result.images || [],
-            photos: result.photos || [],
-            pages: result.pages,
-            filename: j.name,
-          },
-          j.controller.signal,
-        );
+        let draft;
+        let lastError;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            draft = await recognize(
+              j.owner,
+              {
+                text: result.text,
+                images: result.images || [],
+                photos: result.photos || [],
+                pages: result.pages,
+                filename: j.name,
+              },
+              j.controller.signal,
+            );
+            break;
+          } catch (e) {
+            lastError = e;
+            // 视觉模型偶发返回空原文/截断结构。只在第一次失败时自动重试一次，
+            // 不重试限流、取消、配额或明确的上游不可用。
+            const retryable = e?.status === 502 && /原文|未返回|未采用/.test(String(e.message || ""));
+            if (attempt === 0 && retryable && !j.cancelled) {
+              await new Promise((r) => setTimeout(r, 700));
+              continue;
+            }
+            throw e;
+          }
+        }
+        if (!draft) throw lastError || Error("AI识别失败，请稍后重试");
         if (j.cancelled) return;
         result = {
           text: draft.sourceText,
