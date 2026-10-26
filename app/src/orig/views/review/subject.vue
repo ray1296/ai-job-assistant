@@ -55,6 +55,7 @@
                 <div class="card-type-badge">{{ card.topic || '知识点' }}</div>
                 <div class="card-question-text">{{ card.front }}</div>
                 <span v-if="card.answerSource" class="answer-source-badge" :class="{ ai: isAiSource(card.answerSource) }">{{ answerSourceLabel(card.answerSource) }}</span>
+                <span v-if="card.hasSimpleAnswer" class="simplified-badge">简化答案</span>
                 <button class="ask-ai-btn card-ask-btn" @click.stop="askCardAI(card)">🤖 问问AI</button>
                 <div v-if="card.hint" class="hint-bulb" @click.stop="showHint(card.id)">💡</div>
                 <div class="hint-popup" :class="{ show: showingHint === card.id }">{{ card.hint }}</div>
@@ -2786,6 +2787,18 @@ function askQuestionAI(q) {
   background: #fff6e6;
   color: #9a6326;
   border-color: #f0d9b5;
+}
+.simplified-badge {
+  display: inline-block;
+  margin: 6px 0 0 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e7f7f2;
+  color: #237a68;
+  border: 1px solid #bfe5d9;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
 }
 .card-answer-header .answer-source-badge {
   margin-left: 6px;

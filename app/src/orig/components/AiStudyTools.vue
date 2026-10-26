@@ -2,13 +2,13 @@
   <div class="ai-tools">
     <div class="ai-tools-head">
       <strong>✦ AI 学习工具</strong>
-      <span class="ai-tools-hint">讲题一次一步，懂了再继续</span>
+      <span class="ai-tools-hint">批量简化最多 50 道，已有简化会跳过；讲题一次一步</span>
     </div>
     <div class="ai-tools-row">
       <button class="ai-btn" :disabled="busy" @click="generate('single')">生成选择题</button>
       <button class="ai-btn" :disabled="busy" @click="generate('judge')">生成判断题</button>
       <button class="ai-btn" :disabled="busy || !questions.length" @click="simplifyAll">批量简化答案</button>
-      <span class="ai-tools-hint">在知识点/题目上点「问问AI」即可讲题（自动选择气泡 / 画布 / 3D）</span>
+      <span class="ai-tools-hint">批量简化最多 50 道，已有简化答案会自动跳过；在知识点/题目上点「问问AI」即可讲题</span>
     </div>
     <p v-if="tip" class="ai-tip">{{ tip }}</p>
 
@@ -142,16 +142,15 @@ async function call(path: string, body: any) {
 
 async function simplifyAll() {
   if (busy.value) return;
-  busy.value = true; tip.value = "正在批量生成简化答案（每次最多 8 道）…";
+  const todo = questions.value.filter((q) => !q.simpleAnswer).slice(0, 50);
+  if (!todo.length) { tip.value = "所有卡片都已有简化答案"; return; }
+  busy.value = true; tip.value = "正在批量生成简化答案（最多 50 道，已有简化会跳过）…";
   try {
-    let done = 0;
-    for (const q of questions.value) {
-      if (q.simpleAnswer) continue;
-      if (done >= 8) break;
-      await call("/study/questions/" + q.id + "/simplify", {});
-      done++;
-    }
-    tip.value = "已生成 " + done + " 道题的简化答案";
+    const r = await call("/study/questions/simplify-batch", { ids: todo.map((q) => q.id) });
+    const done = r.updated?.length || 0;
+    tip.value = "已生成 " + done + " 道题的简化答案" +
+      (r.skipped ? "，跳过 " + r.skipped + " 道已有简化" : "") +
+      (r.failed ? "，失败 " + r.failed + " 道" : "");
     emit("changed");
   } catch (e: any) { tip.value = "失败：" + e.message; }
   finally { busy.value = false; }

@@ -1257,10 +1257,46 @@ const server = http.createServer(async (req, res) => {
           return send(res, 200, study.recordAttempt(s.user_id, mm[1], !!payload.correct));
         }
       }
+      if (p === "/api/study/questions/simplify-batch" && m === "POST") {
+        const payload = await body(req);
+        const ids = [...new Set((Array.isArray(payload.ids) ? payload.ids : [])
+          .filter((id) => typeof id === "string" && id.length < 80).slice(0, 50))];
+        if (!ids.length) throw failure(400, "没有要简化的题目");
+        const pending = [];
+        let skipped = 0, missing = 0;
+        for (const id of ids) {
+          let q;
+          try { q = study.ownQuestion(s.user_id, id); } catch { missing++; continue; }
+          if (q.simple_answer) { skipped++; continue; }
+          pending.push(q);
+        }
+        const updated = [];
+        let failed = 0;
+        // 一条 AI 请求处理多道题，避免前端逐题循环导致 50 次排队。
+        for (let i = 0; i < pending.length; i += 20) {
+          const chunk = pending.slice(i, i + 20);
+          try {
+            const r = await aiGateway.study(s.user_id, {
+              kind: "batchSimplify",
+              items: chunk.map((q) => ({ id: q.id, question: q.stem, answer: q.answer })),
+            }, undefined);
+            for (const item of r.items || []) {
+              const q = chunk.find((x) => x.id === item.id);
+              if (!q || !item.simple) continue;
+              db.prepare("UPDATE study_questions SET simple_answer=? WHERE id=?").run(item.simple, q.id);
+              updated.push({ id: q.id, simpleAnswer: item.simple });
+            }
+          } catch {
+            failed += chunk.length;
+          }
+        }
+        return send(res, 200, { updated, skipped, missing, failed });
+      }
       {
         const mm = p.match(/^\/api\/study\/questions\/([a-z0-9]+)\/simplify$/);
         if (mm && m === "POST") {
           const q = study.ownQuestion(s.user_id, mm[1]);
+          if (q.simple_answer) return send(res, 200, { simpleAnswer: q.simple_answer, cached: true });
           const r = await aiGateway.study(s.user_id, { kind: "simplify", question: q.stem, answer: q.answer }, undefined);
           db.prepare("UPDATE study_questions SET simple_answer=? WHERE id=?").run(r.simple, q.id);
           return send(res, 200, { simpleAnswer: r.simple });
@@ -1743,7 +1779,7 @@ const server = http.createServer(async (req, res) => {
             subject: { id: sub.id, name: sub.name, versionId: ver.id, versionName: ver.name },
             versions: sub.versions,
             questions,
-            flashcards: questions.filter((q) => q.type === "short").map((q) => ({ id: q.id, front: q.stem, back: q.answer, answerSource: q.answerSource, quickAnswer: q.simpleAnswer || q.answer, fullAnswer: q.answer })),
+            flashcards: questions.filter((q) => q.type === "short").map((q) => ({ id: q.id, front: q.stem, back: q.answer, answerSource: q.answerSource, quickAnswer: q.simpleAnswer || q.answer, fullAnswer: q.answer, hasSimpleAnswer: !!q.simpleAnswer })),
             knowledgePoints: [],
             totalQuestions: questions.length,
           });

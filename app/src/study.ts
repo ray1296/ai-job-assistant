@@ -183,15 +183,19 @@ export default defineComponent({
     }
     async function simplifyAll() {
       if (busy.value || !version.value) return;
-      const todo = questions.value.filter((q) => !q.simpleAnswer).slice(0, 8);
+      const todo = questions.value.filter((q) => !q.simpleAnswer).slice(0, 50);
       if (!todo.length) { flash("所有题目都已经有简化答案了"); return; }
       busy.value = true;
       try {
-        for (const q of todo) {
-          const r = await api<any>("/study/questions/" + q.id + "/simplify", "POST", {}, { timeoutMs: 150000 });
-          q.simpleAnswer = r.simpleAnswer;
+        const r = await api<any>("/study/questions/simplify-batch", "POST", { ids: todo.map((q) => q.id) }, { timeoutMs: 300000 });
+        const byId = new Map<string, string>((r.updated || []).map((x: any) => [String(x.id), String(x.simpleAnswer || "")]));
+        for (const q of questions.value) {
+          const simple = byId.get(q.id);
+          if (simple) q.simpleAnswer = simple;
         }
-        flash("已为 " + todo.length + " 道题生成简化答案（每次最多 8 道）");
+        flash("已为 " + (r.updated?.length || 0) + " 道题生成简化答案" +
+          (r.skipped ? "，跳过 " + r.skipped + " 道已有简化" : "") +
+          (r.failed ? "，失败 " + r.failed + " 道" : ""));
       } catch (e) { error.value = errorText(e); }
       finally { busy.value = false; }
     }
