@@ -1,5 +1,5 @@
 import {
-  defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick,
+  defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick, watch,
 } from "vue";
 import { api, errorText } from "./api";
 import { petPositions, setPetPos } from "./pet-store";
@@ -57,6 +57,13 @@ export default defineComponent({
     const memDismissed = ref(false);
     const memBusy = ref(false);
     const logEl = ref<HTMLElement | null>(null);
+    const tutorSteps = ref<any[]>([]);
+    const tutorStep = ref(0);
+    const tutorScene = ref<any>(null);
+    const tutorBoard = ref<HTMLCanvasElement | null>(null);
+    const tutorHost = ref<HTMLElement | null>(null);
+    const visibleTutorSteps = computed(() => tutorSteps.value.slice(0, tutorStep.value + 1));
+    let tutorRaf = 0, tutorRenderer: any = null, tutorSceneObj: any = null, tutorGroup: any = null;
     const vw = ref(window.innerWidth);
     const vh = ref(window.innerHeight);
 
@@ -129,6 +136,95 @@ export default defineComponent({
       void attachImage(file);
     }
 
+    function drawTutorBoard() {
+      const cv = tutorBoard.value;
+      if (!cv) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = cv.clientWidth || 260, hh = 150;
+      cv.width = w * dpr; cv.height = hh * dpr;
+      const ctx = cv.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, w, hh);
+      ctx.fillStyle = "#3f3353";
+      ctx.font = "500 12px system-ui, -apple-system, sans-serif";
+      let y = 22;
+      for (const st of visibleTutorSteps.value) {
+        const text = String(st?.text || "");
+        let line = "";
+        for (const ch of text) {
+          if (ctx.measureText(line + ch).width > w - 28) { ctx.fillText(line, 14, y); y += 18; line = ch; }
+          else line += ch;
+        }
+        if (line) { ctx.fillText(line, 14, y); y += 18; }
+        y += 4;
+        if (y > hh - 12) break;
+      }
+    }
+    function stopTutor3D() {
+      cancelAnimationFrame(tutorRaf);
+      tutorRaf = 0;
+      try { tutorRenderer?.dispose(); } catch {}
+      tutorRenderer = null; tutorSceneObj = null; tutorGroup = null;
+      if (tutorHost.value) tutorHost.value.innerHTML = "";
+    }
+    async function mountTutor3D() {
+      const host = tutorHost.value;
+      const spec = tutorScene.value;
+      if (!host || !spec) return;
+      stopTutor3D();
+      const THREE = await import("three");
+      const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xfaf8fd);
+      const cam = new THREE.PerspectiveCamera(50, host.clientWidth / Math.max(1, host.clientHeight), 0.1, 100);
+      cam.position.set(3.2, 2.6, 3.6);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.setSize(host.clientWidth, host.clientHeight);
+      host.appendChild(renderer.domElement);
+      const ctrl = new OrbitControls(cam, renderer.domElement);
+      ctrl.enableDamping = true;
+      scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+      const dir = new THREE.DirectionalLight(0xffffff, 1.1); dir.position.set(4, 6, 5); scene.add(dir);
+      scene.add(new THREE.GridHelper(6, 12, 0xe6def0, 0xefe9f7));
+      const grp = new THREE.Group();
+      const shape = String(spec.shape || "cube");
+      const mat = new THREE.MeshStandardMaterial({ color: 0x7460c9, roughness: 0.35, metalness: 0.15 });
+      const line = new THREE.LineBasicMaterial({ color: 0x2f2a45 });
+      const add = (m: any) => { m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), line)); return m; };
+      if (shape === "sphere") grp.add(add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mat)));
+      else if (shape === "cone") grp.add(add(new THREE.Mesh(new THREE.ConeGeometry(1, 1.8, 32), mat)));
+      else if (shape === "cylinder") grp.add(add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.8, 32), mat)));
+      else if (shape === "torus") grp.add(add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 16, 48), mat)));
+      else if (shape === "pyramid") grp.add(add(new THREE.Mesh(new THREE.ConeGeometry(1, 1.8, 4), mat)));
+      else grp.add(add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), mat)));
+      scene.add(grp);
+      tutorRenderer = renderer; tutorSceneObj = scene; tutorGroup = grp;
+      const loop = () => { tutorRaf = requestAnimationFrame(loop); ctrl.update(); renderer.render(scene, cam); };
+      loop();
+    }
+    watch(visibleTutorSteps, drawTutorBoard, { deep: true });
+    watch(tutorScene, async (v) => {
+      if (!v) { stopTutor3D(); return; }
+      await nextTick();
+      void mountTutor3D();
+    });
+
+    function isTutorRequest(text: string) {
+      return /画布|3D|3d|立方体|讲题|讲解|这道|题目|步骤|演示|知识|考点|题/.test(text);
+    }
+    async function answerTutor(text: string) {
+      const r = await api<any>("/study/tutor", "POST", { question: text, answer: "", message: "" }, { timeoutMs: 180000 });
+      log.value.push({ role: "ai", text: String(r?.reply || "我先在画布上拆成几步。") });
+      tutorSteps.value = Array.isArray(r?.steps) ? r.steps : [];
+      tutorStep.value = 0;
+      tutorScene.value = r?.scene || (r?.need3d ? { shape: "graph", text: "3D 辅助演示" } : null);
+      await nextTick();
+      drawTutorBoard();
+      scrollLog();
+    }
+
     async function send() {
       const text = msg.value.trim();
       const image = pendingImage.value;
@@ -142,6 +238,10 @@ export default defineComponent({
       err.value = "";
       scrollLog();
       try {
+        if (props.agentId === "zhiwei" && !image && !doc && isTutorRequest(text)) {
+          await answerTutor(text);
+          return;
+        }
         const r = await api<any>("/companion/chat", "POST", {
           message: (text || (doc ? "请阅读这个文件并帮我分析。" : "请看看这张图，帮我讲解一下。")) + (doc ? "\n\n【附件：" + doc.name + "】\n" + doc.text : ""),
           persona: props.name,
@@ -301,7 +401,7 @@ export default defineComponent({
       ]),
       open.value
         ? h("div", {
-            class: "companion-chat agent-chat",
+            class: "companion-chat agent-chat" + (tutorSteps.value.length || tutorScene.value ? " has-tutor" : ""),
             style: panelStyle.value,
             role: "dialog",
             "aria-label": props.name + " 的对话",
@@ -325,6 +425,25 @@ export default defineComponent({
               ])),
               busy.value ? h("p", { class: "companion-bubble ai agent-typing" }, "正在想…") : null,
             ]),
+            tutorSteps.value.length
+              ? h("div", { class: "agent-tutor" }, [
+                  h("div", { class: "agent-tutor-head" }, [
+                    h("strong", "讲题画布"),
+                    h("span", "第 " + (tutorStep.value + 1) + " / " + tutorSteps.value.length + " 步"),
+                  ]),
+                  h("canvas", { ref: tutorBoard, class: "agent-tutor-canvas" }),
+                  h("ol", null, visibleTutorSteps.value.map((s: any, i: number) => h("li", { key: i }, String(s?.text || "")))),
+                  tutorStep.value + 1 < tutorSteps.value.length
+                    ? h("button", { class: "agent-tutor-next", onClick: () => (tutorStep.value += 1) }, "懂了，继续")
+                    : null,
+                ])
+              : null,
+            tutorScene.value
+              ? h("div", { class: "agent-tutor-3d" }, [
+                  h("div", { class: "agent-tutor-head" }, [h("strong", "3D 演示 · " + (tutorScene.value.text || tutorScene.value.shape || "模型"))]),
+                  h("div", { ref: tutorHost, class: "agent-tutor-3d-host" }),
+                ])
+              : null,
             err.value ? h("p", { class: "companion-error" }, err.value) : null,
             memPct.value >= 0.8 && !memDismissed.value
               ? h("div", { class: "agent-mem-warn" }, [

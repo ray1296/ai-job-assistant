@@ -1523,7 +1523,10 @@ function askLearningPet(content, ref) {
     // 学习页在 iframe 中；交给主页面打开「知微」并发送问题。
     window.parent.postMessage({ type: "zg:ask-learning-pet", content: text, ref: ref || null }, location.origin)
   } catch (e) { /* 直接打开 /orig 时没有父页面 */ }
-  window.dispatchEvent(new CustomEvent("zg:tutor", { detail: { stem: text, answer: "" } }))
+  // 直接打开 /orig 时没有主页面，保留本地 AI 工具作为兜底；正常站点交给知微。
+  if (window.parent === window) {
+    window.dispatchEvent(new CustomEvent("zg:tutor", { detail: { stem: text, answer: "" } }))
+  }
   if (typeof showToast === "function") showToast("已添加到知微对话")
 }
 
