@@ -735,3 +735,17 @@ body.zg-pets-hidden .agent-chat { display: none !important; }
   .agent-tutor-board { height: 220px; }
   .agent-tutor-window-body .agent-tutor-3d { height: 280px; }
 }
+
+/* 历史会话删除 */
+.agent-session-item { flex-direction: row; align-items: center; gap: 3px; padding: 2px 3px; }
+.agent-session-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 0; border-radius: 6px; padding: 4px 5px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.agent-session-open:hover { background: #f3eefb; }
+.agent-session-del { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 1px solid #e3d8ee; border-radius: 50%; background: #fff; color: #a06a7a; font-size: 13px; line-height: 1; cursor: pointer; }
+.agent-session-del:hover { background: #fff3f5; border-color: #e3b7c1; color: #b04a63; }
+
+.pet-session-item { display: flex; align-items: center; gap: 2px; padding: 1px; border-radius: 6px; }
+.pet-session-item.on { background: #f3eefb; }
+.pet-session-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 0; border-radius: 5px; padding: 4px 5px; background: transparent; color: #4b3b63; text-align: left; cursor: pointer; }
+.pet-session-open:hover { background: #f3eefb; }
+.pet-session-del { flex: 0 0 auto; display: grid; place-items: center; width: 19px; height: 19px; padding: 0; border: 1px solid #e3d8ee; border-radius: 50%; background: #fff; color: #a06a7a; font-size: 12px; line-height: 1; cursor: pointer; }
+.pet-session-del:hover { color: #b04a63; background: #fff3f5; }

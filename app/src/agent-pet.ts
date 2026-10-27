@@ -151,6 +151,29 @@ export default defineComponent({
       saveSessionStore();
       nextTick(scrollLog);
     }
+    function deleteSession(id: string) {
+      const target = sessions.value.find((x) => x.id === id);
+      if (!target || !confirm("删除会话「" + (target.title || "新会话") + "」？此操作不可撤销。")) return;
+      const wasActive = activeSession.value === id;
+      const rest = sessions.value.filter((x) => x.id !== id);
+      if (!rest.length) {
+        const nid = "s" + Date.now() + Math.floor(Math.random() * 1000);
+        const s = { id: nid, title: "新会话", messages: [{ role: "ai" as const, text: AGENT_GREETS[props.agentId] || "我在。" }], updatedAt: Date.now() };
+        sessions.value = [s];
+        activeSession.value = nid;
+        log.value = s.messages;
+      } else {
+        sessions.value = rest;
+        if (wasActive) {
+          activeSession.value = rest[0].id;
+          log.value = rest[0].messages;
+        }
+      }
+      resetTutor();
+      clearInput();
+      saveSessionStore();
+      nextTick(scrollLog);
+    }
     function ensureSession() {
       if (sessions.value.length) {
         if (!activeSession.value) activeSession.value = sessions.value[0].id;
@@ -593,12 +616,22 @@ export default defineComponent({
             sessionMenu.value
               ? h("div", { class: "agent-session-menu" }, [
                   h("div", { class: "agent-session-title" }, "历史会话"),
-                  ...sessions.value.map((s) => h("button", {
+                  ...sessions.value.map((s) => h("div", {
                     class: "agent-session-item" + (s.id === activeSession.value ? " on" : ""),
-                    onClick: () => switchSession(s.id),
                   }, [
-                    h("strong", null, s.title || "新会话"),
-                    h("small", null, new Date(s.updatedAt || Date.now()).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })),
+                    h("button", {
+                      class: "agent-session-open",
+                      onClick: () => switchSession(s.id),
+                    }, [
+                      h("strong", null, s.title || "新会话"),
+                      h("small", null, new Date(s.updatedAt || Date.now()).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })),
+                    ]),
+                    h("button", {
+                      class: "agent-session-del",
+                      title: "删除会话",
+                      "aria-label": "删除会话 " + (s.title || "新会话"),
+                      onClick: (e: Event) => { e.stopPropagation(); deleteSession(s.id); },
+                    }, "×"),
                   ])),
                 ])
               : null,

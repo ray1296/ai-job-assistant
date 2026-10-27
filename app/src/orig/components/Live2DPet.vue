@@ -15,10 +15,13 @@
         <button type="button" @mousedown.prevent @click.stop="newSession">＋ 新会话</button>
       </div>
       <div v-if="sessionMenu" class="pet-session-menu">
-        <button v-for="s in sessions" :key="s.id" type="button" :class="{ on: s.id === activeSession }" @mousedown.prevent @click.stop="switchSession(s.id)">
-          <strong>{{ s.title || '新会话' }}</strong>
-          <small>{{ new Date(s.updatedAt || Date.now()).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}</small>
-        </button>
+        <div v-for="s in sessions" :key="s.id" class="pet-session-item" :class="{ on: s.id === activeSession }">
+          <button type="button" class="pet-session-open" @mousedown.prevent @click.stop="switchSession(s.id)">
+            <strong>{{ s.title || '新会话' }}</strong>
+            <small>{{ new Date(s.updatedAt || Date.now()).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}</small>
+          </button>
+          <button type="button" class="pet-session-del" title="删除会话" aria-label="删除会话" @mousedown.prevent @click.stop="deleteSession(s.id)">×</button>
+        </div>
       </div>
       <div
         ref="inputRef"
@@ -364,6 +367,32 @@ function switchSession(id) {
   dialogVisible.value = !!last
   if (last) persistentDialog.value = true
   nextTick(() => { inputVisible.value = true; inputRef.value?.focus(); autoResize() })
+}
+function deleteSession(id) {
+  const target = sessions.value.find(x => x.id === id)
+  if (!target || !confirm('删除会话「' + (target.title || '新会话') + '」？此操作不可撤销。')) return
+  const wasActive = activeSession.value === id
+  const rest = sessions.value.filter(x => x.id !== id)
+  if (!rest.length) {
+    const nid = 's' + Date.now() + Math.floor(Math.random() * 1000)
+    sessions.value = [{ id: nid, title: '新会话', messages: [], updatedAt: Date.now() }]
+    activeSession.value = nid
+    clearChatHistory()
+    dialogText.value = ''
+    dialogVisible.value = false
+  } else {
+    sessions.value = rest
+    if (wasActive) {
+      activeSession.value = rest[0].id
+      saveChatHistory(rest[0].messages || [])
+      const last = [...(rest[0].messages || [])].reverse().find(m => m.role === 'assistant')
+      dialogText.value = last?.content || ''
+      dialogVisible.value = !!last
+      persistentDialog.value = !!last
+    }
+  }
+  dialogAction.value = null
+  saveSessionStore()
 }
 
 function clearChatHistory() {
