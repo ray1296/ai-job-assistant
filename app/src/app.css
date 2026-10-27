@@ -2753,3 +2753,12 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 .star-link.link-portal .link-base{stroke-width:1!important;stroke:rgba(215,160,255,.28)!important}
 .star-link.is-related .bridge-rail{stroke-width:2.4;filter:drop-shadow(0 0 8px rgba(183,223,255,1))}
 .star-link.is-related .bridge-lamp{filter:drop-shadow(0 0 14px #ffe6a0)}
+.star-link .link-base{stroke-dasharray:none!important}
+.star-link.link-chain .link-base{stroke:transparent!important}
+.star-link.link-portal .link-base{stroke:transparent!important}
+.star-link.link-worldtree .link-base{stroke-dasharray:none!important;stroke-width:2.4!important}
+.star-link.link-rift .link-base{stroke-dasharray:none!important;stroke-width:2.5!important}
+.star-link.link-starlight .link-base{stroke-dasharray:none!important;stroke-width:3!important}
+.star-link.link-thread .link-base{stroke-dasharray:none!important;stroke-width:2!important}
+.star-planet-name{position:absolute!important;left:50%!important;bottom:6%!important;top:auto!important;transform:translateX(-50%)!important;z-index:6!important;margin:0!important;font-size:13px!important;padding:3px 9px!important;background:rgba(8,6,25,.82)!important;border:1px solid rgba(239,214,160,.45)!important;text-shadow:0 1px 3px #000!important;white-space:nowrap;pointer-events:none}
+.star-planet:hover .star-planet-name,.star-planet:focus-visible .star-planet-name,.star-planet.is-current .star-planet-name{background:#f0d89b!important;color:#1d1533!important;border-color:#fff2c9!important}

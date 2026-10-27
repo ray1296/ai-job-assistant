@@ -7,7 +7,7 @@ type Connect = { a: string; b: string; kind: string };
 const POS: Record<string, Position> = {
   home: { x: 50, y: 13, z: 50, size: 118 },
   profile: { x: 80, y: 38, z: 24, size: 102 },
-  resume: { x: 80, y: 70, z: 38, size: 108 },
+  resume: { x: 74, y: 62, z: 38, size: 108 },
   jobs: { x: 65, y: 81, z: 18, size: 104 },
   data: { x: 33, y: 62, z: 30, size: 100 },
   plan: { x: 24, y: 38, z: 42, size: 100 },
@@ -16,7 +16,7 @@ const POS: Record<string, Position> = {
   companies: { x: 89, y: 57, z: 6, size: 94 },
   housing: { x: 78, y: 85, z: 12, size: 96 },
   knowledge: { x: 51, y: 89, z: 8, size: 94 },
-  practice: { x: 27, y: 81, z: 16, size: 94 },
+  practice: { x: 38, y: 84, z: 16, size: 94 },
   interview: { x: 9, y: 61, z: 4, size: 88 },
   chat: { x: 10, y: 32, z: 12, size: 92 },
   wish: { x: 32, y: 18, z: 22, size: 94 },
@@ -112,8 +112,10 @@ export default defineComponent({
           decor.push(h("line", { class: "bridge-tie", x1: q.x - nx, y1: q.y - ny, x2: q.x + nx, y2: q.y + ny }));
         }
       } else if (c.kind === "portal") {
-        const q = qPoint(x1, y1, mx, my, x2, y2, .5);
-        decor.push(h("circle", { class: "portal-ring", cx: q.x, cy: q.y, r: 12 }), h("circle", { class: "portal-ring inner", cx: q.x, cy: q.y, r: 6 }));
+        [.27, .5, .73].forEach((t, n) => {
+          const q = qPoint(x1, y1, mx, my, x2, y2, t);
+          decor.push(h("circle", { class: "portal-ring" + (n === 1 ? " inner" : ""), cx: q.x, cy: q.y, r: n === 1 ? 12 : 7 }));
+        });
       } else if (c.kind === "worldtree") {
         const q = qPoint(x1, y1, mx, my, x2, y2, .5);
         decor.push(h("path", { class: "world-branch", d: "M" + q.x + " " + q.y + " q -24 -24 -38 -46 M" + q.x + " " + q.y + " q 28 -20 45 -34 M" + q.x + " " + q.y + " q -14 26 -28 40" }));
@@ -158,6 +160,7 @@ export default defineComponent({
           h("span", { class: "star-planet-fallback" }, icon),
           h("img", { class: "star-planet-photo", src: "/assets/star-map/" + id + ".webp", alt: "", draggable: false, onError: (e: Event) => ((e.target as HTMLImageElement).style.display = "none") }),
         ]),
+        h("span", { class: "star-planet-name" }, name),
         h("span", { class: "star-planet-desc" }, DESCS[id] || "点击进入"),
       ]);
     }
@@ -177,14 +180,6 @@ export default defineComponent({
         ]),
         h("svg", { class: "star-links", viewBox: "0 0 1600 1000", preserveAspectRatio: "none", "aria-hidden": "true" }, CONNECTIONS.map((c, i) => linkGroup(c, i))),
         ...props.pages.map(([id, name, icon]) => planet(id, name, icon)),
-        h("div", { class: "star-label-layer" }, props.pages.map(([id, name]) => {
-          const p = pos(id);
-          return h("span", {
-            class: ["star-planet-name", "star-label", props.active === id ? "is-current" : "", hovered.value === id ? "is-hovered" : ""],
-            style: { left: p.x + "%", top: "calc(" + p.y + "% + " + (p.size / 2 + 9) + "px)" },
-            "data-page": id,
-          }, name);
-        })),
       ]),
       hoverPage.value
         ? h("div", { class: "star-preview", "aria-hidden": "true" }, [
