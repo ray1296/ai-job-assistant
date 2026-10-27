@@ -106,10 +106,12 @@ export default defineComponent({
         }
       } else if (c.kind === "bridge") {
         decor.push(h("path", { class: "bridge-rail", d: path, transform: "translate(0,-7)" }), h("path", { class: "bridge-rail", d: path, transform: "translate(0,7)" }), h("circle", { class: "bridge-lamp", cx: x1, cy: y1, r: 5 }), h("circle", { class: "bridge-lamp", cx: x2, cy: y2, r: 5 }));
-        for (let k = 1; k <= 9; k++) {
-          const q = qPoint(x1, y1, mx, my, x2, y2, k / 10);
-          const nx = Math.cos((q.angle + 90) * Math.PI / 180) * 8, ny = Math.sin((q.angle + 90) * Math.PI / 180) * 8;
-          decor.push(h("line", { class: "bridge-tie", x1: q.x - nx, y1: q.y - ny, x2: q.x + nx, y2: q.y + ny }));
+        for (let k = 0; k < 10; k++) {
+          const q1 = qPoint(x1, y1, mx, my, x2, y2, k / 10), q2 = qPoint(x1, y1, mx, my, x2, y2, (k + 1) / 10);
+          const a1 = (q1.angle + 90) * Math.PI / 180, a2 = (q2.angle + 90) * Math.PI / 180;
+          const n1x = Math.cos(a1) * 9, n1y = Math.sin(a1) * 9, n2x = Math.cos(a2) * 9, n2y = Math.sin(a2) * 9;
+          decor.push(h("polygon", { class: "bridge-panel", points: [q1.x - n1x, q1.y - n1y, q1.x + n1x, q1.y + n1y, q2.x + n2x, q2.y + n2y, q2.x - n2x, q2.y - n2y].join(" ") }));
+          if (k % 2 === 0) decor.push(h("line", { class: "bridge-tie", x1: q1.x - n1x, y1: q1.y - n1y, x2: q1.x + n1x, y2: q1.y + n1y }));
         }
       } else if (c.kind === "portal") {
         [.27, .5, .73].forEach((t, n) => {
@@ -153,7 +155,6 @@ export default defineComponent({
         "data-page": id,
       }, [
         h("span", { class: "star-planet-shadow" }),
-        h("span", { class: "star-planet-base" }),
         h("span", { class: "star-planet-orbit" }),
         h("span", { class: "star-planet-halo" }),
         h("span", { class: "star-planet-img" }, [
