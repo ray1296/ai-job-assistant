@@ -525,11 +525,12 @@ async function handleCreateVersion() {
     return
   }
   try {
-    await createVersion({ subjectId: newVersionSubjectId.value, name: newVersionName.value.trim() })
+    const created = await createVersion({ subjectId: newVersionSubjectId.value, name: newVersionName.value.trim() })
     showToast('创建成功')
     await loadVersions(newVersionSubjectId.value)
-    // 自动选中新创建的版本
-    const newV = versionList.value[versionList.value.length - 1]
+    // 自动选中刚创建的版本；列表按创建时间倒序，不能取最后一项
+    const createdId = created?.data?.id
+    const newV = versionList.value.find((v) => String(v.id) === String(createdId)) || versionList.value[0]
     if (newV) {
       knowledgeForm.versionId = newV.id
       questionsForm.versionId = newV.id
@@ -846,7 +847,7 @@ async function handleKnowledgeUpload() {
 
     const res = await uploadKnowledge({
       subjectId: knowledgeForm.subjectId,
-      versionId: Number(knowledgeForm.versionId),
+      versionId: knowledgeForm.versionId,
       title: knowledgeForm.title,
       items,
       // AI出题失败时回退到服务端模板出题，保证功能可用
@@ -857,7 +858,7 @@ async function handleKnowledgeUpload() {
       try {
         await uploadQuestions({
           subjectId: knowledgeForm.subjectId,
-          versionId: Number(knowledgeForm.versionId),
+          versionId: knowledgeForm.versionId,
           title: (knowledgeForm.title || 'AI智能出题') + ' - AI生成',
           items: quizItems,
         })

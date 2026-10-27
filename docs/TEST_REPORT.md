@@ -6,7 +6,7 @@
 
 ## 一、结论
 
-- 自动化测试最终全部通过：284 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
+- 自动化测试最终全部通过：286 项断言通过，0 失败（另有性能指标、点击审计和基础可访问性扫描）。
 - 覆盖：认证、资料/简历、岗位/投递、数据空间、大屏/地图/企业/租房、学习/刷题、上传、面试、AI 协作、RAG、Tool RAG、MCP、心愿池、管理中心、设置、安全与性能。
 - 发现并修复 1 个服务端幂等键问题（心愿“完成”后立即删除被误拦为 409），以及若干测试脚本/测试环境问题。
 - 仍存在的限制：高负载时 OCR/视觉识别会主动返回 503；只测了 Chromium；没有做正式长稳压测/渗透/跨浏览器；全双工实时音频需人工听测。
@@ -82,7 +82,8 @@
 | 智能体自定义网页/报告页遮挡 | 3/3 |
 | 逐光星盘 18 星球/法天象地/联动/缓存 | 5/5 |
 | 面试简历切换/AI协作新删会话/附件 | 4/4 |
-| 合计 | 284/284 |
+| 自建科目/版本上传 | 2/2 |
+| 合计 | 286/286 |
 
 ### 关键指标
 
@@ -275,6 +276,7 @@
     node tests/agent-custom-page.mjs
     node tests/star-map.mjs
     node tests/interview-resume-chat.mjs
+    node tests/upload-custom-version.mjs
     node tests/stability.mjs
     node tests/click-audit.mjs
     node tests/navigation-regression.mjs
