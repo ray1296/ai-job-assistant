@@ -52,7 +52,6 @@ const CONNECTIONS: Connect[] = [
   { a: "data", b: "chat", kind: "rift" },
   { a: "jobs", b: "dashboard", kind: "rail" },
 ];
-const KIND_LABEL: Record<string, string> = { chain: "星链", bridge: "星桥", portal: "星门", starlight: "流光", thread: "命运红线", worldtree: "世界树根", rift: "次元裂隙", rail: "星轨" };
 const METEORS = (() => { let s = 91; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 8 }, (_, i) => ({ left: 8 + r() * 85, top: r() * 48, len: 60 + r() * 100, delay: r() * 14, dur: 4 + r() * 3, key: i })); })();
 METEORS[0].delay = 0.2; METEORS[0].dur = 3.2; METEORS[0].top = 8; METEORS[0].left = 22;
 METEORS[1].delay = 3.4; METEORS[1].dur = 3.8; METEORS[1].top = 18; METEORS[1].left = 70;
@@ -149,6 +148,9 @@ export default defineComponent({
         title: DESCS[id] || name,
         "data-page": id,
       }, [
+        h("span", { class: "star-planet-shadow" }),
+        h("span", { class: "star-planet-base" }),
+        h("span", { class: "star-planet-orbit" }),
         h("span", { class: "star-planet-halo" }),
         h("span", { class: "star-planet-img" }, [
           h("span", { class: "star-planet-fallback" }, icon),
@@ -183,8 +185,7 @@ export default defineComponent({
           ])
         : null,
       h("div", { class: "star-map-foot" }, [
-        h("span", null, "拖动视角 · 悬停点亮星链 · 点击星球进入"),
-        h("div", { class: "star-map-legend" }, Object.entries(KIND_LABEL).map(([k, label]) => h("span", { class: "legend-" + k }, label))),
+        h("span", null, "拖动视角 · 悬停点亮星球 · 点击进入"),
       ]),
     ]);
   },

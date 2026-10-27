@@ -2701,3 +2701,29 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 .star-map-stars i{box-shadow:0 0 8px #e9eeff,0 0 18px rgba(170,190,255,.9);opacity:.8}
 /* 星球悬浮投影 */
 .star-planet:after{content:"";position:absolute;left:50%;bottom:-9px;width:78%;height:14px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(6,4,22,.72),transparent 72%);filter:blur(5px);z-index:-1;pointer-events:none}
+
+/* 星盘入口：迷你天体盘，而不是普通胶囊 */
+.orbit-trigger{width:auto!important;padding:6px 14px 6px 6px!important;gap:9px!important;background:linear-gradient(135deg,rgba(22,14,48,.96),rgba(42,27,82,.94))!important;border:1px solid rgba(224,197,255,.5)!important;color:#f5ebff!important;box-shadow:0 8px 28px rgba(65,40,130,.45),0 0 22px rgba(139,100,255,.25)!important;overflow:visible!important}
+.orbit-trigger-orb{position:relative;display:block;width:42px;height:42px;border-radius:50%;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(255,230,170,.55),0 0 18px rgba(169,128,255,.7),inset 0 0 12px rgba(255,255,255,.2);animation:triggerOrb 9s ease-in-out infinite;flex:0 0 auto}
+.orbit-trigger-orb:after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1px dashed rgba(247,216,152,.5);animation:triggerRing 12s linear infinite}
+.orbit-trigger-label{font-family:Georgia,"Songti SC",serif;font-size:13px;letter-spacing:.08em;white-space:nowrap;color:#f1e4ff;text-shadow:0 0 14px rgba(190,155,255,.55)}
+.orbit-trigger:hover{border-color:rgba(255,231,174,.85)!important;box-shadow:0 10px 32px rgba(80,50,150,.55),0 0 30px rgba(180,135,255,.5)!important}
+@keyframes triggerOrb{0%,100%{filter:brightness(.92)}50%{filter:brightness(1.2)}}
+@keyframes triggerRing{to{transform:rotate(360deg)}}
+.star-map-head h1{font-size:clamp(22px,2.4vw,36px)!important;letter-spacing:.12em!important}
+.star-map-head{padding-top:20px!important}
+.star-map-stage{inset:78px 0 58px!important}
+@media(max-width:900px){.star-map-stage{inset:66px 0 50px!important}}
+
+/* 3D 浮空岛底座 */
+.star-planet-base{position:absolute;left:50%;top:72%;width:86%;height:30%;z-index:0;transform:translateX(-50%) perspective(300px) rotateX(58deg);background:linear-gradient(180deg,rgba(159,133,228,.55),rgba(67,47,121,.8) 35%,rgba(18,13,42,.96));clip-path:polygon(12% 0,88% 0,100% 35%,92% 78%,68% 100%,32% 100%,8% 78%,0 35%);border:1px solid rgba(219,190,255,.3);box-shadow:0 18px 24px rgba(3,2,15,.55),0 0 22px rgba(132,99,255,.28);pointer-events:none}
+.star-planet-base:after{content:"";position:absolute;left:18%;right:18%;bottom:-12%;height:28%;background:radial-gradient(ellipse,rgba(6,4,22,.75),transparent 70%);filter:blur(6px)}
+.star-planet-shadow{position:absolute;left:50%;bottom:1%;width:70%;height:10%;z-index:-1;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.34);filter:blur(8px);pointer-events:none}
+.star-planet-img{position:relative;z-index:2}
+.star-planet-halo{z-index:1}
+.star-planet-name{position:relative;z-index:3}
+.star-planet:hover .star-planet-base,.star-planet:focus-visible .star-planet-base{border-color:rgba(255,226,164,.75);box-shadow:0 20px 28px rgba(3,2,15,.65),0 0 32px rgba(202,159,255,.6)}
+.star-planet-base{top:88%!important;height:22%!important;width:76%!important}
+.star-planet-orbit{position:absolute;left:50%;top:48%;width:124%;height:38%;z-index:1;transform:translate(-50%,-50%) rotate(-14deg);border:1px solid rgba(199,177,255,.32);border-radius:50%;box-shadow:0 0 8px rgba(144,112,255,.16);pointer-events:none;transition:.25s}
+.star-planet:hover .star-planet-orbit,.star-planet:focus-visible .star-planet-orbit,.star-planet.is-current .star-planet-orbit{border-color:rgba(255,226,164,.75);box-shadow:0 0 12px rgba(255,209,127,.45),0 0 20px rgba(144,112,255,.3)}
+.star-planet-base{top:90%!important;height:26%!important;width:82%!important}

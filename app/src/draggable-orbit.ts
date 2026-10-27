@@ -460,8 +460,8 @@ export default defineComponent({
           onDragstart: (event: DragEvent) => event.preventDefault(),
         },
         [
-          h("i", { "aria-hidden": "true" }, "✦"),
-          h("span", expanded ? "收起星盘" : "展开星盘"),
+          h("span", { class: "orbit-trigger-orb", style: { backgroundImage: 'url("/assets/star-map/astrolabe2.webp")' }, "aria-hidden": "true" }),
+          h("span", { class: "orbit-trigger-label" }, expanded ? "收起星盘" : "展开星盘"),
         ],
       );
     };
