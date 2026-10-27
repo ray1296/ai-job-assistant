@@ -10,6 +10,16 @@
 
     <!-- 输入框（contenteditable：占位符为不可分割的 chip） -->
     <div class="pet-input-box" :class="{ show: inputVisible }">
+      <div class="pet-session-bar">
+        <button type="button" @mousedown.prevent @click.stop="sessionMenu = !sessionMenu">会话</button>
+        <button type="button" @mousedown.prevent @click.stop="newSession">＋ 新会话</button>
+      </div>
+      <div v-if="sessionMenu" class="pet-session-menu">
+        <button v-for="s in sessions" :key="s.id" type="button" :class="{ on: s.id === activeSession }" @mousedown.prevent @click.stop="switchSession(s.id)">
+          <strong>{{ s.title || '新会话' }}</strong>
+          <small>{{ new Date(s.updatedAt || Date.now()).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }}</small>
+        </button>
+      </div>
       <div
         ref="inputRef"
         class="pet-input norem"
@@ -94,6 +104,9 @@ const csrfHeaders = () => ({ 'X-CSRF-Token': window.__zgCsrf || '' })
 const inputVisible = ref(false)
 const dialogVisible = ref(false)
 const dialogText = ref('')
+const sessionMenu = ref(false)
+const sessions = ref([])
+const activeSession = ref('')
 const inputRef = ref(null)
 const petContainer = ref(null)
 // 待发送图片（粘贴截图或本地选图），发送后清空
@@ -281,6 +294,76 @@ function pushChatHistory(role, content) {
   const arr = loadChatHistory()
   arr.push({ role, content: String(content).slice(0, 300) })
   saveChatHistory(arr)
+  persistSession()
+}
+
+/* ===== 会话：新会话 / 历史会话 ===== */
+const SESSION_STORE_KEY = 'live2d-chat-sessions.v1'
+function saveSessionStore() {
+  try {
+    localStorage.setItem(SESSION_STORE_KEY, JSON.stringify({ active: activeSession.value, sessions: sessions.value.slice(0, 20) }))
+  } catch (e) { /* ignore */ }
+}
+function sessionTitle(messages) {
+  const first = (messages || []).find(m => m.role === 'user')
+  return first ? String(first.content || '').replace(/\s+/g, ' ').slice(0, 22) : '新会话'
+}
+function persistSession() {
+  if (!activeSession.value) return
+  const s = sessions.value.find(x => x.id === activeSession.value)
+  if (!s) return
+  s.messages = loadChatHistory().slice(-80)
+  s.title = sessionTitle(s.messages)
+  s.updatedAt = Date.now()
+  saveSessionStore()
+}
+function initSessions() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null')
+    if (data && Array.isArray(data.sessions) && data.sessions.length) {
+      sessions.value = data.sessions
+      activeSession.value = data.active && data.sessions.some(s => s.id === data.active) ? data.active : data.sessions[0].id
+      const active = data.sessions.find(s => s.id === activeSession.value)
+      if (active?.messages?.length) saveChatHistory(active.messages)
+      return
+    }
+  } catch (e) { /* ignore */ }
+  const messages = loadChatHistory()
+  const id = 's' + Date.now()
+  sessions.value = [{ id, title: sessionTitle(messages), messages, updatedAt: Date.now() }]
+  activeSession.value = id
+  saveSessionStore()
+}
+function newSession() {
+  persistSession()
+  const id = 's' + Date.now() + Math.floor(Math.random() * 1000)
+  sessions.value = [{ id, title: '新会话', messages: [], updatedAt: Date.now() }, ...sessions.value].slice(0, 20)
+  activeSession.value = id
+  saveSessionStore()
+  clearChatHistory()
+  dialogText.value = ''
+  dialogVisible.value = false
+  persistentDialog.value = false
+  dialogAction.value = null
+  sessionMenu.value = false
+  inputVisible.value = true
+  nextTick(() => { inputRef.value?.focus(); autoResize() })
+}
+function switchSession(id) {
+  persistSession()
+  const s = sessions.value.find(x => x.id === id)
+  if (!s) return
+  activeSession.value = id
+  saveSessionStore()
+  saveChatHistory(s.messages || [])
+  sessionMenu.value = false
+  persistentDialog.value = false
+  dialogAction.value = null
+  const last = [...(s.messages || [])].reverse().find(m => m.role === 'assistant')
+  dialogText.value = last?.content || ''
+  dialogVisible.value = !!last
+  if (last) persistentDialog.value = true
+  nextTick(() => { inputVisible.value = true; inputRef.value?.focus(); autoResize() })
 }
 
 function clearChatHistory() {
@@ -431,7 +514,8 @@ onMounted(async () => {
     window.addEventListener('zg:pet-model', onPetModelChange)
     // 启动见缝插针主动复习定时器（用户在壁纸页勾选后才生效）
     startProactiveReview()
-    // 从服务端恢复星野的对话记忆（P4：刷新/换设备不丢）
+    // 本地会话 + 服务端对话记忆
+    initSessions()
     loadRemoteChatHistory()
     // 本地记忆快到上限时主动提醒（可对看板娘说「上传记忆」「清空记忆」）
     const mem = memoryStats('星野')
@@ -1233,7 +1317,7 @@ async function loadRemoteChatHistory() {
       role: m.role === 'user' ? 'user' : 'assistant',
       content: String(m.text || '').slice(0, 300),
     }))
-    if (list.length) saveChatHistory(list)
+    if (list.length) { saveChatHistory(list); persistSession() }
   } catch (e) { /* 离线时保留本地记忆 */ }
 }
 

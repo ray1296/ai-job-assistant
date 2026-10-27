@@ -57,6 +57,11 @@ export default defineComponent({
     const memDismissed = ref(false);
     const memBusy = ref(false);
     const logEl = ref<HTMLElement | null>(null);
+    const inputEl = ref<HTMLElement | null>(null);
+    const drafts = ref<{ id: number; label: string; content: string }[]>([]);
+    const sessions = ref<{ id: string; title: string; messages: any[]; updatedAt: number }[]>([]);
+    const activeSession = ref("");
+    const sessionMenu = ref(false);
     const tutorSteps = ref<any[]>([]);
     const tutorStep = ref(0);
     const tutorScene = ref<any>(null);
@@ -78,10 +83,122 @@ export default defineComponent({
       return { left: left + "px", bottom: bottom + "px", top: "auto", maxHeight: maxHeight + "px" };
     });
 
+    const SESSION_KEY = "zg.agentSessions." + props.agentId;
+    function readSessionStore() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        const data = raw ? JSON.parse(raw) : null;
+        if (data && Array.isArray(data.sessions)) return data;
+      } catch {}
+      return null;
+    }
+    function saveSessionStore() {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
+          active: activeSession.value,
+          sessions: sessions.value.slice(0, 20),
+        }));
+      } catch {}
+    }
+    function titleOf(messages: any[]) {
+      const first = (messages || []).find((m) => m.role === "me" && String(m.text || "").trim());
+      return first ? String(first.text).replace(/\s+/g, " ").slice(0, 22) : "新会话";
+    }
+    function persistActive() {
+      if (!activeSession.value) return;
+      const s = sessions.value.find((x) => x.id === activeSession.value);
+      if (!s) return;
+      s.messages = log.value.slice(-80);
+      s.title = titleOf(s.messages);
+      s.updatedAt = Date.now();
+      saveSessionStore();
+    }
+    function resetTutor() {
+      tutorSteps.value = [];
+      tutorScene.value = null;
+      drafts.value = [];
+      stopTutor3D();
+    }
+    function clearInput() {
+      msg.value = "";
+      if (inputEl.value) inputEl.value.textContent = "";
+      autoResize();
+    }
+    function newSession() {
+      persistActive();
+      const id = "s" + Date.now() + Math.floor(Math.random() * 1000);
+      const s = { id, title: "新会话", messages: [{ role: "ai" as const, text: AGENT_GREETS[props.agentId] || "我在。" }], updatedAt: Date.now() };
+      sessions.value = [s, ...sessions.value].slice(0, 20);
+      activeSession.value = id;
+      log.value = s.messages;
+      resetTutor();
+      clearInput();
+      sessionMenu.value = false;
+      saveSessionStore();
+      nextTick(() => { scrollLog(); inputEl.value?.focus(); });
+    }
+    function switchSession(id: string) {
+      const s = sessions.value.find((x) => x.id === id);
+      if (!s) return;
+      persistActive();
+      activeSession.value = id;
+      log.value = s.messages;
+      resetTutor();
+      clearInput();
+      sessionMenu.value = false;
+      saveSessionStore();
+      nextTick(scrollLog);
+    }
+    function ensureSession() {
+      if (sessions.value.length) {
+        if (!activeSession.value) activeSession.value = sessions.value[0].id;
+        return;
+      }
+      const id = "s" + Date.now() + Math.floor(Math.random() * 1000);
+      const s = { id, title: titleOf(log.value), messages: log.value.slice(), updatedAt: Date.now() };
+      sessions.value = [s];
+      activeSession.value = id;
+      saveSessionStore();
+    }
+    const savedStore = readSessionStore();
+    if (savedStore?.sessions?.length) {
+      sessions.value = savedStore.sessions;
+      activeSession.value = savedStore.active && savedStore.sessions.some((s: any) => s.id === savedStore.active) ? savedStore.active : savedStore.sessions[0].id;
+      const active = savedStore.sessions.find((s: any) => s.id === activeSession.value);
+      if (active?.messages?.length) {
+        log.value = active.messages;
+        loaded.value = true;
+      }
+    }
+    watch(log, () => persistActive(), { deep: true });
+
     function scrollLog() {
       void nextTick(() => {
         if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight;
       });
+    }
+    const INPUT_MIN_W = 120, INPUT_MAX_W = 260, INPUT_MIN_H = 36, INPUT_MAX_H = 120;
+    function autoResize() {
+      const el = inputEl.value;
+      if (!el) return;
+      el.style.width = "auto";
+      el.style.whiteSpace = "pre";
+      el.style.height = "auto";
+      el.style.overflowY = "hidden";
+      const want = el.scrollWidth;
+      if (want <= INPUT_MAX_W) {
+        el.style.width = Math.max(INPUT_MIN_W, want) + "px";
+        el.style.height = INPUT_MIN_H + "px";
+      } else {
+        el.style.whiteSpace = "pre-wrap";
+        el.style.width = INPUT_MAX_W + "px";
+        el.style.height = Math.min(el.scrollHeight, INPUT_MAX_H) + "px";
+        el.style.overflowY = el.scrollHeight > INPUT_MAX_H ? "auto" : "hidden";
+      }
+    }
+    function onInput() {
+      msg.value = (inputEl.value?.innerText || "").replaceAll("\u00a0", " ");
+      autoResize();
     }
 
     async function loadHistory() {
@@ -96,6 +213,7 @@ export default defineComponent({
           text: String(m.text || ""),
         }));
         scrollLog();
+        ensureSession();
       } catch {}
     }
 
@@ -107,6 +225,7 @@ export default defineComponent({
         window.dispatchEvent(new CustomEvent("zg:chat-opened", { detail: { agentId: props.agentId } }));
         memPct.value = memoryStats(props.name).pct;
         void loadHistory();
+        nextTick(() => { autoResize(); inputEl.value?.focus(); });
         scrollLog();
       } else stopSpeech();
     }
@@ -226,14 +345,20 @@ export default defineComponent({
     }
 
     async function send() {
-      const text = msg.value.trim();
+      const typed = (inputEl.value?.innerText || msg.value || "").replaceAll("\u00a0", " ").trim();
+      const draftText = drafts.value.map((d) => d.content).join("\n");
+      const text = [typed, draftText].filter(Boolean).join("\n");
       const image = pendingImage.value;
       const doc = pendingDoc.value;
-      if ((!text && !image && !doc) || busy.value) return;
+      if ((!text && !image && !doc && !drafts.value.length) || busy.value) return;
+      const shown = [drafts.value.map((d) => "[" + d.label + "]").join(" "), typed].filter(Boolean).join(" ");
       msg.value = "";
+      if (inputEl.value) inputEl.value.textContent = "";
+      autoResize();
+      drafts.value = [];
       pendingImage.value = "";
       pendingDoc.value = null;
-      log.value.push({ role: "me", text: (text || (doc ? "📄 " + doc.name : "帮我看看这张图。")) + (doc ? "\n\n【附件：" + doc.name + "】" : ""), image: image || undefined });
+      log.value.push({ role: "me", text: (shown || (doc ? "📄 " + doc.name : "帮我看看这张图。")) + (doc ? "\n\n【附件：" + doc.name + "】" : ""), image: image || undefined });
       busy.value = true;
       err.value = "";
       scrollLog();
@@ -361,10 +486,18 @@ export default defineComponent({
     }
     function onAgentMessage(ev: any) {
       if (ev?.detail?.agentId !== props.agentId) return;
+      const draft = ev.detail.draft || null;
       const text = String(ev.detail.message || "").trim().slice(0, 4000);
-      if (!text) return;
+      if (!draft && !text) return;
+      ensureSession();
       openChat(true);
-      msg.value = text;
+      if (draft) {
+        drafts.value.push({ id: Date.now() + Math.floor(Math.random() * 1000), label: String(draft.label || "题目").slice(0, 20), content: String(draft.content || "").slice(0, 4000) });
+      } else {
+        msg.value = text;
+        if (inputEl.value) inputEl.value.textContent = text;
+      }
+      nextTick(() => { inputEl.value?.focus(); autoResize(); scrollLog(); });
     }
     function onResize() { vw.value = window.innerWidth; vh.value = window.innerHeight; }
     function onHashChange() {
@@ -405,11 +538,13 @@ export default defineComponent({
             style: panelStyle.value,
             role: "dialog",
             "aria-label": props.name + " 的对话",
-            onKeydown: (e: KeyboardEvent) => { if (e.key === "Escape") open.value = false; if (e.key === "Enter" && (e.target as HTMLElement)?.tagName === "INPUT") void send(); },
+            onKeydown: (e: KeyboardEvent) => { if (e.key === "Escape") open.value = false; },
           }, [
             h("header", { class: "companion-head" }, [
               h("span", null, props.name + " · " + props.role),
               h("div", { class: "agent-head-tools" }, [
+                h("button", { title: "选择历史会话", onClick: () => (sessionMenu.value = !sessionMenu.value) }, "会话"),
+                h("button", { title: "开始新会话", onClick: newSession }, "＋"),
                 h("button", {
                   class: "agent-voice-btn" + (voiceOn.value ? " on" : ""),
                   title: voiceOn.value ? "回复自动朗读，点击静音" : "已静音，点击恢复自动朗读",
@@ -418,6 +553,18 @@ export default defineComponent({
                 h("button", { title: "收起对话", onClick: () => { open.value = false; stopSpeech(); } }, "×"),
               ]),
             ]),
+            sessionMenu.value
+              ? h("div", { class: "agent-session-menu" }, [
+                  h("div", { class: "agent-session-title" }, "历史会话"),
+                  ...sessions.value.map((s) => h("button", {
+                    class: "agent-session-item" + (s.id === activeSession.value ? " on" : ""),
+                    onClick: () => switchSession(s.id),
+                  }, [
+                    h("strong", null, s.title || "新会话"),
+                    h("small", null, new Date(s.updatedAt || Date.now()).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })),
+                  ])),
+                ])
+              : null,
             h("div", { class: "companion-log", ref: logEl }, [
               ...log.value.map((x, i) => h("p", { class: "companion-bubble " + (x.role === "me" ? "me" : "ai"), key: i }, [
                 x.image ? h("img", { class: "agent-bubble-img", src: x.image, alt: "附图" }) : null,
@@ -469,37 +616,60 @@ export default defineComponent({
                   h("button", { title: "移除图片", onClick: () => (pendingImage.value = "") }, "×"),
                 ])
               : null,
+            drafts.value.length
+              ? h("div", { class: "agent-drafts" }, drafts.value.map((d) =>
+                  h("span", { class: "agent-draft", title: d.content, key: d.id }, [
+                    d.label,
+                    h("button", {
+                      title: "移除",
+                      onClick: () => { drafts.value = drafts.value.filter((x) => x.id !== d.id); persistActive(); },
+                    }, "×"),
+                  ]),
+                ))
+              : null,
             h("div", { class: "agent-composer", onPaste }, [
-              h("label", { class: "agent-attach", title: "发图 / 粘贴截图（Ctrl+V）" }, [
-                "📎",
-                h("input", {
-                  type: "file", accept: "image/*", style: { display: "none" },
-                  onChange: (e: Event) => {
-                    const f = (e.target as HTMLInputElement).files?.[0];
-                    if (f) void attachImage(f);
-                    (e.target as HTMLInputElement).value = "";
+              h("div", { class: "agent-input-row" }, [
+                h("div", {
+                  ref: inputEl,
+                  class: "agent-input",
+                  contenteditable: "true",
+                  "data-placeholder": busy.value ? "我想想…" : "问我点什么，Shift+Enter 换行",
+                  onInput,
+                  onKeydown: (e: KeyboardEvent) => {
+                    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+                      e.preventDefault();
+                      void send();
+                    }
                   },
+                  onPaste,
                 }),
               ]),
-              h("label", { class: "agent-attach", title: "上传 PDF/Word/Excel/PPT" }, [
-                "📄",
-                h("input", {
-                  type: "file", accept: ".pdf,.docx,.xlsx,.pptx", style: { display: "none" },
-                  onChange: (e: Event) => {
-                    const f = (e.target as HTMLInputElement).files?.[0];
-                    if (f) void attachDoc(f);
-                    (e.target as HTMLInputElement).value = "";
-                  },
-                }),
+              h("div", { class: "agent-composer-tools" }, [
+                h("label", { class: "agent-attach", title: "发图 / 粘贴截图（Ctrl+V）" }, [
+                  "📎",
+                  h("input", {
+                    type: "file", accept: "image/*", style: { display: "none" },
+                    onChange: (e: Event) => {
+                      const f = (e.target as HTMLInputElement).files?.[0];
+                      if (f) void attachImage(f);
+                      (e.target as HTMLInputElement).value = "";
+                    },
+                  }),
+                ]),
+                h("label", { class: "agent-attach", title: "上传 PDF/Word/Excel/PPT" }, [
+                  "📄",
+                  h("input", {
+                    type: "file", accept: ".pdf,.docx,.xlsx,.pptx", style: { display: "none" },
+                    onChange: (e: Event) => {
+                      const f = (e.target as HTMLInputElement).files?.[0];
+                      if (f) void attachDoc(f);
+                      (e.target as HTMLInputElement).value = "";
+                    },
+                  }),
+                ]),
+                h("button", { class: "companion-mic" + (listening.value ? " on" : ""), title: "语音输入", onClick: toggleAsr }, listening.value ? "●" : "🎤"),
+                h("button", { class: "agent-send", disabled: busy.value, onClick: () => void send() }, "发送"),
               ]),
-              h("button", { class: "companion-mic" + (listening.value ? " on" : ""), title: "语音输入", onClick: toggleAsr }, listening.value ? "●" : "🎤"),
-              h("input", {
-                placeholder: busy.value ? "我想想…" : "问我点什么，可粘贴图片",
-                value: msg.value,
-                onInput: (e: Event) => (msg.value = (e.target as HTMLInputElement).value),
-                onPaste,
-              }),
-              h("button", { disabled: busy.value, onClick: () => void send() }, "发送"),
             ]),
           ])
         : null,
