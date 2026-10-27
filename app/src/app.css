@@ -2765,3 +2765,25 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 .star-link .bridge-panel{fill:rgba(188,220,255,.13);stroke:rgba(218,238,255,.5);stroke-width:.7;vector-effect:non-scaling-stroke}
 .star-link .bridge-panel:nth-of-type(2n){fill:rgba(155,192,255,.2)}
 .star-link.is-related .bridge-panel{fill:rgba(211,235,255,.3);stroke:rgba(255,246,210,.8);filter:drop-shadow(0 0 5px rgba(180,216,255,.75))}
+/* 连接粗细统一收细：连接是配景，不能压过星球 */
+.star-link .link-base{stroke-width:1.8!important;opacity:.78}
+.star-link.link-bridge .link-base{stroke-width:6!important;opacity:.28!important;filter:blur(2px)}
+.star-link.link-chain .link-base{stroke:transparent!important}
+.star-link.link-portal .link-base{stroke:transparent!important}
+.star-link.link-worldtree .link-base{stroke-width:1.7!important;opacity:.7}
+.star-link.link-rift .link-base{stroke-width:1.8!important;opacity:.72}
+.star-link.link-starlight .link-base{stroke-width:1.9!important;opacity:.78}
+.star-link.link-thread .link-base{stroke-width:1.2!important;opacity:.75}
+.star-link.link-rail .link-base{stroke-width:1.8!important;opacity:.75}
+.star-link .bridge-panel{fill:rgba(188,220,255,.07)!important;stroke:rgba(218,238,255,.25)!important;stroke-width:.35!important}
+.star-link .bridge-rail{stroke-width:.85!important;opacity:.55}
+.star-link .bridge-lamp{opacity:.55}
+.star-link .chain-link{stroke-width:1.45!important;opacity:.8}
+.star-link .link-energy{opacity:.75;r:1.8px}
+.star-link.is-related .link-base{stroke-width:2.6!important;opacity:1}
+.star-link.is-related.link-bridge .link-base{stroke-width:8!important;opacity:.62!important}
+.star-link.is-related .chain-link{stroke-width:1.8!important}
+.star-link.is-related .bridge-panel{fill:rgba(211,235,255,.17)!important;stroke:rgba(255,246,210,.5)!important}
+.star-link.link-bridge .link-base{stroke-width:3.2!important;opacity:.2!important}
+.star-link.is-related.link-bridge .link-base{stroke-width:4.5!important;opacity:.5!important}
+.star-link .bridge-panel{fill:rgba(188,220,255,.045)!important}
