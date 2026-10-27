@@ -64,7 +64,9 @@ export default defineComponent({
     const cvHint = ref("");
     const visionNotes = ref<Array<{ reason: string; text: string; at: number }>>([]);
     const jobs = ref<any[]>([]);
+    const resumes = ref<any[]>([]);
     const resume = ref<any>(null);
+    const resumeId = ref("");
     const loading = ref(true);
     const setupError = ref("");
     const started = ref(false);
@@ -155,10 +157,17 @@ export default defineComponent({
         jobs.value = Array.isArray(plan.items) ? plan.items : [];
         if (jobs.value.length && !jobId.value) jobId.value = jobs.value[0].job.id;
         const list = await api<any>("/resumes", "GET", undefined, { timeoutMs: 15000 });
-        const first = list.resumes?.[0];
-        if (first) {
-          const r = await api<any>("/resumes/" + encodeURIComponent(first.id), "GET", undefined, { timeoutMs: 20000 });
+        resumes.value = Array.isArray(list.resumes) ? list.resumes : [];
+        let wanted = "";
+        try { wanted = localStorage.getItem("zg.interview.resumeId") || ""; } catch {}
+        const chosen = resumes.value.find((x: any) => x.id === wanted) || resumes.value[0];
+        if (chosen) {
+          resumeId.value = chosen.id;
+          const r = await api<any>("/resumes/" + encodeURIComponent(chosen.id), "GET", undefined, { timeoutMs: 20000 });
           resume.value = r.resume;
+        } else {
+          resumeId.value = "";
+          resume.value = null;
         }
         const s = await api<any>("/interview/sessions", "GET", undefined, { timeoutMs: 10000 });
         sessions.value = Array.isArray(s.sessions) ? s.sessions : [];
@@ -169,6 +178,18 @@ export default defineComponent({
       }
     }
 
+    async function selectResume(id: string) {
+      if (!id || id === resumeId.value) return;
+      setupError.value = "";
+      try {
+        const r = await api<any>("/resumes/" + encodeURIComponent(id), "GET", undefined, { timeoutMs: 20000 });
+        resumeId.value = id;
+        resume.value = r.resume;
+        try { localStorage.setItem("zg.interview.resumeId", id); } catch {}
+      } catch (e) {
+        setupError.value = errorText(e);
+      }
+    }
     async function openMedia() {
       mediaError.value = "";
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -402,6 +423,7 @@ export default defineComponent({
             mode: mode.value,
             style: style.value,
             difficulty: mode.value === "interviewer" ? difficulty.value : undefined,
+            resumeId: resumeId.value || undefined,
           }));
         } catch {}
       };
@@ -618,6 +640,7 @@ export default defineComponent({
           mode: mode.value,
           style: style.value,
           difficulty: mode.value === "interviewer" ? difficulty.value : undefined,
+          resumeId: resumeId.value || undefined,
           transcript,
           message,
         }, { timeoutMs: 120000 });
@@ -989,10 +1012,18 @@ export default defineComponent({
             ]),
             h("div", { class: "interview-resume-line" }, [
               h("strong", "简历："),
-              resume.value ? h("span", resume.value.title) : h("span", "未找到简历"),
-              mode.value === "candidate" && !resume.value
-                ? h("a", { href: "#resume" }, "去创建简历 →")
-                : null,
+              resumes.value.length
+                ? h("select", {
+                    class: "interview-resume-select",
+                    value: resumeId.value,
+                    onChange: (e: Event) => void selectResume((e.target as HTMLSelectElement).value),
+                  }, resumes.value.map((r: any) => h("option", { value: r.id }, r.title || "未命名简历")))
+                : h("span", "未找到简历"),
+              resumes.value.length
+                ? h("small", null, "点击下拉可切换；面试官/求职者都会读取当前选中简历")
+                : mode.value === "candidate"
+                  ? h("a", { href: "#resume" }, "去创建简历 →")
+                  : h("a", { href: "#resume" }, "去创建简历 →"),
             ]),
             mediaError.value ? h("p", { class: "muted" }, mediaError.value) : null,
             h("button", { class: "btn primary interview-start", disabled: starting.value, onClick: () => void start() }, starting.value ? "正在准备…" : "开始模拟面试"),

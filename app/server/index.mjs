@@ -566,6 +566,17 @@ const INTERVIEW_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 function purgeInterviewSessions(userId) {
   db.prepare("DELETE FROM interview_sessions WHERE user_id=? AND created_at<?").run(userId, Date.now() - INTERVIEW_RETENTION_MS);
 }
+function resumeById(userId, id) {
+  const row = id
+    ? db.prepare("SELECT id,title,body FROM resumes WHERE id=? AND user_id=?").get(String(id), userId)
+    : db.prepare("SELECT id,title,body FROM resumes WHERE user_id=? ORDER BY updated_at DESC, id LIMIT 1").get(userId);
+  if (!row) return null;
+  let body = null;
+  try { body = JSON.parse(row.body); } catch {}
+  const document = body?.document || null;
+  if (!document) return null;
+  return { id: row.id, title: row.title, document };
+}
 function latestResume(userId) {
   const row = db.prepare("SELECT id,title,body FROM resumes WHERE user_id=? ORDER BY updated_at DESC, id LIMIT 1").get(userId);
   if (!row) return null;
@@ -1398,7 +1409,7 @@ const server = http.createServer(async (req, res) => {
         const difficulty = normalizeDifficulty(payload.difficulty);
         const job = payload.jobId && getJob(String(payload.jobId));
         if (payload.jobId && !job) throw failure(404, "岗位不存在");
-        const resume = latestResume(s.user_id);
+        const resume = resumeById(s.user_id, payload.resumeId) || latestResume(s.user_id);
         if (mode === "candidate" && !resume) throw failure(400, "请先在简历工作室创建一份简历，AI 才能拿你的简历去面试");
         const transcript = (Array.isArray(payload.transcript) ? payload.transcript : []).slice(-20)
           .map((m) => ({ role: m?.role === "me" || m?.role === "user" ? "user" : "ai", text: String(m?.text || "").slice(0, 600) }));
@@ -2812,6 +2823,7 @@ attachRealtimeProxy(server, {
   getJob,
   jobBrief,
   latestResume,
+  resumeById,
   documentText,
   interviewSystem,
   aiGateway,

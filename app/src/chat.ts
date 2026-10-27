@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, computed, onMounted, nextTick } from "vue";
+import { defineComponent, h, ref, computed, onMounted, nextTick, watch } from "vue";
 import { api, errorText } from "./api";
 import { addMemory } from "./agent-memory";
 import { extractFile } from "./extract-file";
@@ -11,6 +11,7 @@ const AGENTS = [
   { id: "qichi", name: "栖迟", role: "生活管家", tag: "租房 / 通勤", avatar: "/assets/companions/a-1.jpg" },
 ];
 type Attachment = { id: string; name: string; kind: "image" | "text" | "file"; data?: string; text?: string; size: number };
+type ChatSession = { id: string; agentId: string; title: string; messages: Msg[]; updatedAt: number };
 type Msg = {
   role: "user" | "assistant" | "system";
   text: string;
@@ -27,6 +28,9 @@ export default defineComponent({
   setup() {
     const agentId = ref("xingye");
     const messages = ref<Msg[]>([]);
+    const sessions = ref<ChatSession[]>([]);
+    const activeSession = ref("");
+    const SESSION_KEY = "zg.chatSessions.v1";
     const input = ref("");
     const attachments = ref<Attachment[]>([]);
     const busy = ref(false);
@@ -37,6 +41,66 @@ export default defineComponent({
     const fileInput = ref<HTMLInputElement | null>(null);
     const agent = computed(() => AGENTS.find((a) => a.id === agentId.value) || AGENTS[0]);
     const canSend = computed(() => !!input.value.trim() || attachments.value.length > 0);
+    const agentSessions = computed(() => sessions.value.filter((s) => s.agentId === agentId.value).sort((a, b) => b.updatedAt - a.updatedAt));
+    const activeByAgent = ref<Record<string, string>>({});
+    function saveSessions() {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ sessions: sessions.value.slice(0, 80), active: activeByAgent.value }));
+      } catch {}
+    }
+    function persistSession() {
+      if (!activeSession.value) return;
+      const s = sessions.value.find((x) => x.id === activeSession.value);
+      if (!s) return;
+      s.messages = messages.value.slice(-80);
+      const first = s.messages.find((m) => m.role === "user");
+      s.title = first ? String(first.text || "").replace(/\s+/g, " ").slice(0, 26) : "新对话";
+      s.updatedAt = Date.now();
+      activeByAgent.value[agentId.value] = s.id;
+      saveSessions();
+    }
+    function createSession(forAgent = agentId.value, initial: Msg[] = []) {
+      const s: ChatSession = { id: uid(), agentId: forAgent, title: "新对话", messages: initial, updatedAt: Date.now() };
+      sessions.value.unshift(s);
+      activeSession.value = s.id;
+      activeByAgent.value[forAgent] = s.id;
+      saveSessions();
+      return s;
+    }
+    function selectSession(id: string) {
+      if (id === activeSession.value) return;
+      persistSession();
+      const s = sessions.value.find((x) => x.id === id);
+      if (!s) return;
+      activeSession.value = id;
+      activeByAgent.value[agentId.value] = id;
+      messages.value = s.messages.slice();
+      saveSessions();
+      scrollBottom();
+    }
+    function newChat() {
+      if (busy.value) return;
+      persistSession();
+      createSession(agentId.value);
+      messages.value = [];
+      input.value = "";
+      attachments.value = [];
+      notice.value = "已新建对话。";
+    }
+    function deleteChat(id: string) {
+      if (busy.value) return;
+      const s = sessions.value.find((x) => x.id === id);
+      if (!s || !confirm("删除对话「" + (s.title || "新对话") + "」？")) return;
+      const wasActive = activeSession.value === id;
+      sessions.value = sessions.value.filter((x) => x.id !== id);
+      if (wasActive) {
+        const next = sessions.value.filter((x) => x.agentId === agentId.value).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        activeSession.value = next?.id || "";
+        messages.value = next ? next.messages.slice() : [];
+        if (!next) createSession(agentId.value);
+      }
+      saveSessions();
+    }
 
     function scrollBottom() {
       void nextTick(() => {
@@ -47,15 +111,34 @@ export default defineComponent({
     function removeAttachment(id: string) {
       attachments.value = attachments.value.filter((a) => a.id !== id);
     }
+    function loadSessionStore() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+        if (raw && Array.isArray(raw.sessions)) sessions.value = raw.sessions;
+        if (raw && raw.active && typeof raw.active === "object") activeByAgent.value = raw.active;
+      } catch {}
+    }
     async function loadHistory() {
       loading.value = true;
       error.value = "";
+      const local = sessions.value.filter((s) => s.agentId === agentId.value).sort((a, b) => b.updatedAt - a.updatedAt);
+      if (local.length) {
+        const wanted = local.find((s) => s.id === activeByAgent.value[agentId.value]) || local[0];
+        activeSession.value = wanted.id;
+        messages.value = wanted.messages.slice();
+        loading.value = false;
+        scrollBottom();
+        return;
+      }
       try {
         const r = await api<any>("/companion/history?agent=" + encodeURIComponent(agentId.value), "GET", undefined, { timeoutMs: 15000 });
-        messages.value = (Array.isArray(r.messages) ? r.messages : []).map((m: any) => ({
+        const initial: Msg[] = (Array.isArray(r.messages) ? r.messages : []).map((m: any) => ({
           role: m.role === "user" ? "user" : "assistant",
           text: String(m.text || ""),
         }));
+        createSession(agentId.value, initial);
+        activeSession.value = sessions.value[0].id;
+        messages.value = initial;
         scrollBottom();
       } catch (e) {
         error.value = errorText(e);
@@ -65,6 +148,7 @@ export default defineComponent({
     }
     async function switchAgent(id: string) {
       if (id === agentId.value || busy.value) return;
+      persistSession();
       agentId.value = id;
       input.value = "";
       attachments.value = [];
@@ -169,20 +253,28 @@ export default defineComponent({
     async function clearChat() {
       if (busy.value) return;
       if (!confirm("清空与「" + agent.value.name + "」的对话记录？")) return;
-      try {
-        await api("/companion/history?agent=" + encodeURIComponent(agentId.value), "DELETE");
-        messages.value = [];
-        notice.value = "已清空当前对话。";
-      } catch (e) {
-        error.value = errorText(e);
-      }
+      messages.value = [];
+      persistSession();
+      notice.value = "已清空当前对话；服务器历史会在下次新建对话时重新载入。";
     }
+    loadSessionStore();
+    watch(messages, () => persistSession(), { deep: true });
     onMounted(() => { void loadHistory(); });
 
     function agentList() {
       return h("aside", { class: "ds-chat-sidebar" }, [
         h("div", { class: "ds-chat-brand" }, [h("span", "✧"), h("div", [h("strong", "AI 协作空间"), h("small", "选一个 agent，开始协作")])]),
-        h("button", { class: "ds-new-chat", onClick: clearChat }, "＋ 新对话"),
+        h("button", { class: "ds-new-chat", onClick: newChat }, "＋ 新对话"),
+        h("p", { class: "ds-side-label" }, "本次对话"),
+        h("div", { class: "ds-session-list" }, agentSessions.value.map((s) =>
+          h("div", { key: s.id, class: "ds-session-item" + (s.id === activeSession.value ? " on" : "") }, [
+            h("button", { class: "ds-session-open", onClick: () => selectSession(s.id), title: s.title || "新对话" }, [
+              h("strong", null, s.title || "新对话"),
+              h("small", null, new Date(s.updatedAt || Date.now()).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })),
+            ]),
+            h("button", { class: "ds-session-del", onClick: (e: Event) => { e.stopPropagation(); deleteChat(s.id); }, title: "删除对话", "aria-label": "删除对话" }, "×"),
+          ])
+        )),
         h("p", { class: "ds-side-label" }, "选择 agent"),
         h("div", { class: "ds-agent-list" }, AGENTS.map((a) =>
           h("button", {

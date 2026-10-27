@@ -119,7 +119,7 @@ export function attachRealtimeProxy(server, deps) {
           const difficulty = deps.normalizeDifficulty(msg.difficulty);
           let agentId = String(msg.agentId || "yanzhou");
           if (!deps.AGENT_NAME_BY_ID[agentId]) agentId = "yanzhou";
-          const resume = deps.latestResume(s.user_id);
+          const resume = deps.resumeById?.(s.user_id, msg.resumeId) || deps.latestResume(s.user_id);
           if (mode === "candidate" && !resume) throw new Error("请先在简历工作室创建一份简历");
           const cfg = await deps.aiGateway.realtimeConfig();
           if (!cfg?.key) throw new Error("服务端没有可用的实时模型密钥");

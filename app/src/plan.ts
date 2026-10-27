@@ -451,7 +451,7 @@ export default defineComponent({
                         h(
                           "p",
                           { class: "plan-help", id: "plan-help" },
-                          "请核对事实，勿加入未具备的经历或能力。切换岗位保留本页草稿；离开页面前请保存。",
+                          "请核对事实，勿加入未具备的经历或能力。切换岗位保留本页草稿；离开页面前请保存。定制简历会新建一份针对该岗位的简历；生成/优化文案只改发给 HR 的文字，不改简历。",
                         ),
                         h("label", { for: "application-text" }, "投递话术"),
                         h("textarea", {
@@ -483,7 +483,7 @@ export default defineComponent({
                             },
                             tailorBusy.value
                               ? "正在定制简历…"
-                              : "AI 定制简历 + 文案",
+                              : "AI 定制简历 + 投递文案",
                           ),
                           h(
                             "button",
@@ -497,8 +497,8 @@ export default defineComponent({
                             aiBusy.value
                               ? "AI 正在处理…"
                               : row.text.trim()
-                                ? "AI 优化话术"
-                                : "AI 生成话术",
+                                ? "AI 优化投递文案"
+                                : "AI 生成投递文案",
                           ),
                           aiBusy.value
                             ? h(
@@ -521,13 +521,13 @@ export default defineComponent({
                           h(
                             "button",
                             { onClick: copy, disabled: !row.text },
-                            "复制话术",
+                            "仅复制投递文案",
                           ),
                           url
                             ? h(
                                 "button",
                                 { onClick: copyAndOpen, disabled: !row.text },
-                                "打开岗位并复制文案",
+                                "复制文案并打开岗位",
                               )
                             : null,
                           url

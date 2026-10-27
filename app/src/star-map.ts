@@ -15,7 +15,7 @@ const POS: Record<string, Position> = {
   dashboard: { x: 93, y: 27, z: 10, size: 88 },
   companies: { x: 89, y: 57, z: 6, size: 94 },
   housing: { x: 78, y: 85, z: 12, size: 96 },
-  knowledge: { x: 51, y: 89, z: 8, size: 94 },
+  knowledge: { x: 51, y: 94, z: 8, size: 82 },
   practice: { x: 38, y: 84, z: 16, size: 94 },
   interview: { x: 9, y: 61, z: 4, size: 88 },
   chat: { x: 10, y: 32, z: 12, size: 92 },
