@@ -302,8 +302,11 @@ export default defineComponent({
       host.replaceChildren();
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xfaf8fd);
+      const objects = Array.isArray(spec.objects) && spec.objects.length ? spec.objects : [{ shape: spec.shape || "cube" }];
+      host.dataset.objectCount = String(objects.length);
+      host.dataset.objectOpacity = objects.map((o: any) => String(o.opacity == null ? 1 : o.opacity)).join(",");
       const cam = new THREE.PerspectiveCamera(50, host.clientWidth / Math.max(1, host.clientHeight), 0.1, 100);
-      cam.position.set(3.2, 2.6, 3.6);
+      cam.position.set(objects.length > 1 ? 4.8 : 3.2, objects.length > 1 ? 3.4 : 2.6, objects.length > 1 ? 5.4 : 3.6);
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.setSize(host.clientWidth, host.clientHeight);
@@ -314,16 +317,34 @@ export default defineComponent({
       const dir = new THREE.DirectionalLight(0xffffff, 1.1); dir.position.set(4, 6, 5); scene.add(dir);
       scene.add(new THREE.GridHelper(6, 12, 0xe6def0, 0xefe9f7));
       const grp = new THREE.Group();
-      const shape = String(spec.shape || "cube");
-      const mat = new THREE.MeshStandardMaterial({ color: 0x7460c9, roughness: 0.35, metalness: 0.15 });
       const line = new THREE.LineBasicMaterial({ color: 0x2f2a45 });
       const add = (m: any) => { m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), line)); return m; };
-      if (shape === "sphere") grp.add(add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mat)));
-      else if (shape === "cone") grp.add(add(new THREE.Mesh(new THREE.ConeGeometry(1, 1.8, 32), mat)));
-      else if (shape === "cylinder") grp.add(add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.8, 32), mat)));
-      else if (shape === "torus") grp.add(add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 16, 48), mat)));
-      else if (shape === "pyramid") grp.add(add(new THREE.Mesh(new THREE.ConeGeometry(1, 1.8, 4), mat)));
-      else grp.add(add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), mat)));
+      objects.forEach((obj: any, i: number) => {
+        const shape = String(obj.shape || "cube");
+        const opacity = obj.opacity == null ? 1 : Math.max(0.12, Math.min(1, Number(obj.opacity) || 1));
+        const transparent = opacity < 0.99;
+        const mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(obj.color || "#7460c9"),
+          roughness: 0.35,
+          metalness: 0.15,
+          transparent,
+          opacity,
+          depthWrite: !transparent,
+          side: transparent ? THREE.DoubleSide : THREE.FrontSide,
+        });
+        let geometry;
+        if (shape === "sphere") geometry = new THREE.SphereGeometry(1, 32, 24);
+        else if (shape === "cone") geometry = new THREE.ConeGeometry(1, 1.8, 32);
+        else if (shape === "cylinder") geometry = new THREE.CylinderGeometry(0.8, 0.8, 1.8, 32);
+        else if (shape === "torus") geometry = new THREE.TorusGeometry(1, 0.35, 16, 48);
+        else if (shape === "pyramid") geometry = new THREE.ConeGeometry(1, 1.8, 4);
+        else geometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+        const mesh = add(new THREE.Mesh(geometry, mat));
+        const pos = Array.isArray(obj.position) ? obj.position : [objects.length > 1 ? (i - (objects.length - 1) / 2) * 2.2 : 0, 0, 0];
+        mesh.position.set(Number(pos[0]) || 0, Number(pos[1]) || 0, Number(pos[2]) || 0);
+        mesh.scale.setScalar(Math.max(0.2, Math.min(3, Number(obj.scale) || 1)));
+        grp.add(mesh);
+      });
       scene.add(grp);
       tutorRenderer = renderer; tutorSceneObj = scene; tutorGroup = grp;
       const loop = () => { tutorRaf = requestAnimationFrame(loop); ctrl.update(); renderer.render(scene, cam); };
@@ -345,7 +366,7 @@ export default defineComponent({
     });
 
     function isTutorRequest(text: string) {
-      return /画布|3D|3d|立方体|讲题|讲解|这道|题目|步骤|演示|知识|考点|题/.test(text);
+      return /画布|3D|3d|立方体|正方体|球体|圆柱|圆锥|几何|立体|旋转|模型|透明|讲题|讲解|这道|题目|步骤|演示|知识|考点|题/.test(text);
     }
     async function answerTutor(text: string) {
       const r = await api<any>("/study/tutor", "POST", { question: text, answer: "", message: "" }, { timeoutMs: 180000 });

@@ -724,3 +724,14 @@ body.zg-pets-hidden .agent-chat { display: none !important; }
   .agent-tutor-window-body { grid-template-columns: 1fr; }
   .agent-tutor-board { height: 220px; }
 }
+
+/* 讲题覆盖窗放大：画布和3D模型都占整行 */
+.agent-tutor-window { width: min(1060px, 96vw); max-height: 90vh; }
+.agent-tutor-window-body { grid-template-columns: 1fr; gap: 10px; padding: 12px 14px 16px; }
+.agent-tutor-board { width: 100%; height: 340px; }
+.agent-tutor-steps { max-height: 120px; overflow-y: auto; }
+.agent-tutor-window-body .agent-tutor-3d { height: 380px; }
+@media (max-width: 680px) {
+  .agent-tutor-board { height: 220px; }
+  .agent-tutor-window-body .agent-tutor-3d { height: 280px; }
+}
