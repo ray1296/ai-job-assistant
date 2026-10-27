@@ -22,6 +22,7 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
+import StarMap from "./star-map";
 import MouseTrail from "./mouse-trail";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -602,16 +603,16 @@ const app = defineComponent({
               ),
             ])
           : null,
-        hidePets.value ? null : petSkin.value === "live2d" ? h(MainPet) : null,
-        hidePets.value ? null : petSkin.value === "avatar"
+        hidePets.value || orbit.value ? null : petSkin.value === "live2d" ? h(MainPet) : null,
+        hidePets.value || orbit.value ? null : petSkin.value === "avatar"
           ? h(AgentPet, { key: "xingye", agentId: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", slot: 0, page: active.value })
           : null,
-        ...(hidePets.value ? [] : [
+        ...(hidePets.value || orbit.value ? [] : [
           { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", slot: 1 },
           { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", slot: 2 },
           { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg", slot: 3 },
         ].map((a) => h(AgentPet, { key: a.id, agentId: a.id, name: a.name, role: a.role, avatar: a.avatar, slot: a.slot, page: active.value }))),
-        hidePets.value ? null : h(CompanionsV3),
+        hidePets.value || orbit.value ? null : h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),
           h(
@@ -625,69 +626,12 @@ const app = defineComponent({
           onToggle: () => (orbit.value = !orbit.value),
         }),
         orbit.value
-          ? h(
-              "div",
-              {
-                class: "orbit-overlay",
-                role: "dialog",
-                "aria-modal": true,
-                "aria-label": "星盘导航",
-              },
-              [
-                h("div", { class: "orbit-head" }, [
-                  h("h2", "你的旅程地图"),
-                  h(
-                    "button",
-                    { onClick: () => (orbit.value = false) },
-                    "收起星盘 ×",
-                  ),
-                ]),
-                h(
-                  "div",
-                  { class: "orbit-links" },
-                  pages.map(([id, name, icon]) =>
-                    h(
-                      "button",
-                      {
-                        class: [
-                          "orbit-item",
-                          active.value === id ? "selected" : "",
-                        ],
-                        onClick: () => go(id),
-                      },
-                      [
-                        h("i", icon),
-                        name,
-                        h(
-                          "small",
-                          [
-                            "home",
-                            "profile",
-                            "resume",
-                            "jobs",
-                            "plan",
-                            "knowledge",
-                            "practice",
-                            "interview",
-                            "chat",
-                            "wish",
-                            "companies",
-                            "housing",
-                            "map",
-                            "data",
-                            "dashboard",
-                            "settings",
-                            "study-upload",
-                          ].includes(id)
-                            ? "已接通"
-                            : "外观原型",
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            )
+          ? h(StarMap, {
+              pages,
+              active: active.value,
+              onGo: (id: string) => { orbit.value = false; go(id); },
+              onClose: () => (orbit.value = false),
+            })
           : null,
         fog.value ? h("div", { class: "fog-veil" }) : null,
         auth.value

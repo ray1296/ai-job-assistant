@@ -2556,3 +2556,85 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 @media (max-width: 900px) {
   .page-content > .orig-frame { top: 130px !important; height: calc(100vh - 130px); }
 }
+/* ===== 逐光星盘：宇宙 3D 旅程地图 ===== */
+.star-map{position:fixed;inset:0;z-index:90;overflow:hidden;color:#f4edff;background:#050515;font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;user-select:none}
+.star-map-bg{position:absolute;inset:-4%;background-size:cover;background-position:center;opacity:.86;transform:scale(1.04);animation:starBg 28s ease-in-out infinite alternate;filter:saturate(1.08)}
+.star-map:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,transparent 22%,rgba(4,3,17,.22) 56%,rgba(3,2,12,.84) 100%)}
+.star-map-stars{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.star-map-stars i{position:absolute;display:block;border-radius:50%;background:#fff;box-shadow:0 0 7px #cfd7ff,0 0 16px rgba(160,190,255,.8);opacity:.65;animation:starTwinkle 5s ease-in-out infinite}
+.star-map-head{position:relative;z-index:8;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:27px 38px 0;pointer-events:none}
+.star-map-head>div{pointer-events:auto}
+.star-map-eyebrow{font-size:10px;letter-spacing:.36em;color:#b4a7e7;opacity:.85}
+.star-map-head h1{margin:8px 0 3px;font-family:Georgia,"Songti SC",serif;font-size:clamp(26px,3.3vw,48px);font-weight:500;letter-spacing:.18em;text-shadow:0 0 28px rgba(170,144,255,.8),0 0 70px rgba(117,87,255,.4)}
+.star-map-head p{margin:0;color:#b8b1d6;font-size:12px;letter-spacing:.12em}
+.star-map-close{pointer-events:auto;border:1px solid rgba(207,190,255,.4);background:rgba(20,16,46,.55);color:#e9e0ff;border-radius:999px;padding:9px 17px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);transition:.2s}
+.star-map-close:hover{background:rgba(116,96,201,.5);border-color:#d9c9ff;box-shadow:0 0 24px rgba(140,110,255,.5)}
+.star-map-stage{position:absolute;inset:92px 0 62px;transform:perspective(1400px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transform-style:preserve-3d;transition:transform .55s cubic-bezier(.2,.8,.25,1);will-change:transform}
+.star-ring{position:absolute;left:50%;top:50%;border-radius:50%;border:1px dashed rgba(186,167,255,.23);transform:translate(-50%,-50%) rotateX(64deg);box-shadow:0 0 26px rgba(120,94,220,.08);pointer-events:none}
+.ring-1{width:480px;height:480px;animation:ringSpin 42s linear infinite}
+.ring-2{width:780px;height:780px;border-color:rgba(133,196,255,.17);animation:ringSpin 68s linear infinite reverse}
+.ring-3{width:1080px;height:1080px;border-color:rgba(237,194,255,.12);animation:ringSpin 96s linear infinite}
+.star-core{clip-path:circle(50% at 50% 50%);position:absolute;left:50%;top:50%;z-index:9;width:clamp(150px,18vw,245px);height:clamp(150px,18vw,245px);transform:translate(-50%,-50%) translateZ(90px);background-size:contain;background-repeat:no-repeat;background-position:center;border-radius:50%;overflow:hidden;mix-blend-mode:screen;filter:drop-shadow(0 0 34px rgba(157,119,255,.5));animation:coreBreathe 7s ease-in-out infinite;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.star-core-glow{position:absolute;inset:14%;border-radius:50%;background:radial-gradient(circle,rgba(187,160,255,.4),rgba(92,61,196,.08) 55%,transparent 72%);filter:blur(12px);animation:coreGlow 5s ease-in-out infinite}
+.star-core strong{position:relative;font-family:Georgia,"Songti SC",serif;font-size:17px;font-weight:500;letter-spacing:.18em;text-shadow:0 0 18px #fff,0 0 35px #a98cff}
+.star-core small{position:relative;margin-top:5px;font-size:9px;letter-spacing:.12em;color:#c9baff}
+.star-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:3;filter:drop-shadow(0 0 5px rgba(160,140,255,.4))}
+.star-link path{fill:none;stroke-linecap:round;vector-effect:non-scaling-stroke;transition:opacity .25s,stroke-width .25s,filter .25s}
+.star-link circle{fill:rgba(245,220,160,.8);stroke:rgba(255,238,190,.75);stroke-width:1;vector-effect:non-scaling-stroke}
+.link-starlight path{stroke:rgba(190,211,255,.68);stroke-width:1.7;stroke-dasharray:12 9;animation:flowLine 3.6s linear infinite}
+.link-bridge path{stroke:rgba(132,186,255,.4);stroke-width:8;filter:blur(2px)}
+.link-bridge path+path{stroke:rgba(214,236,255,.9);stroke-width:1.4;filter:none}
+.link-chain path{stroke:rgba(245,210,145,.72);stroke-width:2.1;stroke-dasharray:2 9;animation:flowLine 2.8s linear infinite}
+.link-portal path{stroke:rgba(215,160,255,.7);stroke-width:1.7;stroke-dasharray:9 12;animation:flowLine 4.8s linear infinite}
+.link-portal circle{fill:rgba(178,112,255,.18);stroke:rgba(225,178,255,.9);stroke-width:1.4;filter:drop-shadow(0 0 9px rgba(205,130,255,.9))}
+.link-thread path{stroke:rgba(255,142,180,.78);stroke-width:1.4;stroke-dasharray:1 7;animation:flowLine 3.3s linear infinite}
+.star-link.is-dim{opacity:.1}
+.star-link.is-related path{stroke-width:3;filter:drop-shadow(0 0 7px currentColor)}
+.star-link.is-related.link-bridge path{stroke-width:10}
+.star-planet{position:absolute;transform:translate(-50%,-50%) translateZ(var(--z,0px));border:0;background:transparent;padding:0;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;outline:none;transition:filter .25s}
+.star-planet:nth-of-type(2n) .star-planet-halo{animation-delay:-1.6s}
+.star-planet:nth-of-type(3n) .star-planet-halo{animation-delay:-3.2s}
+.star-planet-halo{position:absolute;left:50%;top:calc(50% - 12px);width:132%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(157,128,255,.3),transparent 66%);filter:blur(10px);opacity:.55;transition:.3s;pointer-events:none;animation:haloPulse 6s ease-in-out infinite}
+.star-planet-img{clip-path:circle(50% at 50% 50%);position:relative;display:block;width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 35% 28%,#7867ba,#211a45 68%,#070612);box-shadow:0 0 0 1px rgba(255,255,255,.25),0 0 24px rgba(130,100,255,.3),0 18px 35px rgba(0,0,0,.45);transition:transform .3s,box-shadow .3s;transform:translateZ(0)}
+.star-planet-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2}
+.star-planet-fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:28px;color:#e8deff;z-index:1;background:radial-gradient(circle at 35% 30%,#6455a4,#1b153a 70%)}
+.star-planet-name{position:relative;z-index:3;margin-top:7px;padding:3px 9px;border-radius:999px;font-size:12px;letter-spacing:.06em;white-space:nowrap;color:#e9e2ff;background:rgba(10,8,31,.58);border:1px solid rgba(206,190,255,.2);backdrop-filter:blur(6px);transition:.25s}
+.star-planet-desc{position:absolute;top:calc(100% + 27px);left:50%;transform:translateX(-50%) translateY(4px);z-index:12;width:170px;padding:6px 9px;border-radius:8px;background:rgba(11,8,30,.92);border:1px solid rgba(203,183,255,.3);color:#d9d0f5;font-size:10px;line-height:1.5;text-align:center;opacity:0;pointer-events:none;transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.star-planet:hover,.star-planet:focus-visible{filter:brightness(1.12)}
+.star-planet:hover .star-planet-img,.star-planet:focus-visible .star-planet-img{transform:scale(1.13) translateZ(12px);box-shadow:0 0 0 2px rgba(255,236,181,.9),0 0 34px rgba(240,198,115,.75),0 0 70px rgba(137,105,255,.55)}
+.star-planet:hover .star-planet-name,.star-planet:focus-visible .star-planet-name{color:#fff;background:rgba(94,69,178,.8);border-color:#e6d4ff;box-shadow:0 0 18px rgba(170,130,255,.5)}
+.star-planet:hover .star-planet-halo,.star-planet:focus-visible .star-planet-halo{opacity:1;transform:translate(-50%,-50%) scale(1.25)}
+.star-planet:hover .star-planet-desc,.star-planet:focus-visible .star-planet-desc{opacity:1;transform:translateX(-50%) translateY(0)}
+.star-planet.is-current .star-planet-img{box-shadow:0 0 0 2px #f4d68e,0 0 28px rgba(244,214,142,.8),0 0 58px rgba(137,105,255,.6)}
+.star-planet.is-current .star-planet-name{color:#1d1533;background:#f0d89b;border-color:#fff2c9}
+.star-map-foot{position:absolute;left:34px;right:34px;bottom:18px;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:14px;color:#9e95bf;font-size:10px;letter-spacing:.05em;pointer-events:none}
+.star-map-legend{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.star-map-legend span{display:inline-flex;align-items:center;gap:5px;color:#bbb0dc}
+.star-map-legend span:before{content:"";display:inline-block;width:18px;height:2px;background:currentColor;box-shadow:0 0 8px currentColor}
+.legend-chain{color:#e8c486!important}.legend-bridge{color:#83b9ff!important}.legend-portal{color:#ce97ff!important}.legend-starlight{color:#b8ceff!important}.legend-thread{color:#ff8db4!important}
+@keyframes starBg{from{transform:scale(1.04) translate(-.6%,-.4%)}to{transform:scale(1.1) translate(.6%,.5%)}}
+@keyframes starTwinkle{0%,100%{opacity:.28;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}
+@keyframes ringSpin{to{transform:translate(-50%,-50%) rotateX(64deg) rotate(360deg)}}
+@keyframes coreBreathe{0%,100%{filter:drop-shadow(0 0 26px rgba(157,119,255,.45))}50%{filter:drop-shadow(0 0 54px rgba(186,145,255,.8))}}
+@keyframes coreGlow{0%,100%{transform:scale(.9);opacity:.5}50%{transform:scale(1.08);opacity:.9}}
+@keyframes flowLine{to{stroke-dashoffset:-60}}
+@keyframes haloPulse{0%,100%{opacity:.4;transform:translate(-50%,-50%) scale(.92)}50%{opacity:.8;transform:translate(-50%,-50%) scale(1.08)}}
+@media(max-width:900px){.star-map-head{padding:18px 18px 0}.star-map-head p{display:none}.star-map-stage{inset:76px 0 54px;transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}.star-ring{opacity:.6}.star-map-foot{left:16px;right:16px;bottom:10px}.star-map-legend{gap:7px}.star-map-legend span{font-size:9px}.star-planet-desc{display:none}.star-planet-name{font-size:10px;padding:2px 6px}.star-core{width:130px;height:130px}.star-core strong{font-size:13px}.star-core small{display:none}}
+@media(max-width:560px){.star-map-stage{inset:70px 0 42px}.star-planet-name{font-size:9px}.star-map-close{padding:6px 10px;font-size:10px}.star-map-foot>span{display:none}.star-map-legend{width:100%;justify-content:center}}
+
+/* 中心星盘：纯 CSS 天体仪，避免生图黑底 */
+.star-core{background:radial-gradient(circle at 50% 50%,rgba(255,224,160,.22),rgba(139,103,255,.12) 32%,rgba(27,19,65,.38) 62%,transparent 72%)!important;clip-path:none!important;overflow:visible!important;mix-blend-mode:normal!important;border:1px solid rgba(245,215,150,.38);box-shadow:inset 0 0 35px rgba(124,88,230,.35),0 0 35px rgba(145,110,255,.28)}
+.star-core:before{content:"";position:absolute;inset:9%;border:1px dashed rgba(238,207,148,.48);border-radius:50%;box-shadow:inset 0 0 24px rgba(160,124,255,.22),0 0 18px rgba(240,205,137,.16);animation:coreSpin 26s linear infinite}
+.star-core:after{content:"";position:absolute;inset:20%;border:1px solid rgba(187,160,255,.3);border-radius:50%;background:conic-gradient(from 20deg,transparent 0 18%,rgba(252,219,148,.3) 19%,transparent 21% 46%,rgba(176,151,255,.28) 48%,transparent 50% 78%,rgba(252,219,148,.22) 80%,transparent 82%);animation:coreSpin 18s linear infinite reverse}
+@keyframes coreSpin{to{transform:rotate(360deg)}}
+@media(max-height:720px){.star-map-stage{scale:.84;transform-origin:50% 50%}.star-core{width:160px!important;height:160px!important}}
+.star-core{background:transparent!important;box-shadow:none!important;border-radius:50%;clip-path:circle(50% at 50% 50%)}
+.star-core{clip-path:circle(50% at 50% 50%)!important}
+.star-planet:hover .star-planet-img,.star-planet:focus-visible .star-planet-img{transform:none!important}
+.star-planet:hover,.star-planet:focus-visible{filter:none!important}
+.star-planet-photo{clip-path:circle(50% at 50% 50%)}
+.star-planet-img{-webkit-mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%);mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%)}
+.star-planet-photo{-webkit-mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%);mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%)}
+.star-planet-fallback{border-radius:50%;overflow:hidden}
+.star-planet,.star-planet:hover,.star-planet:focus,.star-planet:focus-visible{background:transparent!important;border:0!important;box-shadow:none!important}
+.star-core{-webkit-mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%);mask-image:radial-gradient(circle at 50% 50%,#000 48%,transparent 50%)}

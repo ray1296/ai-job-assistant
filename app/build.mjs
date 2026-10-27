@@ -107,4 +107,8 @@ await fs.copyFile("src/index.html", `${output}/index.html`);
 await fs.mkdir(`${output}/assets/companions`, { recursive: true });
 for (const f of await fs.readdir("public/assets/companions"))
   await fs.copyFile("public/assets/companions/" + f, `${output}/assets/companions/` + f);
+// 逐光星盘生成图
+await fs.mkdir(`${output}/assets/star-map`, { recursive: true });
+for (const f of await fs.readdir("public/assets/star-map"))
+  await fs.copyFile("public/assets/star-map/" + f, `${output}/assets/star-map/` + f);
 console.log("Built Vue shell with lazy profile/resume modules");
