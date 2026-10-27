@@ -157,6 +157,7 @@ async function loadStats() {
 
 let loadingData = false
 async function loadData() {
+  try { localStorage.setItem("zg.practiceRoute", "/orig/#/review") } catch (e) { /* ignore */ }
   // onMounted + onActivated 在 keep-alive 首屏会同时触发；
   // 并发重载会让科目卡片在用户点击时被替换，表现为“点几次才响应”。
   if (loadingData) return

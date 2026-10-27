@@ -67,6 +67,13 @@ const initialRaw0 = location.hash.slice(1);
 const initialRaw = initialRaw0 === "community" ? "wish" : initialRaw0;
 const initialReview = initialRaw.startsWith("review/") ? initialRaw.slice(7).split("?")[0] : "";
 const initial = initialReview ? "practice" : initialRaw;
+let bootPracticeRoute = "/orig/#/review";
+if (initial === "practice" && !initialReview) {
+  try {
+    const saved = localStorage.getItem("zg.practiceRoute") || "";
+    if (/^\/orig\/#\/review(?:\/[a-z0-9]+)?(?:\?[^#]*)?$/.test(saved)) bootPracticeRoute = saved;
+  } catch (e) { /* ignore */ }
+}
 const app = defineComponent({
   setup() {
     const reviewId = ref(initialReview);
@@ -430,7 +437,7 @@ const app = defineComponent({
         return h("iframe", {
           class: "orig-frame",
           title: "学习与刷题",
-          src: reviewId.value ? "/orig/#/review/" + reviewId.value : "/orig/#/review",
+          src: reviewId.value ? "/orig/#/review/" + reviewId.value : bootPracticeRoute,
         });
       }
       // 个性化设置：真实设置页

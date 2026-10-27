@@ -699,3 +699,28 @@ body.zg-pets-hidden .agent-chat { display: none !important; }
 .pet-session-menu button:hover, .pet-session-menu button.on { background: #f3eefb; }
 .pet-session-menu strong { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .pet-session-menu small { font-size: 9px; color: #9c8fae; }
+
+/* 讲题画布：从对话框入口弹出为独立覆盖窗口 */
+.agent-tutor-entry { display: block; margin: 6px 9px; padding: 5px 9px; border: 1px solid #d9cdea; border-radius: 8px; background: #f6f1ff; color: #5c4b6e; font-size: 11px; text-align: left; cursor: pointer; }
+.agent-tutor-entry:hover { background: #eee6ff; border-color: #c7b7e3; }
+.agent-tutor-overlay { position: fixed; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(24,18,40,.46); backdrop-filter: blur(2px); }
+.agent-tutor-window { width: min(760px, 94vw); max-height: 88vh; display: flex; flex-direction: column; background: #fff; border: 1px solid #e3d9ee; border-radius: 16px; box-shadow: 0 28px 80px rgba(30,20,55,.36); overflow: hidden; }
+.agent-tutor-window-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: linear-gradient(135deg,#7460c9,#9a86e0); color: #fff; }
+.agent-tutor-window-head strong { display: block; font-size: 14px; }
+.agent-tutor-window-head span { display: block; margin-top: 2px; font-size: 10px; opacity: .8; }
+.agent-tutor-min { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid rgba(255,255,255,.45); border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.agent-tutor-min:hover { background: rgba(255,255,255,.28); }
+.agent-tutor-window-body { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(280px, 1.1fr); gap: 12px; padding: 12px; overflow-y: auto; align-items: start; }
+.agent-tutor-board { display: block; width: 100%; height: 300px; border: 1px solid #eee7f5; border-radius: 10px; background: #fffdf8; }
+.agent-tutor-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; color: #4b3b63; font-size: 12px; line-height: 1.7; }
+.agent-tutor-window-body .agent-tutor-next { justify-self: start; height: 30px; border: 1px solid #7460c9; border-radius: 8px; background: #7460c9; color: #fff; padding: 0 12px; font-size: 12px; cursor: pointer; }
+.agent-tutor-window-body .agent-tutor-3d { height: 320px; border: 1px solid #eee7f5; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; grid-column: 1 / -1; }
+.agent-tutor-window-body .agent-tutor-3d-host { flex: 1; min-height: 0; }
+.agent-tutor-window-body .agent-tutor-3d-host canvas { display: block; width: 100%; height: 100%; }
+.agent-image-x, .agent-img-preview button, .agent-draft button, .pet-img-chip button { display: inline-grid; place-items: center; padding: 0; line-height: 1; text-align: center; }
+@media (max-width: 680px) {
+  .agent-tutor-overlay { padding: 10px; }
+  .agent-tutor-window { width: 96vw; max-height: 92vh; }
+  .agent-tutor-window-body { grid-template-columns: 1fr; }
+  .agent-tutor-board { height: 220px; }
+}

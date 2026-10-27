@@ -1213,7 +1213,10 @@ async function loadData() {
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  try { localStorage.setItem("zg.practiceRoute", location.pathname + location.hash) } catch (e) { /* ignore */ }
+  void loadData()
+})
 
 /* ===== 看板娘 AI 小帮：5 个分析动作 + 报告页生成 =====
  * 各动作调用后端 AI，把回复通过 kaoshibang:ai-show 事件交给看板娘持久显示+TTS。

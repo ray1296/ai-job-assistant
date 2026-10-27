@@ -63,12 +63,13 @@ export default defineComponent({
     const activeSession = ref("");
     const sessionMenu = ref(false);
     const tutorSteps = ref<any[]>([]);
+    const tutorOpen = ref(false);
     const tutorStep = ref(0);
     const tutorScene = ref<any>(null);
     const tutorBoard = ref<HTMLCanvasElement | null>(null);
     const tutorHost = ref<HTMLElement | null>(null);
     const visibleTutorSteps = computed(() => tutorSteps.value.slice(0, tutorStep.value + 1));
-    let tutorRaf = 0, tutorRenderer: any = null, tutorSceneObj: any = null, tutorGroup: any = null;
+    let tutorRaf = 0, tutorRenderer: any = null, tutorSceneObj: any = null, tutorGroup: any = null, tutor3dToken = 0;
     const vw = ref(window.innerWidth);
     const vh = ref(window.innerHeight);
 
@@ -116,6 +117,7 @@ export default defineComponent({
     function resetTutor() {
       tutorSteps.value = [];
       tutorScene.value = null;
+      tutorOpen.value = false;
       drafts.value = [];
       stopTutor3D();
     }
@@ -281,6 +283,7 @@ export default defineComponent({
       }
     }
     function stopTutor3D() {
+      tutor3dToken++;
       cancelAnimationFrame(tutorRaf);
       tutorRaf = 0;
       try { tutorRenderer?.dispose(); } catch {}
@@ -292,8 +295,11 @@ export default defineComponent({
       const spec = tutorScene.value;
       if (!host || !spec) return;
       stopTutor3D();
+      const token = ++tutor3dToken;
       const THREE = await import("three");
       const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
+      if (token !== tutor3dToken || !tutorHost.value) return;
+      host.replaceChildren();
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xfaf8fd);
       const cam = new THREE.PerspectiveCamera(50, host.clientWidth / Math.max(1, host.clientHeight), 0.1, 100);
@@ -326,8 +332,16 @@ export default defineComponent({
     watch(visibleTutorSteps, drawTutorBoard, { deep: true });
     watch(tutorScene, async (v) => {
       if (!v) { stopTutor3D(); return; }
+      if (!tutorOpen.value) return;
       await nextTick();
       void mountTutor3D();
+    });
+    watch(open, (v) => { if (!v) tutorOpen.value = false; });
+    watch(tutorOpen, async (v) => {
+      if (!v) { stopTutor3D(); return; }
+      await nextTick();
+      drawTutorBoard();
+      if (tutorScene.value) await mountTutor3D();
     });
 
     function isTutorRequest(text: string) {
@@ -339,8 +353,10 @@ export default defineComponent({
       tutorSteps.value = Array.isArray(r?.steps) ? r.steps : [];
       tutorStep.value = 0;
       tutorScene.value = r?.scene || (r?.need3d ? { shape: "graph", text: "3D 辅助演示" } : null);
+      tutorOpen.value = true;
       await nextTick();
       drawTutorBoard();
+      if (tutorScene.value) await mountTutor3D();
       scrollLog();
     }
 
@@ -534,7 +550,7 @@ export default defineComponent({
       ]),
       open.value
         ? h("div", {
-            class: "companion-chat agent-chat" + (tutorSteps.value.length || tutorScene.value ? " has-tutor" : ""),
+            class: "companion-chat agent-chat",
             style: panelStyle.value,
             role: "dialog",
             "aria-label": props.name + " 的对话",
@@ -572,24 +588,11 @@ export default defineComponent({
               ])),
               busy.value ? h("p", { class: "companion-bubble ai agent-typing" }, "正在想…") : null,
             ]),
-            tutorSteps.value.length
-              ? h("div", { class: "agent-tutor" }, [
-                  h("div", { class: "agent-tutor-head" }, [
-                    h("strong", "讲题画布"),
-                    h("span", "第 " + (tutorStep.value + 1) + " / " + tutorSteps.value.length + " 步"),
-                  ]),
-                  h("canvas", { ref: tutorBoard, class: "agent-tutor-canvas" }),
-                  h("ol", null, visibleTutorSteps.value.map((s: any, i: number) => h("li", { key: i }, String(s?.text || "")))),
-                  tutorStep.value + 1 < tutorSteps.value.length
-                    ? h("button", { class: "agent-tutor-next", onClick: () => (tutorStep.value += 1) }, "懂了，继续")
-                    : null,
-                ])
-              : null,
-            tutorScene.value
-              ? h("div", { class: "agent-tutor-3d" }, [
-                  h("div", { class: "agent-tutor-head" }, [h("strong", "3D 演示 · " + (tutorScene.value.text || tutorScene.value.shape || "模型"))]),
-                  h("div", { ref: tutorHost, class: "agent-tutor-3d-host" }),
-                ])
+            tutorSteps.value.length || tutorScene.value
+              ? h("button", {
+                  class: "agent-tutor-entry",
+                  onClick: () => (tutorOpen.value = true),
+                }, "讲题画布 · " + (tutorSteps.value.length ? "第 " + (tutorStep.value + 1) + "/" + tutorSteps.value.length + " 步" : "打开") + " · 展开")
               : null,
             err.value ? h("p", { class: "companion-error" }, err.value) : null,
             memPct.value >= 0.8 && !memDismissed.value
@@ -669,6 +672,36 @@ export default defineComponent({
                 ]),
                 h("button", { class: "companion-mic" + (listening.value ? " on" : ""), title: "语音输入", onClick: toggleAsr }, listening.value ? "●" : "🎤"),
                 h("button", { class: "agent-send", disabled: busy.value, onClick: () => void send() }, "发送"),
+              ]),
+            ]),
+          ])
+        : null,
+      tutorOpen.value
+        ? h("div", { class: "agent-tutor-overlay", role: "dialog", "aria-modal": "true", "aria-label": props.name + " 的讲题画布" }, [
+            h("div", { class: "agent-tutor-window" }, [
+              h("header", { class: "agent-tutor-window-head" }, [
+                h("div", null, [
+                  h("strong", null, "讲题画布 · " + props.name),
+                  h("span", null, "第 " + (tutorStep.value + 1) + " / " + Math.max(1, tutorSteps.value.length) + " 步"),
+                ]),
+                h("button", {
+                  class: "agent-tutor-min",
+                  title: "最小化到对话框",
+                  onClick: () => (tutorOpen.value = false),
+                }, "−"),
+              ]),
+              h("div", { class: "agent-tutor-window-body" }, [
+                h("canvas", { ref: tutorBoard, class: "agent-tutor-board" }),
+                h("ol", { class: "agent-tutor-steps" }, visibleTutorSteps.value.map((s: any, i: number) => h("li", { key: i }, String(s?.text || "")))),
+                tutorStep.value + 1 < tutorSteps.value.length
+                  ? h("button", { class: "agent-tutor-next", onClick: () => (tutorStep.value += 1) }, "懂了，继续")
+                  : null,
+                tutorScene.value
+                  ? h("div", { class: "agent-tutor-3d" }, [
+                      h("div", { class: "agent-tutor-head" }, [h("strong", null, "3D 演示 · " + (tutorScene.value.text || tutorScene.value.shape || "模型"))]),
+                      h("div", { ref: tutorHost, class: "agent-tutor-3d-host" }),
+                    ])
+                  : null,
               ]),
             ]),
           ])
