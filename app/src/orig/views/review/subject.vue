@@ -371,9 +371,6 @@
           <button class="ai-menu-item" :disabled="aiLoading" @click="aiAction('rag')">
             <span class="ai-menu-emoji">🔍</span> 知识库问答
           </button>
-          <button class="ai-menu-item" :disabled="aiLoading" @click="aiAction('agent')">
-            <span class="ai-menu-emoji">🧭</span> Agent 任务
-          </button>
         </div>
       </transition>
       <button class="ai-assistant-btn" :class="{ active: aiMenuOpen, loading: aiLoading }" title="单击打开工具箱，按住可拖动" @pointerdown="fabPointerDown">
@@ -1297,7 +1294,7 @@ async function aiAction(type) {
   }
   aiMenuOpen.value = false
   const name = subject.value.name || '这科'
-  const toolName = { summary: '总结考点', steps: '错题精讲', memo: '简答记忆', link: '科目关联', page: '生成报告页', rag: '知识库问答', agent: 'Agent 任务' }[type] || '小帮'
+  const toolName = { summary: '总结考点', steps: '错题精讲', memo: '简答记忆', link: '科目关联', page: '生成报告页', rag: '知识库问答' }[type] || '小帮'
 
   // 知识库问答（RAG）：只检索平台公开题库/岗位/企业/房源，不读个人资料和用户上传文件
   if (type === 'rag') {
@@ -1308,13 +1305,6 @@ async function aiAction(type) {
     aiPanel.value = { title: '知识库问答', type: 'rag', loading: false, html: '', text: '', action: null }
     return
   }
-  // Agent 任务：交给父页面的看板娘输入框（iframe 里的 window 事件传不到父页面，得用 postMessage）
-  if (type === 'agent') {
-    notifyParent({ type: 'zg:study-mode', mode: 'agent' })
-    showToast('已把看板娘切到 Agent 模式，去输入框派任务吧～')
-    return
-  }
-
   // 先做数据检查，避免打开一个永远转圈的面板
   let memoItems = []
   let recents = []

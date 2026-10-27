@@ -64,6 +64,10 @@ export default defineComponent({
     const sessionMenu = ref(false);
     const tutorSteps = ref<any[]>([]);
     const tutorOpen = ref(false);
+    const pageHtml = ref("");
+    const pageTitle = ref("");
+    const pageId = ref("");
+    const pageOpen = ref(false);
     const tutorStep = ref(0);
     const tutorScene = ref<any>(null);
     const tutorBoard = ref<HTMLCanvasElement | null>(null);
@@ -118,6 +122,10 @@ export default defineComponent({
       tutorSteps.value = [];
       tutorScene.value = null;
       tutorOpen.value = false;
+      pageHtml.value = "";
+      pageTitle.value = "";
+      pageId.value = "";
+      pageOpen.value = false;
       drafts.value = [];
       stopTutor3D();
     }
@@ -380,7 +388,7 @@ export default defineComponent({
       await nextTick();
       void mountTutor3D();
     });
-    watch(open, (v) => { if (!v) tutorOpen.value = false; });
+    watch(open, (v) => { if (!v) { tutorOpen.value = false; pageOpen.value = false; } });
     watch(tutorOpen, async (v) => {
       if (!v) { stopTutor3D(); return; }
       await nextTick();
@@ -390,6 +398,25 @@ export default defineComponent({
 
     function isTutorRequest(text: string) {
       return /画布|3D|3d|立方体|正方体|球体|圆柱|圆锥|几何|立体|旋转|模型|透明|讲题|讲解|这道|题目|步骤|演示|知识|考点|题/.test(text);
+    }
+    function isPageRequest(text: string) {
+      return /(生成|做|创建|设计|写|自定义|制作).{0,12}(网页|页面|报告页|HTML|站点)|AI\s*网页|网页版|报告页/i.test(text);
+    }
+    async function answerPage(text: string) {
+      const r = await api<any>("/ai/custom-page", "POST", { prompt: text }, { timeoutMs: 180000 });
+      const html = String(r?.html || "");
+      if (!/<html[\s>]/i.test(html)) throw new Error("AI 没有返回完整网页");
+      const title = String(r?.title || "AI 自定义页面").slice(0, 80);
+      pageHtml.value = html;
+      pageTitle.value = title;
+      pageId.value = "";
+      try {
+        const saved = await api<any>("/ai/pages", "POST", { title, html, subjectId: "" });
+        if (saved?.id) pageId.value = String(saved.id);
+      } catch { /* 页面仍可在本地 iframe 查看 */ }
+      pageOpen.value = true;
+      log.value.push({ role: "ai", text: "已生成「" + title + "」，页面已在独立窗口打开。" });
+      scrollLog();
     }
     async function answerTutor(text: string) {
       const r = await api<any>("/study/tutor", "POST", { question: text, answer: "", message: "" }, { timeoutMs: 180000 });
@@ -423,6 +450,10 @@ export default defineComponent({
       err.value = "";
       scrollLog();
       try {
+        if (!image && !doc && isPageRequest(text)) {
+          await answerPage(text);
+          return;
+        }
         if (props.agentId === "zhiwei" && !image && !doc && isTutorRequest(text)) {
           await answerTutor(text);
           return;
@@ -648,6 +679,12 @@ export default defineComponent({
                   onClick: () => (tutorOpen.value = true),
                 }, "讲题画布 · " + (tutorSteps.value.length ? "第 " + (tutorStep.value + 1) + "/" + tutorSteps.value.length + " 步" : "打开") + " · 展开")
               : null,
+            pageHtml.value
+              ? h("button", {
+                  class: "agent-page-entry",
+                  onClick: () => (pageOpen.value = true),
+                }, "AI 页面 · " + pageTitle.value + " · 打开")
+              : null,
             err.value ? h("p", { class: "companion-error" }, err.value) : null,
             memPct.value >= 0.8 && !memDismissed.value
               ? h("div", { class: "agent-mem-warn" }, [
@@ -757,6 +794,22 @@ export default defineComponent({
                     ])
                   : null,
               ]),
+            ]),
+          ])
+        : null,
+      pageOpen.value
+        ? h("div", { class: "agent-page-overlay", role: "dialog", "aria-modal": "true", "aria-label": pageTitle.value }, [
+            h("div", { class: "agent-page-window" }, [
+              h("header", { class: "agent-page-head" }, [
+                h("div", null, [h("strong", null, pageTitle.value || "AI 自定义页面"), h("span", null, "AI 网页 · " + props.name)]),
+                h("div", { class: "agent-page-actions" }, [
+                  pageId.value
+                    ? h("button", { title: "在新窗口打开", onClick: () => window.open("/orig/#/ai-page/" + pageId.value, "_blank", "noopener") }, "↗")
+                    : null,
+                  h("button", { class: "agent-page-min", title: "最小化到对话框", onClick: () => (pageOpen.value = false) }, "−"),
+                ]),
+              ]),
+              h("iframe", { class: "agent-page-frame", srcdoc: pageHtml.value, sandbox: "", title: pageTitle.value }),
             ]),
           ])
         : null,

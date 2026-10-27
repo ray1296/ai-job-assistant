@@ -1839,6 +1839,10 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/ai/generate-page" && m === "POST") {
         return send(res, 200, await aiGateway.generateReport(await body(req)));
       }
+      if (p === "/api/ai/custom-page" && m === "POST") {
+        const payload = await body(req);
+        return send(res, 200, await aiGateway.generateCustomPage({ prompt: String(payload.prompt || "").slice(0, 4000) }));
+      }
       if (p === "/api/ai/pages" && m === "GET") {
         const rows = db.prepare("SELECT id,title,subject_id AS subjectId,created_at AS createdAt FROM ai_pages WHERE user_id=? ORDER BY created_at DESC LIMIT 50").all(s.user_id);
         return send(res, 200, rows);

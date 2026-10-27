@@ -749,3 +749,16 @@ body.zg-pets-hidden .agent-chat { display: none !important; }
 .pet-session-open:hover { background: #f3eefb; }
 .pet-session-del { flex: 0 0 auto; display: grid; place-items: center; width: 19px; height: 19px; padding: 0; border: 1px solid #e3d8ee; border-radius: 50%; background: #fff; color: #a06a7a; font-size: 12px; line-height: 1; cursor: pointer; }
 .pet-session-del:hover { color: #b04a63; background: #fff3f5; }
+
+/* Agent 自定义网页 */
+.agent-page-entry { display: block; margin: 6px 9px; padding: 5px 9px; border: 1px solid #cfe0f0; border-radius: 8px; background: #f2f8ff; color: #3c6688; font-size: 11px; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-page-entry:hover { background: #e6f2ff; }
+.agent-page-overlay { position: fixed; inset: 0; z-index: 165; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(24,18,40,.5); backdrop-filter: blur(2px); }
+.agent-page-window { width: min(1180px, 96vw); height: 90vh; display: flex; flex-direction: column; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 28px 80px rgba(30,20,55,.4); }
+.agent-page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; background: linear-gradient(135deg,#3c6688,#7460c9); color: #fff; }
+.agent-page-head strong { display: block; font-size: 13px; }
+.agent-page-head span { display: block; margin-top: 2px; font-size: 10px; opacity: .78; }
+.agent-page-actions { display: flex; gap: 5px; }
+.agent-page-actions button { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border: 1px solid rgba(255,255,255,.4); border-radius: 50%; background: rgba(255,255,255,.14); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.agent-page-actions button:hover { background: rgba(255,255,255,.28); }
+.agent-page-frame { flex: 1; width: 100%; border: 0; background: #fff; }

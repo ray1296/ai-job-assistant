@@ -21,5 +21,9 @@ onMounted(() => {
   };
   sync();
   window.addEventListener("hashchange", sync);
+  // vue-router 的 pushState/replaceState 不一定触发 hashchange；报告页加载后
+  // 悬浮上传入口要立即隐藏，否则会盖住报告页左上角返回/标题。
+  window.addEventListener("popstate", sync);
+  setInterval(sync, 400);
 });
 </script>
