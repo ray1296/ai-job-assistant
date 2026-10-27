@@ -22,7 +22,7 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
-import StarMap from "./star-map";
+import StarMap, { preloadStarAssets } from "./star-map";
 import MouseTrail from "./mouse-trail";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -134,6 +134,7 @@ const app = defineComponent({
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     onMounted(async () => {
+      preloadStarAssets();
       applyTheme(theme.value);
       try {
         await loadSession();

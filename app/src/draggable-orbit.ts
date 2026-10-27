@@ -460,7 +460,7 @@ export default defineComponent({
           onDragstart: (event: DragEvent) => event.preventDefault(),
         },
         [
-          h("i", { "aria-hidden": "true" }, "☯"),
+          h("i", { "aria-hidden": "true" }, "✦"),
           h("span", expanded ? "收起星盘" : "展开星盘"),
         ],
       );

@@ -724,6 +724,9 @@ const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".wasm": "application/wasm",
   ".task": "application/octet-stream",
@@ -2767,9 +2770,11 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("Content-Length", stat.size);
     res.setHeader(
       "Cache-Control",
-      /\/assets\/.*-[A-Z0-9]{8}\.js$/.test(relative)
+      /\/assets\/star-map\//.test(relative)
         ? "public,max-age=31536000,immutable"
-        : "no-cache",
+        : /\/assets\/.*-[A-Z0-9]{8}\.js$/.test(relative)
+          ? "public,max-age=31536000,immutable"
+          : "no-cache",
     );
     const ext = path.extname(file).toLowerCase();
     const compressible = [".html", ".js", ".mjs", ".css", ".json", ".svg", ".txt"].includes(ext);
