@@ -5,24 +5,24 @@ type Position = { x: number; y: number; z: number; size: number };
 type Connect = { a: string; b: string; kind: string };
 
 const POS: Record<string, Position> = {
-  home: { x: 50, y: 16, z: 50, size: 134 },
-  profile: { x: 69, y: 39, z: 24, size: 118 },
-  resume: { x: 68, y: 61, z: 38, size: 132 },
-  jobs: { x: 50, y: 72, z: 18, size: 124 },
-  data: { x: 31, y: 61, z: 30, size: 116 },
-  plan: { x: 30, y: 40, z: 42, size: 120 },
-  guide: { x: 79, y: 22, z: 8, size: 96 },
-  dashboard: { x: 88, y: 44, z: 10, size: 104 },
-  companies: { x: 82, y: 70, z: 6, size: 108 },
-  housing: { x: 60, y: 86, z: 12, size: 108 },
-  knowledge: { x: 38, y: 87, z: 8, size: 106 },
-  practice: { x: 17, y: 76, z: 16, size: 112 },
-  interview: { x: 10, y: 54, z: 4, size: 100 },
-  chat: { x: 16, y: 28, z: 12, size: 110 },
-  wish: { x: 35, y: 17, z: 22, size: 100 },
-  map: { x: 62, y: 15, z: 14, size: 104 },
-  "study-upload": { x: 87, y: 86, z: 0, size: 88 },
-  settings: { x: 8, y: 84, z: 0, size: 84 },
+  home: { x: 50, y: 13, z: 50, size: 118 },
+  profile: { x: 80, y: 38, z: 24, size: 102 },
+  resume: { x: 82, y: 62, z: 38, size: 108 },
+  jobs: { x: 67, y: 81, z: 18, size: 104 },
+  data: { x: 33, y: 62, z: 30, size: 100 },
+  plan: { x: 20, y: 38, z: 42, size: 100 },
+  guide: { x: 78, y: 11, z: 8, size: 84 },
+  dashboard: { x: 93, y: 27, z: 10, size: 88 },
+  companies: { x: 89, y: 57, z: 6, size: 94 },
+  housing: { x: 76, y: 83, z: 12, size: 96 },
+  knowledge: { x: 51, y: 89, z: 8, size: 94 },
+  practice: { x: 27, y: 81, z: 16, size: 94 },
+  interview: { x: 9, y: 61, z: 4, size: 88 },
+  chat: { x: 10, y: 32, z: 12, size: 92 },
+  wish: { x: 32, y: 18, z: 22, size: 94 },
+  map: { x: 67, y: 18, z: 14, size: 98 },
+  "study-upload": { x: 91, y: 84, z: 0, size: 80 },
+  settings: { x: 10, y: 87, z: 0, size: 78 },
 };
 const CONNECTIONS: Connect[] = [
   { a: "home", b: "profile", kind: "starlight" },
@@ -56,8 +56,8 @@ const KIND_LABEL: Record<string, string> = { chain: "星链", bridge: "星桥", 
 const METEORS = (() => { let s = 91; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 8 }, (_, i) => ({ left: 8 + r() * 85, top: r() * 48, len: 60 + r() * 100, delay: r() * 14, dur: 4 + r() * 3, key: i })); })();
 METEORS[0].delay = 0.2; METEORS[0].dur = 3.2; METEORS[0].top = 8; METEORS[0].left = 22;
 METEORS[1].delay = 3.4; METEORS[1].dur = 3.8; METEORS[1].top = 18; METEORS[1].left = 70;
-const STARS = (() => { let s = 17; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 90 }, (_, i) => ({ left: r() * 100, top: r() * 100, d: r() * 6 + 2, delay: r() * 8, size: r() * 2 + 1, key: i })); })();
-const STAR_ASSETS = ["cosmos", "astrolabe", ...Object.keys(POS)].map((id) => "/assets/star-map/" + id + ".webp");
+const STARS = (() => { let s = 17; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 140 }, (_, i) => ({ left: r() * 100, top: r() * 100, d: r() * 6 + 2, delay: r() * 8, size: r() * 2.8 + 1, key: i })); })();
+const STAR_ASSETS = ["cosmos", "astrolabe", "astrolabe2", ...Object.keys(POS)].map((id) => "/assets/star-map/" + id + ".webp");
 let preloadStarted = false;
 /** 空闲时预取星盘图片；配合服务端 immutable 缓存，第二次打开几乎瞬时。 */
 export function preloadStarAssets() {
@@ -169,7 +169,7 @@ export default defineComponent({
       h("div", { class: "star-map-stage", style: { "--rx": tilt.value.x + "deg", "--ry": tilt.value.y + "deg" }, onPointermove: move, onPointerleave: reset }, [
         h("div", { class: "star-ring ring-1" }), h("div", { class: "star-ring ring-2" }), h("div", { class: "star-ring ring-3" }),
         h("div", { class: "star-core" }, [
-          h("span", { class: "star-core-glow" }), h("span", { class: "star-core-sweep" }), h("span", { class: "star-core-rune" }, "✦"),
+          h("span", { class: "star-core-glow" }), h("span", { class: "star-core-art" }), h("span", { class: "star-core-sweep" }), h("span", { class: "star-core-rune" }, "✦"),
           h("strong", null, "逐光星盘"), h("small", null, "选择你的下一站"),
         ]),
         h("svg", { class: "star-links", viewBox: "0 0 1600 1000", preserveAspectRatio: "none", "aria-hidden": "true" }, CONNECTIONS.map((c, i) => linkGroup(c, i))),
