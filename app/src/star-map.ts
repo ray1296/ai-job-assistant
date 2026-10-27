@@ -7,14 +7,14 @@ type Connect = { a: string; b: string; kind: string };
 const POS: Record<string, Position> = {
   home: { x: 50, y: 13, z: 50, size: 118 },
   profile: { x: 80, y: 38, z: 24, size: 102 },
-  resume: { x: 82, y: 62, z: 38, size: 108 },
-  jobs: { x: 67, y: 81, z: 18, size: 104 },
+  resume: { x: 80, y: 70, z: 38, size: 108 },
+  jobs: { x: 65, y: 81, z: 18, size: 104 },
   data: { x: 33, y: 62, z: 30, size: 100 },
-  plan: { x: 20, y: 38, z: 42, size: 100 },
+  plan: { x: 24, y: 38, z: 42, size: 100 },
   guide: { x: 78, y: 11, z: 8, size: 84 },
   dashboard: { x: 93, y: 27, z: 10, size: 88 },
   companies: { x: 89, y: 57, z: 6, size: 94 },
-  housing: { x: 76, y: 83, z: 12, size: 96 },
+  housing: { x: 78, y: 85, z: 12, size: 96 },
   knowledge: { x: 51, y: 89, z: 8, size: 94 },
   practice: { x: 27, y: 81, z: 16, size: 94 },
   interview: { x: 9, y: 61, z: 4, size: 88 },
@@ -55,7 +55,7 @@ const CONNECTIONS: Connect[] = [
 const METEORS = (() => { let s = 91; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 8 }, (_, i) => ({ left: 8 + r() * 85, top: r() * 48, len: 60 + r() * 100, delay: r() * 14, dur: 4 + r() * 3, key: i })); })();
 METEORS[0].delay = 0.2; METEORS[0].dur = 3.2; METEORS[0].top = 8; METEORS[0].left = 22;
 METEORS[1].delay = 3.4; METEORS[1].dur = 3.8; METEORS[1].top = 18; METEORS[1].left = 70;
-const STARS = (() => { let s = 17; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 140 }, (_, i) => ({ left: r() * 100, top: r() * 100, d: r() * 6 + 2, delay: r() * 8, size: r() * 2.8 + 1, key: i })); })();
+const STARS = (() => { let s = 17; const r = () => (s = (s * 48271) % 2147483647) / 2147483647; return Array.from({ length: 120 }, (_, i) => ({ left: r() * 100, top: r() * 100, d: r() * 5 + 2.5, delay: r() * 8, size: r() * 8 + 5, key: i })); })();
 const STAR_ASSETS = ["cosmos", "astrolabe", "astrolabe2", ...Object.keys(POS)].map((id) => "/assets/star-map/" + id + ".webp");
 let preloadStarted = false;
 /** 空闲时预取星盘图片；配合服务端 immutable 缓存，第二次打开几乎瞬时。 */
@@ -100,11 +100,12 @@ export default defineComponent({
       const path = "M" + x1 + " " + y1 + " Q" + mx + " " + my + " " + x2 + " " + y2;
       const decor: any[] = [];
       if (c.kind === "chain") {
-        for (let k = 1; k <= 7; k++) {
-          const q = qPoint(x1, y1, mx, my, x2, y2, k / 8);
-          decor.push(h("ellipse", { class: "chain-link", cx: q.x, cy: q.y, rx: k % 2 ? 5.2 : 3.4, ry: 2.1, transform: "rotate(" + q.angle + " " + q.x + " " + q.y + ")" }));
+        for (let k = 1; k <= 9; k++) {
+          const q = qPoint(x1, y1, mx, my, x2, y2, k / 10);
+          decor.push(h("ellipse", { class: "chain-link", cx: q.x, cy: q.y, rx: k % 2 ? 8.2 : 5.6, ry: k % 2 ? 3.4 : 2.7, transform: "rotate(" + q.angle + " " + q.x + " " + q.y + ")" }));
         }
       } else if (c.kind === "bridge") {
+        decor.push(h("path", { class: "bridge-rail", d: path, transform: "translate(0,-7)" }), h("path", { class: "bridge-rail", d: path, transform: "translate(0,7)" }), h("circle", { class: "bridge-lamp", cx: x1, cy: y1, r: 5 }), h("circle", { class: "bridge-lamp", cx: x2, cy: y2, r: 5 }));
         for (let k = 1; k <= 9; k++) {
           const q = qPoint(x1, y1, mx, my, x2, y2, k / 10);
           const nx = Math.cos((q.angle + 90) * Math.PI / 180) * 8, ny = Math.sin((q.angle + 90) * Math.PI / 180) * 8;
@@ -146,6 +147,7 @@ export default defineComponent({
         onBlur: () => (hovered.value = ""),
         onClick: () => props.onGo(id),
         title: DESCS[id] || name,
+        "aria-label": name,
         "data-page": id,
       }, [
         h("span", { class: "star-planet-shadow" }),
@@ -156,7 +158,6 @@ export default defineComponent({
           h("span", { class: "star-planet-fallback" }, icon),
           h("img", { class: "star-planet-photo", src: "/assets/star-map/" + id + ".webp", alt: "", draggable: false, onError: (e: Event) => ((e.target as HTMLImageElement).style.display = "none") }),
         ]),
-        h("span", { class: "star-planet-name" }, name),
         h("span", { class: "star-planet-desc" }, DESCS[id] || "点击进入"),
       ]);
     }
@@ -176,6 +177,14 @@ export default defineComponent({
         ]),
         h("svg", { class: "star-links", viewBox: "0 0 1600 1000", preserveAspectRatio: "none", "aria-hidden": "true" }, CONNECTIONS.map((c, i) => linkGroup(c, i))),
         ...props.pages.map(([id, name, icon]) => planet(id, name, icon)),
+        h("div", { class: "star-label-layer" }, props.pages.map(([id, name]) => {
+          const p = pos(id);
+          return h("span", {
+            class: ["star-planet-name", "star-label", props.active === id ? "is-current" : "", hovered.value === id ? "is-hovered" : ""],
+            style: { left: p.x + "%", top: "calc(" + p.y + "% + " + (p.size / 2 + 9) + "px)" },
+            "data-page": id,
+          }, name);
+        })),
       ]),
       hoverPage.value
         ? h("div", { class: "star-preview", "aria-hidden": "true" }, [

@@ -2727,3 +2727,29 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 .star-planet-orbit{position:absolute;left:50%;top:48%;width:124%;height:38%;z-index:1;transform:translate(-50%,-50%) rotate(-14deg);border:1px solid rgba(199,177,255,.32);border-radius:50%;box-shadow:0 0 8px rgba(144,112,255,.16);pointer-events:none;transition:.25s}
 .star-planet:hover .star-planet-orbit,.star-planet:focus-visible .star-planet-orbit,.star-planet.is-current .star-planet-orbit{border-color:rgba(255,226,164,.75);box-shadow:0 0 12px rgba(255,209,127,.45),0 0 20px rgba(144,112,255,.3)}
 .star-planet-base{top:90%!important;height:26%!important;width:82%!important}
+/* 星点改成可见的四芒星，而不是小圆点 */
+.star-map-stars i{background:radial-gradient(circle at 50% 45%,#fff 0 38%,#dbe7ff 54%,#aebeff 100%)!important;border-radius:0!important;clip-path:polygon(50% 0,62% 36%,100% 50%,62% 64%,50% 100%,38% 64%,0 50%,38% 36%);box-shadow:none!important;filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 9px rgba(177,199,255,.85));opacity:.9;animation-name:starTwinkle!important;animation-timing-function:ease-in-out!important;animation-iteration-count:infinite!important}
+.star-map-stars i:nth-child(5n){clip-path:polygon(50% 0,61% 34%,98% 35%,68% 57%,79% 94%,50% 70%,21% 94%,32% 57%,2% 35%,39% 34%);filter:drop-shadow(0 0 5px #fff) drop-shadow(0 0 12px rgba(255,231,166,.75))}
+.star-label-layer{position:absolute;inset:0;z-index:25;pointer-events:none}
+.star-label{position:absolute!important;transform:translateX(-50%)!important;pointer-events:none;z-index:25}
+.star-label.is-hovered,.star-label.is-current{color:#1d1533!important;background:#f0d89b!important;border-color:#fff2c9!important;box-shadow:0 0 16px rgba(255,215,137,.45)}
+.star-label-layer{z-index:120!important}
+.star-label{z-index:121!important}
+.star-map-stage{transform-style:flat!important}
+.star-map-stage{transform-style:preserve-3d!important}
+.star-label-layer{transform:translateZ(620px)!important}
+.star-map-stage{transform-style:flat!important}
+.star-label-layer{transform:none!important}
+.star-planet-img{transform:perspective(600px) rotateX(14deg)}
+.star-planet:hover .star-planet-img,.star-planet:focus-visible .star-planet-img{transform:perspective(600px) rotateX(14deg) scale(1.06)!important}
+.star-planet-img{transform:none!important}
+.star-planet:hover .star-planet-img,.star-planet:focus-visible .star-planet-img{transform:scale(1.06)!important}
+/* 桥面加宽、双栏杆、桥灯；链环放大 */
+.star-link.link-chain .link-base{stroke:rgba(245,210,145,.18)!important;stroke-width:1!important;stroke-dasharray:1 14!important}
+.star-link.link-chain .chain-link{stroke-width:2.4}
+.star-link.link-bridge .link-base{stroke:rgba(137,194,255,.38)!important;stroke-width:26!important;filter:blur(2px)}
+.star-link .bridge-rail{fill:none;stroke:rgba(219,239,255,.8);stroke-width:1.6;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 4px rgba(158,205,255,.7))}
+.star-link .bridge-lamp{fill:#ffe8a8;stroke:#fff4cc;stroke-width:1;filter:drop-shadow(0 0 8px #ffd77a)}
+.star-link.link-portal .link-base{stroke-width:1!important;stroke:rgba(215,160,255,.28)!important}
+.star-link.is-related .bridge-rail{stroke-width:2.4;filter:drop-shadow(0 0 8px rgba(183,223,255,1))}
+.star-link.is-related .bridge-lamp{filter:drop-shadow(0 0 14px #ffe6a0)}
