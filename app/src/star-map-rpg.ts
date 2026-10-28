@@ -97,7 +97,6 @@ export default defineComponent({
       ]);
     }
     return () => h("div", { class: ["star-map", "rpg-map"], role: "dialog", "aria-modal": "true", "aria-label": "逐光星盘" }, [
-      h("div", { class: "rpg-stars" }, STARS.map((s) => h("i", { key: s.key, style: { left: s.left + "%", top: s.top + "%", width: s.size + "px", height: s.size + "px", animationDuration: s.d + "s", animationDelay: s.delay + "s" } }))),
       h("div", { class: "rpg-meteors" }, METEORS.map((m) => h("i", { key: m.key, style: { left: m.left + "%", top: m.top + "%", width: m.len + "px", animationDelay: m.delay + "s", animationDuration: m.dur + "s" } }))),
       h("header", { class: "rpg-head" }, [
         h("div", [h("span", { class: "rpg-eyebrow" }, "THE JOURNEY CONSTELLATION"), h("h1", "逐光星盘"), h("p", "十八座浮空岛，记录你的求职旅程")]),

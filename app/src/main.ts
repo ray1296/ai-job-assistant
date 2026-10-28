@@ -22,7 +22,8 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
-import StarMap, { preloadStarAssets } from "./star-map-rpg";
+import ClassicStarMap, { preloadStarAssets as preloadClassicStarAssets } from "./star-map";
+import RpgStarMap, { preloadStarAssets as preloadRpgStarAssets } from "./star-map-rpg";
 import MouseTrail from "./mouse-trail";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
@@ -82,6 +83,7 @@ const app = defineComponent({
     window.addEventListener("zg:pet-skin", (ev: any) => { petSkin.value = ev?.detail?.skin === "avatar" ? "avatar" : "live2d"; });
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
+      starMapMode = ref<"rpg" | "classic">("rpg"),
       fog = ref(false),
       auth = ref(false),
       authMode = ref<"login" | "register">("login"),
@@ -134,7 +136,8 @@ const app = defineComponent({
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     onMounted(async () => {
-      preloadStarAssets();
+      preloadRpgStarAssets();
+      preloadClassicStarAssets();
       // 四只 agent 头像很小，首屏空闲时预取，后续页面/刷新直接命中缓存。
       requestIdleCallback?.(() => {
         ["a-1.jpg", "a-2.png", "b-1.png", "b-3.png"].forEach((name) => {
@@ -544,7 +547,7 @@ const app = defineComponent({
               "button",
               {
                 class: "journey-map-entry",
-                onClick: () => (orbit.value = true),
+                onClick: () => { starMapMode.value = "classic"; orbit.value = true; },
               },
               "旅程地图",
             ),
@@ -631,15 +634,25 @@ const app = defineComponent({
         ]),
         h(OrbitTrigger, {
           expanded: orbit.value,
-          onToggle: () => (orbit.value = !orbit.value),
+          onToggle: () => {
+            if (!orbit.value) starMapMode.value = "rpg";
+            orbit.value = !orbit.value;
+          },
         }),
         orbit.value
-          ? h(StarMap, {
-              pages,
-              active: active.value,
-              onGo: (id: string) => { orbit.value = false; go(id); },
-              onClose: () => (orbit.value = false),
-            })
+          ? starMapMode.value === "classic"
+            ? h(ClassicStarMap, {
+                pages,
+                active: active.value,
+                onGo: (id: string) => { orbit.value = false; go(id); },
+                onClose: () => (orbit.value = false),
+              })
+            : h(RpgStarMap, {
+                pages,
+                active: active.value,
+                onGo: (id: string) => { orbit.value = false; go(id); },
+                onClose: () => (orbit.value = false),
+              })
           : null,
         fog.value ? h("div", { class: "fog-veil" }) : null,
         auth.value

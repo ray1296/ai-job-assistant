@@ -3089,3 +3089,4 @@ body:has(.rpg-map) .mouse-trail-canvas,
 body.map-mode .mouse-trail-canvas { display: none !important; }
 @media (max-height: 720px) { .rpg-stage-wrap { inset: 0 !important; } .rpg-preview { top: 76px; width: 250px; } .rpg-preview-img { height: 110px; } }
 .rpg-close { align-self: flex-start !important; flex: 0 0 auto !important; }
+body:has(.star-map) .mouse-trail-canvas { display: none !important; }
