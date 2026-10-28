@@ -2892,7 +2892,7 @@ body.interview-cam-dragging, body.interview-cam-dragging * { cursor: grabbing !i
 .interview-feedback-head button { display: grid; place-items: center; padding: 0; line-height: 1; font-size: 16px; }
 
 /* 全局鼠标拖尾：放在 immersive-main 根部，所有页面共享 */
-.immersive-main > .mouse-trail-canvas { position: fixed !important; inset: 0; z-index: 0 !important; pointer-events: none; }
+.immersive-main > .mouse-trail-canvas { position: fixed !important; inset: 0; z-index: 9999 !important; pointer-events: none; }
 .immersive-main > .sky-header,
 .immersive-main > .page-content,
 .immersive-main > .page-footer { position: relative; z-index: 1; }
@@ -2999,3 +2999,9 @@ html[data-theme="night"] .plan-textarea,
 html[data-theme="night"] .plan-count,
 html[data-theme="night"] .plan-job-list button { background-color: #132238 !important; color: #e6edfb !important; border-color: #2b405e !important; }
 html[data-theme="night"] .plan-job-list button.selected { background-color: #2a2350 !important; border-color: #8a72d6 !important; }
+
+/* 勾选标记绝对居中，不再被 rotate 的包围盒带偏 */
+.interview-cv-toggle input[type="checkbox"] { position: relative; display: block; }
+.interview-cv-toggle input[type="checkbox"]::after { position: absolute; left: 50%; top: 50%; width: 9px; height: 5px; transform: translate(-50%, -50%) rotate(-45deg) scale(0); transform-origin: center; }
+.interview-cv-toggle input[type="checkbox"]:checked::after { transform: translate(-50%, -50%) rotate(-45deg) scale(1); }
+.interview-cv-toggle input[type="checkbox"] { width: 18px !important; height: 18px !important; min-width: 18px; min-height: 18px; padding: 0 !important; margin: 1px 0 0 !important; box-sizing: border-box; line-height: 0; }
