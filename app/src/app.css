@@ -2890,3 +2890,112 @@ body.interview-cam-dragging, body.interview-cam-dragging * { cursor: grabbing !i
 .photo-profile-pick.selected { border-color: #8f70d0; }
 .photo-profile-pick:disabled { opacity: .72; cursor: default; }
 .interview-feedback-head button { display: grid; place-items: center; padding: 0; line-height: 1; font-size: 16px; }
+
+/* 全局鼠标拖尾：放在 immersive-main 根部，所有页面共享 */
+.immersive-main > .mouse-trail-canvas { position: fixed !important; inset: 0; z-index: 0 !important; pointer-events: none; }
+.immersive-main > .sky-header,
+.immersive-main > .page-content,
+.immersive-main > .page-footer { position: relative; z-index: 1; }
+
+/* 端侧视觉开关：去掉原生 checkbox 的廉价感 */
+.interview-cv-toggle input[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: 0 0 18px; width: 18px; height: 18px; margin: 1px 0 0; border: 1.5px solid #cdbde4; border-radius: 6px; background: #fff; display: grid; place-items: center; cursor: pointer; transition: background .15s,border-color .15s,box-shadow .15s; }
+.interview-cv-toggle input[type="checkbox"]::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) scale(0); transition: transform .15s; }
+.interview-cv-toggle input[type="checkbox"]:checked { background: #7460c9; border-color: #7460c9; box-shadow: 0 0 0 3px rgba(116,96,201,.14); }
+.interview-cv-toggle input[type="checkbox"]:checked::after { transform: rotate(-45deg) scale(1); }
+.interview-cv-toggle input[type="checkbox"]:focus-visible { outline: 2px solid #8f70d0; outline-offset: 2px; }
+
+/* 夜间模式补漏：新组件、简历工作室、面试、计划、设置 */
+html[data-theme="night"] .ai-work-card,
+html[data-theme="night"] .ai-review-panel,
+html[data-theme="night"] .resume-studio .studio-photo-tools,
+html[data-theme="night"] .resume-studio .document-ribbon,
+html[data-theme="night"] .resume-studio .ribbon-panel,
+html[data-theme="night"] .resume-studio .photo-picker,
+html[data-theme="night"] .resume-studio .document-statusbar,
+html[data-theme="night"] .resume-studio .resume-page-meta,
+html[data-theme="night"] .resume-studio .ai-suggestion,
+html[data-theme="night"] .resume-studio .ai-layout-preview,
+html[data-theme="night"] .resume-studio .resume-toolbar,
+html[data-theme="night"] .resume-studio .save-bar,
+html[data-theme="night"] .plan-page .card,
+html[data-theme="night"] .settings-page .card,
+html[data-theme="night"] .settings-account-card,
+html[data-theme="night"] .interview-room .interview-side,
+html[data-theme="night"] .interview-feedback,
+html[data-theme="night"] .interview-feedback-grid section,
+html[data-theme="night"] .interview-feedback-visual,
+html[data-theme="night"] .interview-input-row,
+html[data-theme="night"] .interview-transcript-list,
+html[data-theme="night"] .interview-cv-toggle,
+html[data-theme="night"] .interview-history-item,
+html[data-theme="night"] .ds-chat-main,
+html[data-theme="night"] .ds-composer,
+html[data-theme="night"] .ds-message-body { background-color: #101b30 !important; color: #e6edfb; border-color: #293e5d !important; }
+html[data-theme="night"] .resume-studio .resume-document { background-color: #0f1a2c !important; color: #e6edfb !important; box-shadow: 0 8px 30px rgba(0,0,0,.45); }
+html[data-theme="night"] .resume-document .inline-field,
+html[data-theme="night"] .resume-document .document-header,
+html[data-theme="night"] .resume-document .section-heading,
+html[data-theme="night"] .resume-document .document-summary,
+html[data-theme="night"] .resume-document .document-entry,
+html[data-theme="night"] .resume-document .entry-line,
+html[data-theme="night"] .resume-document .section-continued-title { color: #e6edfb !important; border-color: #2b405e !important; }
+html[data-theme="night"] .resume-studio .scene-heading p,
+html[data-theme="night"] .resume-studio .privacy-note,
+html[data-theme="night"] .resume-studio .photo-hint,
+html[data-theme="night"] .resume-studio .muted,
+html[data-theme="night"] .resume-studio .photo-picker-head small,
+html[data-theme="night"] .interview-feedback-summary,
+html[data-theme="night"] .interview-feedback-grid p,
+html[data-theme="night"] .interview-feedback-visual p { color: #a6b7d4 !important; }
+html[data-theme="night"] .resume-studio .photo-add,
+html[data-theme="night"] .resume-studio .photo-profile-pick,
+html[data-theme="night"] .resume-studio .ai-help-strip { background: #14233a !important; border-color: #2c4568 !important; color: #dce8fa !important; }
+html[data-theme="night"] .resume-studio .ai-help-title,
+html[data-theme="night"] .resume-studio .ai-help-strip small { color: #9fc9ed !important; }
+html[data-theme="night"] .interview-feedback { background: #101b30 !important; }
+html[data-theme="night"] .interview-feedback-head button { background: #213653; color: #e6edfb; }
+html[data-theme="night"] .interview-feedback-verdict { background: #14233a; color: #dce8fa; border-color: #8b76d8; }
+html[data-theme="night"] .interview-feedback-grid h4,
+html[data-theme="night"] .interview-feedback-visual h4 { color: #a9c9ff; }
+html[data-theme="night"] .interview-line.ai { background: #1a2b46; color: #e3ecfb; }
+html[data-theme="night"] .interview-line.system { background: #332a23; color: #ffd7a3; }
+html[data-theme="night"] .interview-input-row input { background: #0d182b; color: #e6edfb; border-color: #2b405e; }
+html[data-theme="night"] .interview-cv-toggle input[type="checkbox"] { background: #0d182b; border-color: #536b91; }
+html[data-theme="night"] .interview-cv-toggle strong { color: #dce8fa; }
+html[data-theme="night"] .interview-cv-toggle small { color: #9fb0d0; }
+html[data-theme="night"] .ds-chat-main .ds-msg-body,
+html[data-theme="night"] .ds-chat-main .ds-msg-body * { color: #e6edfb; }
+html[data-theme="night"] .interview-mode,
+html[data-theme="night"] .interview-difficulty,
+html[data-theme="night"] .interview-agent,
+html[data-theme="night"] .interview-chip,
+html[data-theme="night"] .interview-select,
+html[data-theme="night"] .interview-history-item,
+html[data-theme="night"] .studio-import-toggle,
+html[data-theme="night"] .resume-toolbar,
+html[data-theme="night"] .resume-toolbar button,
+html[data-theme="night"] .version-switch button,
+html[data-theme="night"] .resume-studio .document-ribbon button,
+html[data-theme="night"] .resume-studio .photo-add { background-color: #132238 !important; color: #e6edfb !important; border-color: #2d4565 !important; }
+html[data-theme="night"] .interview-mode.on,
+html[data-theme="night"] .interview-difficulty.on,
+html[data-theme="night"] .interview-agent.on,
+html[data-theme="night"] .interview-chip.on { background-color: #2a2350 !important; border-color: #8a72d6 !important; color: #fff !important; }
+html[data-theme="night"] .interview-mode span,
+html[data-theme="night"] .interview-difficulty span,
+html[data-theme="night"] .interview-agent small { color: #9fb0d0 !important; }
+html[data-theme="night"] .interview-mode strong,
+html[data-theme="night"] .interview-difficulty strong,
+html[data-theme="night"] .interview-agent span { color: #e6edfb !important; }
+html[data-theme="night"] .interview-privacy,
+html[data-theme="night"] .interview-tier-note,
+html[data-theme="night"] .interview-resume-line { color: #a6b7d4 !important; }
+html[data-theme="night"] .interview-resume-line a { color: #8bdcff !important; }
+html[data-theme="night"] .studio-import-toggle > summary { color: #b9c9e8 !important; }
+html[data-theme="night"] .plan-sidebar,
+html[data-theme="night"] .plan-editor,
+html[data-theme="night"] .plan-help,
+html[data-theme="night"] .plan-textarea,
+html[data-theme="night"] .plan-count,
+html[data-theme="night"] .plan-job-list button { background-color: #132238 !important; color: #e6edfb !important; border-color: #2b405e !important; }
+html[data-theme="night"] .plan-job-list button.selected { background-color: #2a2350 !important; border-color: #8a72d6 !important; }

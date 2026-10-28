@@ -62,7 +62,7 @@ function fallbackSpeak(text: string) {
  * 用指定 agent 的音色朗读。force=true 时忽略全局静音（设置页试听用）。
  * 新语音开始前会停掉上一条，避免多个 chip 同时说话。
  */
-export async function speakAs(name: string, text: string, force = false): Promise<void> {
+export async function speakAs(name: string, text: string, force = false, instruction = ""): Promise<void> {
   const clean = String(text || "").replace(/\s+/g, " ").trim();
   if (!clean) return;
   if (!voiceOn.value && !force) return;
@@ -81,7 +81,7 @@ export async function speakAs(name: string, text: string, force = false): Promis
       body: JSON.stringify({
         text: clean.slice(0, 320),
         voice: voice.voice,
-        instruction: voice.instruction || "",
+        instruction: instruction || voice.instruction || "",
       }),
     });
     if (!res.ok) throw new Error("TTS " + res.status);

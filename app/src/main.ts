@@ -135,6 +135,13 @@ const app = defineComponent({
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     onMounted(async () => {
       preloadStarAssets();
+      // 四只 agent 头像很小，首屏空闲时预取，后续页面/刷新直接命中缓存。
+      requestIdleCallback?.(() => {
+        ["a-1.jpg", "a-2.png", "b-1.png", "b-3.png"].forEach((name) => {
+          const img = new Image();
+          img.src = "/assets/companions/" + name;
+        });
+      }, { timeout: 2000 });
       applyTheme(theme.value);
       try {
         await loadSession();
@@ -309,7 +316,6 @@ const app = defineComponent({
       ]);
     function home() {
       return h("div", [
-        h(MouseTrail),
         h("section", { class: "journey-hero" }, [
           h("span", { class: "eyebrow" }, "YOUR NEXT CHAPTER"),
           h("h1", ["每一步，", h("em", "都离理想更近。")]),
@@ -515,6 +521,7 @@ const app = defineComponent({
       active.value === "admin"
         ? h(Admin, { key: "admin" })
         : h("div", { class: "immersive-main" }, [
+        h(MouseTrail),
         h("header", { class: "sky-header" }, [
           h(
             "a",

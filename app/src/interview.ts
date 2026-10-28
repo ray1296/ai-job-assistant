@@ -704,7 +704,8 @@ export default defineComponent({
         // 文字先出现，语音紧接着用这个 agent 配置的音色朗读；默认一定出声
         if (soundOn.value) {
           speaking.value = true;
-          try { await speakAs(agent.value.name, reply, true); } finally { speaking.value = false; }
+          // 面试专用语气：短句、自然停顿、重点词轻读，避免整段平铺直叙。
+          try { await speakAs(agent.value.name, reply, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，关键结论前稍作停顿，像真人在思考后开口，不要播音腔。"); } finally { speaking.value = false; }
         }
       } catch (e) {
         if (alive) error.value = errorText(e);
