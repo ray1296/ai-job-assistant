@@ -120,11 +120,11 @@ export default defineComponent({
               style: {
                 backgroundImage: "url(\"" + BG + "\")",
                 backgroundSize: "300% auto",
-                backgroundPosition: hoverNode.value.x + "% " + hoverNode.value.y + "%",
+                // 将岛屿中心对准预览框中心（300% 缩放后的百分比换算）
+                backgroundPosition: (hoverNode.value.x * 1.5 - 25).toFixed(2) + "% " + (hoverNode.value.y * 1.42 - 21).toFixed(2) + "%",
               },
             }),
             h("div", { class: "rpg-preview-copy" }, [
-              h("span", null, "法天象地 · ✦"),
               h("strong", null, hoverPage.value[1]),
               h("p", null, hoverNode.value.desc || "点击进入这一站"),
               h("small", null, "点击星球进入 →"),

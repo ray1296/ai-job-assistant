@@ -3066,3 +3066,26 @@ html[data-theme="night"] .interview-pause-card p { color: #a6b7d4; }
 @media (max-width: 900px) { .rpg-head { padding: 15px 17px 0; } .rpg-head p { display:none; } .rpg-stage-wrap { inset: 55px 0 26px; } .rpg-node-name { font-size: 9px; padding: 2px 6px; } .rpg-preview { display:none; } .rpg-foot { left:16px; font-size:9px; } .rpg-node { width:14%; height:14%; } }
 @media (max-height: 720px) { .rpg-stage-wrap { inset-top: 56px; } .rpg-preview { top: 78px; width: 250px; } .rpg-preview-img { height: 110px; } }
 .rpg-node, .rpg-node:hover, .rpg-node:focus, .rpg-node:focus-visible { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+html[data-theme="night"] .company-card { background-color: #132238 !important; border-color: #2b405e !important; }
+html[data-theme="night"] .company-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+html[data-theme="night"] .company-card-top strong,
+html[data-theme="night"] .company-card p,
+html[data-theme="night"] .company-card small { color: #dfe8f8 !important; }
+html[data-theme="night"] .company-card p { color: #b7c5dc !important; }
+html[data-theme="night"] .company-tags .dash-tag { background: #1b2b46 !important; border-color: #38506f !important; color: #cbd9ee !important; }
+html[data-theme="night"] .toolbar .btn:not(.primary) { background: #14233a !important; border-color: #304966 !important; color: #e6edfb !important; }
+html[data-theme="night"] .company-detail { background-color: #132238 !important; border-color: #2b405e !important; }
+html[data-theme="night"] .company-detail .company-summary { background: #14233a !important; color: #dce8f8 !important; }
+/* 星盘全屏底图，不再缩成中间卡片 */
+.rpg-stage-wrap { inset: 0 !important; }
+.rpg-stage { width: 100vw !important; height: 100vh !important; aspect-ratio: auto !important; border-radius: 0 !important; }
+.rpg-canvas { background-size: 100% 100% !important; inset: 0 !important; }
+.rpg-head { position: absolute !important; left: 0; right: 0; top: 0; }
+.rpg-head:before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(6,4,18,.82), transparent); pointer-events: none; }
+.rpg-close { display: inline-flex !important; align-items: center; justify-content: center; white-space: nowrap; width: auto !important; height: auto !important; min-height: 0 !important; line-height: 1.2 !important; padding: 9px 16px !important; }
+.rpg-foot { bottom: 14px; }
+/* 星盘和通勤地图不显示全局鼠标拖尾 */
+body:has(.rpg-map) .mouse-trail-canvas,
+body.map-mode .mouse-trail-canvas { display: none !important; }
+@media (max-height: 720px) { .rpg-stage-wrap { inset: 0 !important; } .rpg-preview { top: 76px; width: 250px; } .rpg-preview-img { height: 110px; } }
+.rpg-close { align-self: flex-start !important; flex: 0 0 auto !important; }
