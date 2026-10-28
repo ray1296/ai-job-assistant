@@ -861,6 +861,10 @@ async function onAiShow(e) {
 function runDialogAction() {
   const a = dialogAction.value
   if (!a) return
+  if (a.type === 'open' && a.url) {
+    window.open(a.url, '_blank', 'noopener')
+    return
+  }
   if (a.type === 'navigate' && a.path) {
     router.push(a.path)
     // 跳转后收起气泡
@@ -1228,7 +1232,35 @@ function looksLikeCollaboration(msg) {
   const text = String(msg || "")
   const domains = [/学习|刷题|进度|错题|复习/, /岗位|招聘|求职|简历|面试/, /租房|房租|通勤|城市|生活/]
     .filter((r) => r.test(text)).length
-  return domains >= 2 || /(团队|协作|一起|分配|汇总|报告页|让\s*(知微|砚舟|栖迟))/.test(text)
+  return domains >= 2 || /(团队|协作|一起|分配|汇总|让\s*(知微|砚舟|栖迟))/.test(text)
+}
+
+function isReportRequest(text) {
+  return /(报告页|报告|网页|页面|HTML|站点)/i.test(String(text || ""))
+}
+
+async function generateReportPage(prompt, plan) {
+  const summary = (plan || []).map((s) => s.agent + "：" + (s.ok ? (s.summary || "已完成") : "暂未拿到结果")).join("\n").slice(0, 2200)
+  const pagePrompt = "根据以下多智能体执行结果，生成一个简洁、可直接阅读的求职行动清单报告页。不要编造执行结果里没有的数据；页面使用中文，自包含 HTML，不要外部依赖。\n\n用户原话：" + prompt + "\n\n执行结果：\n" + summary
+  const r = await fetch("/api/ai/custom-page", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: Object.assign({ "Content-Type": "application/json" }, csrfHeaders()),
+    body: JSON.stringify({ prompt: pagePrompt }),
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(j.error || "报告页生成失败")
+  const html = String(j.html || "")
+  if (!/<html[\s>]/i.test(html)) throw new Error("报告页内容无效")
+  const title = String(j.title || "多智能体行动清单").slice(0, 80)
+  const saved = await fetch("/api/ai/pages", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: Object.assign({ "Content-Type": "application/json" }, csrfHeaders()),
+    body: JSON.stringify({ title, html, subjectId: "" }),
+  })
+  const sj = await saved.json().catch(() => ({}))
+  return { id: sj.id || "", url: sj.id ? "/orig/#/ai-page/" + sj.id : "", title }
 }
 
 function emitAgentBubble(name, text, duration = 15000) {
@@ -1237,6 +1269,18 @@ function emitAgentBubble(name, text, duration = 15000) {
   window.dispatchEvent(new CustomEvent("zg:agent-bubble", { detail: { agentId, text, duration } }))
 }
 
+async function runReportOnly(msg) {
+  startWorkingBubble("生成报告页")
+  try {
+    const page = await generateReportPage(msg, [])
+    const reply = "报告页已生成，点击下方按钮查看。"
+    stopWorkingBubble()
+    await showReplyStreaming(reply, { speak: false, persistent: true, action: page.url ? { label: "查看报告页", type: "open", url: page.url } : null })
+    return reply
+  } finally {
+    stopWorkingBubble()
+  }
+}
 async function runCollaboration(msg, history, image) {
   startWorkingBubble("多智能体协作")
   try {
@@ -1272,9 +1316,21 @@ async function runCollaboration(msg, history, image) {
       const peer = String(j.handoff.to || "队友")
       emitAgentBubble(peer, String(j.handoff.reply).slice(0, 160))
     }
-    const reply = String(j.reply || "").trim() || "任务已完成，但我没有拿到可展示的结果。"
+    let reply = String(j.reply || "").trim() || "任务已完成，但我没有拿到可展示的结果。"
+    let action = null
+    if (isReportRequest(msg)) {
+      try {
+        const page = await generateReportPage(msg, plan)
+        reply += "\n\n报告页已生成。"
+        if (page.url) action = { label: "查看报告页", type: "open", url: page.url }
+      } catch (e) {
+        reply += "\n\n报告页生成失败：" + ((e && e.message) || "上游暂时不可用")
+      }
+    }
     stopWorkingBubble()
-    await showReplyStreaming(reply, { speak: false, persistent: true })
+    bubbleQueue.length = 0
+    noticeActive.value = false
+    await showReplyStreaming(reply, { speak: false, persistent: true, action })
     return reply
   } finally {
     stopWorkingBubble()
@@ -1349,7 +1405,9 @@ async function sendMessage() {
     const history = loadChatHistory()
     const reply = looksLikeCollaboration(asked)
       ? await runCollaboration(asked, history, image)
-      : await streamChatSSE(asked, history, image)
+      : isReportRequest(asked)
+        ? await runReportOnly(asked)
+        : await streamChatSSE(asked, history, image)
     // 记录本轮对话到上下文记忆（user + assistant 成对）
     pushChatHistory('user', asked)
     pushChatHistory('assistant', reply)

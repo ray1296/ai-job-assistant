@@ -432,6 +432,9 @@ export default defineComponent({
     function isTutorRequest(text: string) {
       return /画布|3D|3d|立方体|正方体|球体|圆柱|圆锥|几何|立体|旋转|模型|透明|讲题|讲解|这道|题目|步骤|演示|知识|考点|题/.test(text);
     }
+    function isTeamTask(text: string) {
+      return /(团队|协作|一起|分配|汇总|让\s*(知微|砚舟|栖迟))/.test(String(text || ""));
+    }
     function isPageRequest(text: string) {
       return /(生成|做|创建|设计|写|自定义|制作).{0,12}(网页|页面|报告页|HTML|站点)|AI\s*网页|网页版|报告页/i.test(text);
     }
@@ -483,7 +486,7 @@ export default defineComponent({
       err.value = "";
       scrollLog();
       try {
-        if (!image && !doc && isPageRequest(text)) {
+        if (!image && !doc && isPageRequest(text) && !isTeamTask(text)) {
           await answerPage(text);
           return;
         }
@@ -531,6 +534,14 @@ export default defineComponent({
           if (peerId && peerId !== props.agentId) {
             showBubble("我把这个任务交给 " + r.delegation.agent + "，等它回传结果。", 6000);
             emitBubble(peerId, "收到「" + props.name + "」的任务：" + String(r.delegation.task || "查询资料").slice(0, 70));
+          }
+        }
+        if (isPageRequest(text) && Array.isArray(r?.plan) && r.plan.length) {
+          const summary = r.plan.map((step: any) => step.agent + "：" + (step.ok ? (step.summary || "已完成") : "暂未拿到结果")).join("\n");
+          try {
+            await answerPage("根据以下多智能体执行结果生成求职行动清单报告页，不要编造数据：\n" + summary + "\n用户原话：" + text);
+          } catch (e) {
+            log.value.push({ role: "ai", text: "报告页生成失败：" + errorText(e) });
           }
         }
         log.value.push({ role: "ai", text: reply });
