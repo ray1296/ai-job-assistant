@@ -160,6 +160,13 @@ export default defineComponent({
           : versions.value[0]?.id;
         if (target) await load(target);
         await recalcPagination();
+        // 投递方案生成的定制简历：首次打开时自动做一次 AI 排版 + 生图装饰
+        let autoPolishId = "";
+        try { autoPolishId = localStorage.getItem("zg.resumeAutoPolish") || ""; } catch {}
+        if (target && autoPolishId === target) {
+          try { localStorage.removeItem("zg.resumeAutoPolish"); } catch {}
+          void autoPolish();
+        }
       } catch (e) {
         error.value = errorText(e);
       } finally {
@@ -337,6 +344,23 @@ export default defineComponent({
       });
       decorEnabled.value = false;
       notice.value = "已移除生图装饰，简历恢复为白板样式";
+    }
+    async function autoPolish() {
+      if (!current.value) return;
+      notice.value = "AI 正在自动排版并生成装饰，请稍候…";
+      error.value = "";
+      try {
+        await recommendLayout();
+        if (layoutSuggestion.value) applyLayout();
+        await nextTick();
+        await generateDecoration();
+        await save();
+        notice.value = "AI 已自动完成排版优化并加入生图装饰。";
+      } catch (e) {
+        error.value = "自动排版/装饰失败：" + errorText(e) + "；你仍可手动调整后导出。";
+      } finally {
+        try { localStorage.removeItem("zg.resumeAutoPolish"); } catch {}
+      }
     }
     async function save() {
       if (!current.value || busy.value || !flush()) return;
@@ -614,8 +638,17 @@ export default defineComponent({
     function print() {
       if (!flush()) return;
       panel.value = "";
-      notice.value = "请在打印窗口选择“另存为PDF”；不是服务器自动生成PDF。";
-      nextTick(() => window.print());
+      notice.value = "请在打印窗口选择“另存为PDF”；只会打印简历纸张，不会打印网站界面。";
+      document.body.classList.add("printing-resume");
+      const cleanup = () => {
+        document.body.classList.remove("printing-resume");
+        window.removeEventListener("afterprint", cleanup);
+      };
+      window.addEventListener("afterprint", cleanup);
+      nextTick(() => {
+        window.print();
+        setTimeout(cleanup, 2500);
+      });
     }
     function keydown(e: KeyboardEvent) {
       if (e.isComposing) return;

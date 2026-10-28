@@ -310,14 +310,16 @@ export default defineComponent({
         row.text = result.copy.slice(0, maxLength.value);
         await save(row);
         row.notice =
-          row.text === row.saved
+          (row.text === row.saved
             ? "专属简历已生成，文案已自动保存。"
-            : "专属简历已生成，文案已写入，请检查后保存。";
+            : "专属简历已生成，文案已写入，请检查后保存。") +
+          " 打开专属简历时会自动做 AI 排版并生成装饰。";
         tailorResult.value = {
           resumeId: String(result.resume.id),
           title: String(result.resume.title || "专属简历"),
           copy: row.text,
         };
+        try { localStorage.setItem("zg.resumeAutoPolish", String(result.resume.id)); } catch {}
       } catch (e) {
         if (active() && selected.value === id) row.error = errorText(e);
       } finally {
@@ -329,6 +331,7 @@ export default defineComponent({
       if (!r) return;
       try {
         localStorage.setItem("zg.resumeOpenId", r.resumeId);
+        localStorage.setItem("zg.resumeAutoPolish", r.resumeId);
       } catch {}
       const win = window.open("#resume", "_blank");
       if (!win) {

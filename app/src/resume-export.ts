@@ -32,6 +32,8 @@ export async function exportWord(d: ResumeDocument, title: string) {
   ];
   const paragraph = (text: string, extra: object = {}) =>
     new Paragraph({
+      alignment: AlignmentType.LEFT,
+      spacing: { after: 80 },
       ...extra,
       children: text
         .split("\n")
@@ -90,20 +92,23 @@ export async function exportWord(d: ResumeDocument, title: string) {
     paragraph(d.header.headline, { alignment: AlignmentType.CENTER }),
     paragraph(d.header.contact, { alignment: AlignmentType.CENTER }),
   ];
-  if (d.header.summary) children.push(paragraph(d.header.summary));
+  if (d.header.summary) children.push(paragraph(d.header.summary, { spacing: { after: 220 } }));
   for (const s of d.sections) {
     children.push(
       new Paragraph({
+        alignment: AlignmentType.LEFT,
         children: [new TextRun({ text: s.title, bold: true, color })],
         heading: HeadingLevel.HEADING_2,
-        spacing: { before: 240, after: 120 },
+        spacing: { before: 320, after: 160 },
       }),
     );
     for (const i of s.items) {
       if (i.title)
-        children.push(paragraph(i.title, { heading: HeadingLevel.HEADING_3 }));
-      if (i.meta) children.push(paragraph(i.meta));
-      if (i.content) children.push(paragraph(i.content));
+        children.push(paragraph(i.title, { heading: HeadingLevel.HEADING_3, spacing: { before: 180, after: 40 } }));
+      if (i.meta) children.push(paragraph(i.meta, { spacing: { after: 40 } }));
+      if (i.content) children.push(paragraph(i.content, { spacing: { after: 220 } }));
+      // 经历之间额外留一个空行，Word 里与网页的板块/条目间距一致
+      children.push(new Paragraph({ spacing: { after: 80 }, children: [] }));
     }
   }
   // 页脚装饰：同样作为图片段落追加在正文之后；失败不影响正文导出
