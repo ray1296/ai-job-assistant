@@ -476,23 +476,25 @@ onActivated(loadData)
     align-items: center;
   }
 }
-</style>
 
 .review-header { position: relative; }
 .review-history-entry {
   position: absolute;
-  right: 18px;
+  right: 20px;
   top: 18px;
+  z-index: 2;
   border: 1px solid #d8d4f0;
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 8px 15px;
   background: #fff;
-  color: #6c8cff;
+  color: #5146a6;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(108, 140, 255, .12);
+  box-shadow: 0 4px 14px rgba(50, 55, 120, .14);
 }
-.review-history-entry:hover { background: #f3f1ff; }
+.review-history-entry:hover { background: #f3f1ff; color: #3f357f; }
 @media (max-width: 640px) {
-  .review-history-entry { right: 12px; top: 12px; padding: 6px 10px; font-size: 11px; }
+  .review-history-entry { right: 12px; top: 12px; padding: 6px 11px; font-size: 11px; }
 }
+</style>
