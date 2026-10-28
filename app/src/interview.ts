@@ -1083,7 +1083,7 @@ export default defineComponent({
               ? h("p", { class: "interview-privacy" }, [
                   "当前是 HTTP 地址，浏览器不允许摄像头/麦克风。",
                   h("a", {
-                    href: "https://" + location.hostname + ":5175/#interview",
+                    href: "https://" + location.hostname + ":5173/#interview",
                     target: "_blank",
                     rel: "noopener noreferrer",
                     style: { color: "#7460c9", textDecoration: "underline", marginLeft: "4px" },

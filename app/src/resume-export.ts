@@ -1,6 +1,6 @@
 import type { ResumeDocument } from "./resume-model";
 export async function exportWord(d: ResumeDocument, title: string) {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header,
     HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType } =
     await import("docx");
   // 生图装饰：取回服务端图片并作为顶部横幅嵌入；失败不影响正文导出。
@@ -109,7 +109,6 @@ export async function exportWord(d: ResumeDocument, title: string) {
   }
   const children = [
     ...(decorChild ? [decorChild] : []),
-    ...(backgroundChild ? [backgroundChild] : []),
     ...(multiDecorationChild ? [multiDecorationChild] : []),
     ...(photoChild ? [photoChild] : []),
     paragraph(d.header.name || "简历", {
@@ -162,6 +161,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
       }
     } catch {}
   }
+  const backgroundHeader = backgroundChild ? new Header({ children: [backgroundChild] }) : null;
   const document = new Document({
     creator: "逐光 · Career Companion",
     title,
@@ -181,6 +181,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
             margin: { top: 1000, right: 1100, bottom: 1000, left: 1100 },
           },
         },
+        headers: backgroundHeader ? { default: backgroundHeader } : undefined,
         children,
       },
     ],

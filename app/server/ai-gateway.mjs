@@ -428,7 +428,7 @@ export function createAiGateway(privateDir) {
       ? input.images.filter((s) => typeof s === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(s)).slice(0, 3)
       : [];
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
+    const timer = setTimeout(() => controller.abort(), ["appearance", "review", "section"].includes(input.task) ? 120000 : 45000);
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort, { once: true });
     try {

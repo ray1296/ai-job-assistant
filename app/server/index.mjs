@@ -2714,6 +2714,7 @@ async function handleRequest(req, res) {
           const browser = await getPdfBrowser();
           context = await browser.newContext({
             viewport: { width: 1280, height: 1200 },
+            ignoreHTTPSErrors: true,
             extraHTTPHeaders: req.headers.cookie ? { Cookie: req.headers.cookie } : {},
           });
           await context.addInitScript((id) => {
@@ -2931,18 +2932,21 @@ attachRealtimeProxy(server, realtimeDeps);
 server.requestTimeout = 15000;
 server.headersTimeout = 10000;
 server.keepAliveTimeout = 5000;
+const mainPort = Number(process.env.PORT || 5173);
+const keyFile = path.join(dataDir, "https", "key.pem");
+const certFile = path.join(dataDir, "https", "cert.pem");
+const hasHttpsCert = fs.existsSync(keyFile) && fs.existsSync(certFile);
+const httpPort = Number(process.env.HTTP_PORT || (hasHttpsCert ? 5174 : mainPort));
 server.listen(
-  Number(process.env.PORT || 5174),
+  httpPort,
   process.env.HOST || "0.0.0.0",
-  () => console.log("Career batch 3 listening on " + server.address().port),
+  () => console.log("Career HTTP fallback listening on " + server.address().port),
 );
 // 可选 HTTPS 伴生服务：摄像头/麦克风只在 secure context 可用。
 let httpsServer = null;
 try {
-  const httpsPort = Number(process.env.HTTPS_PORT || 5175);
-  const keyFile = path.join(dataDir, "https", "key.pem");
-  const certFile = path.join(dataDir, "https", "cert.pem");
-  if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
+  const httpsPort = Number(process.env.HTTPS_PORT || mainPort);
+  if (hasHttpsCert) {
     const { createServer } = await import("node:https");
     httpsServer = createServer({ key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) }, handleRequest);
     attachRealtimeProxy(httpsServer, realtimeDeps);
@@ -2950,7 +2954,7 @@ try {
     httpsServer.headersTimeout = 10000;
     httpsServer.keepAliveTimeout = 5000;
     httpsServer.listen(httpsPort, process.env.HOST || "0.0.0.0", () => {
-      console.log("Career HTTPS listening on " + httpsServer.address().port);
+      console.log("Career HTTPS listening on " + httpsServer.address().port + " (main)");
     });
   }
 } catch (e) {
