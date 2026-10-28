@@ -178,7 +178,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
         properties: {
           page: {
             size: { width: 11906, height: 16838 },
-            margin: { top: 1000, right: 1100, bottom: 1000, left: 1100 },
+            margin: { top: 1000, right: 1100, bottom: 1000, left: 1100, header: 0, footer: 0 },
           },
         },
         headers: backgroundHeader ? { default: backgroundHeader } : undefined,

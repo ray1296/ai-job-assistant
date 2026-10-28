@@ -220,6 +220,10 @@ export default defineComponent({
         const r = await api("/ai/resume-appearance", "POST", { document: withoutPhotos(doc.value), prompt: aiPrompt.value }, { timeoutMs: 150000 });
         if (JSON.stringify(doc.value) !== sent) throw Error("文档已变更，请针对最新内容重新生成布局建议");
         layoutSource = sent; layoutSuggestion.value = r.layout;
+        // 推荐结果直接应用，避免用户只看到建议却不知道还要点“应用”，
+        // 导致页面继续按旧结构分页。
+        applyLayout();
+        notice.value = "AI 已自动应用布局并拆分超长条目；不满意可 Ctrl/Cmd+Z 撤销。";
       } catch (e) { error.value = errorText(e); }
       finally { layoutBusy.value = false; }
     }
