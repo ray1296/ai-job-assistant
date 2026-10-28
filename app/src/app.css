@@ -2800,3 +2800,11 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 .ds-session-del:hover{background:#fff3f5;color:#b04a63}
 .interview-resume-select{max-width:240px;padding:5px 8px;border:1px solid #d8d0e8;border-radius:7px;background:#fff;color:#3d3355;font-size:12px}
 .star-preview{top:46%!important}
+/* 协作空间滚动条隐藏但保留滚动 */
+.ds-chat-list,.ds-agent-list,.ds-session-list{scrollbar-width:none;-ms-overflow-style:none}
+.ds-chat-list::-webkit-scrollbar,.ds-agent-list::-webkit-scrollbar,.ds-session-list::-webkit-scrollbar{width:0;height:0;display:none}
+/* 上传附件加号居中 */
+.ds-attach-btn{display:grid!important;place-items:center!important;padding:0!important;line-height:1!important;text-align:center!important}
+/* 面经八股再下移；给底部腾空间 */
+.star-map-stage{bottom:30px!important}
+.star-preview{top:44%!important}
