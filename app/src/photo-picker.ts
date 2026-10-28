@@ -9,6 +9,7 @@ export default defineComponent({
     disabled: Boolean,
     max: { type: Number, default: MAX_PHOTOS },
     label: { type: String, default: "个人照片" },
+    availablePhotos: { type: Array, default: () => [] },
   },
   setup(props) {
     const input = ref<HTMLInputElement | null>(null);
@@ -33,6 +34,13 @@ export default defineComponent({
       } finally {
         busy.value = false;
       }
+    }
+    function addFromProfile(src: string) {
+      if (props.disabled || busy.value) return;
+      if (props.photos.includes(src)) { error.value = "这张照片已经在简历里了"; return; }
+      if (props.photos.length >= max()) { error.value = "最多上传 " + max() + " 张照片"; return; }
+      error.value = "";
+      props.onChange([...props.photos, src].slice(0, max()));
     }
     function remove(index: number) {
       if (props.disabled) return;
@@ -63,6 +71,23 @@ export default defineComponent({
           : null,
       ]),
       h("p", { class: "photo-hint" }, "支持 JPG / PNG / WebP，自动压缩；第一张作为主照片。"),
+      (props.availablePhotos as string[]).length && props.photos.length < max()
+        ? h("div", { class: "photo-profile-picks" }, [
+            h("small", "从个人信息选择"),
+            h("div", { class: "photo-profile-grid" }, (props.availablePhotos as string[]).map((src: string, i: number) =>
+              h("button", {
+                type: "button",
+                class: "photo-profile-pick" + (props.photos.includes(src) ? " selected" : ""),
+                disabled: busy.value || props.disabled || props.photos.includes(src),
+                title: props.photos.includes(src) ? "已加入简历" : "选择这张照片",
+                onClick: () => addFromProfile(src),
+              }, [
+                h("img", { src, alt: "个人信息照片 " + (i + 1) }),
+                h("span", props.photos.includes(src) ? "已选" : "选择"),
+              ])
+            )),
+          ])
+        : null,
       error.value ? h("p", { class: "photo-error", role: "alert" }, error.value) : null,
     ]);
   },

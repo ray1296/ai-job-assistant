@@ -37,6 +37,7 @@ export default defineComponent({
       redoStack = ref<string[]>([]),
       sectionName = ref(""),
       panel = ref(""),
+      profilePhotos = ref<string[]>([]),
       decorStyle = ref<"auto" | "minimal" | "maximal" | "tech">("auto"),
       decorBusy = ref(false),
       decorError = ref(""),
@@ -155,6 +156,10 @@ export default defineComponent({
     onMounted(async () => {
       try {
         await refresh();
+        try {
+          const pr = await api<any>("/profile", "GET", undefined, { timeoutMs: 10000 });
+          profilePhotos.value = Array.isArray(pr.profile?.photos) ? pr.profile.photos.slice(0, 3) : [];
+        } catch {}
         // 投递方案里"打开新标签页查看专属简历"会先写这个 key
         let wanted = "";
         try {
@@ -946,6 +951,7 @@ export default defineComponent({
               ]),
               h(PhotoPicker, {
                 photos: doc.value.header.photos || [],
+                availablePhotos: profilePhotos.value,
                 disabled: busy.value || editing.value,
                 onChange: (photos: string[]) => { change(() => { doc.value.header.photos = photos; }); },
               }),
