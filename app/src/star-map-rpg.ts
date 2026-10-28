@@ -3,7 +3,7 @@ import { computed, defineComponent, h, ref, type PropType } from "vue";
 type Page = string[];
 type NodeDef = { x: number; y: number; desc: string; side?: "left" | "right" };
 
-const BG = "/assets/star-map/rpg-cosmos.jpg";
+const BG = "/assets/star-map/rpg-cosmos.webp";
 const NODES: Record<string, NodeDef> = {
   home: { x: 55.1, y: 49.2, desc: "从这里出发，把愿望变成下一步。", side: "right" },
   guide: { x: 17.8, y: 27.0, desc: "先看看这座宇宙怎么运转。", side: "right" },
@@ -42,6 +42,7 @@ function vy(id: string) { return pct(id).y * 5.62; }
 export function preloadStarAssets() {
   const im = new Image();
   im.src = BG;
+  im.fetchPriority = "high";
   im.decode?.().catch(() => {});
 }
 

@@ -62,9 +62,9 @@ let preloadStarted = false;
 export function preloadStarAssets() {
   if (preloadStarted) return;
   preloadStarted = true;
-  const run = () => STAR_ASSETS.forEach((src) => { const img = new Image(); img.decoding = "async"; img.src = src; });
-  if ("requestIdleCallback" in window) (window as any).requestIdleCallback(run, { timeout: 2500 });
-  else setTimeout(run, 500);
+  const run = () => STAR_ASSETS.forEach((src) => { const img = new Image(); img.decoding = "async"; img.src = src; img.decode?.().catch(() => {}); });
+  // 页面加载即开始预取/解码，避免用户刷新后马上打开星盘才现加载。
+  run();
 }
 function qPoint(x1: number, y1: number, mx: number, my: number, x2: number, y2: number, t: number) {
   const u = 1 - t;
