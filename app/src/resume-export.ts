@@ -39,6 +39,24 @@ export async function exportWord(d: ResumeDocument, title: string) {
         .split("\n")
         .flatMap((line, i) => [new TextRun({ text: line, break: i ? 1 : 0 })]),
     });
+  let backgroundChild = null;
+  if (d.background?.image && !d.decoration?.image) {
+    try {
+      const r = await fetch("/api/decoration-assets/" + d.background.image + ".png");
+      if (r.ok) {
+        const { ImageRun } = await import("docx");
+        backgroundChild = new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 140 },
+          children: [new ImageRun({
+            type: "png",
+            data: await r.arrayBuffer(),
+            transformation: { width: 600, height: 130 },
+          })],
+        });
+      }
+    } catch { backgroundChild = null; }
+  }
   let multiDecorationChild = null;
   if (Array.isArray(d.decorations) && d.decorations.length) {
     try {
@@ -83,6 +101,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
   }
   const children = [
     ...(decorChild ? [decorChild] : []),
+    ...(backgroundChild ? [backgroundChild] : []),
     ...(multiDecorationChild ? [multiDecorationChild] : []),
     ...(photoChild ? [photoChild] : []),
     paragraph(d.header.name || "简历", {

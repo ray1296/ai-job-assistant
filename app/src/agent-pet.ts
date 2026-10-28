@@ -64,6 +64,9 @@ export default defineComponent({
     const sessionMenu = ref(false);
     const tutorSteps = ref<any[]>([]);
     const tutorOpen = ref(false);
+    const bubbleText = ref("");
+    const bubbleVisible = ref(false);
+    let bubbleTimer: any = 0;
     const pageHtml = ref("");
     const pageTitle = ref("");
     const pageId = ref("");
@@ -250,6 +253,24 @@ export default defineComponent({
       } catch {}
     }
 
+    function showBubble(text: string, duration = 6500) {
+      const clean = String(text || "").replace(/\s+/g, " ").trim().slice(0, 180);
+      if (!clean) return;
+      bubbleText.value = clean;
+      bubbleVisible.value = true;
+      clearTimeout(bubbleTimer);
+      bubbleTimer = setTimeout(() => { bubbleVisible.value = false; }, duration);
+    }
+    function onAgentBubble(ev: any) {
+      if (ev?.detail?.agentId !== props.agentId) return;
+      if (ev.detail.text) showBubble(String(ev.detail.text), Number(ev.detail.duration) || 6000);
+    }
+    function emitBubble(agentId: string, text: string) {
+      window.dispatchEvent(new CustomEvent("zg:agent-bubble", { detail: { agentId, text } }));
+    }
+    function idByName(name: string) {
+      return ({ 星野: "xingye", 知微: "zhiwei", 砚舟: "yanzhou", 栖迟: "qichi" } as Record<string, string>)[name] || "";
+    }
     function openChat(force = false) {
       if (force) open.value = true;
       else open.value = !open.value;
@@ -479,19 +500,37 @@ export default defineComponent({
               .map((p: any) => p.agent + (p.tool ? "·" + p.tool : "") + (p.ok ? " ✓" : " ✗"))
               .join(" → "),
           });
+          showBubble("收到任务，我来协调其他 agent。", 7000);
+          for (const step of r.plan) {
+            const peerId = idByName(String(step.agent || ""));
+            if (!peerId || peerId === props.agentId) continue;
+            emitBubble(peerId, "收到「" + props.name + "」分配的任务：" + String(step.task || "协作处理").slice(0, 70));
+            if (step.ok && step.summary) {
+              emitBubble(peerId, "「" + props.name + "」的任务已处理完，结果回传中…");
+              emitBubble(props.agentId, "【" + step.agent + "】返回：" + String(step.summary).slice(0, 100));
+            }
+          }
         } else if (r?.delegation) {
           log.value.push({
             role: "ai",
             text: "🧭 已让 " + r.delegation.agent + " 查了" + (r.delegation.tool ? "「" + r.delegation.tool + "」" : "资料") + "，再把结果交给我综合。",
           });
+          const peerId = idByName(String(r.delegation.agent || ""));
+          if (peerId && peerId !== props.agentId) {
+            showBubble("我把这个任务交给 " + r.delegation.agent + "，等它回传结果。", 6000);
+            emitBubble(peerId, "收到「" + props.name + "」的任务：" + String(r.delegation.task || "查询资料").slice(0, 70));
+          }
         }
         log.value.push({ role: "ai", text: reply });
         if (r?.memory && addMemory(props.name, String(r.memory))) memPct.value = memoryStats(props.name).pct;
+        showBubble(reply);
         void speakAs(props.name, reply);
         if (r?.handoff?.reply) {
           const peer = String(r.handoff.to || "队友");
           log.value.push({ role: "ai", text: "【" + peer + "】" + r.handoff.reply });
-          void speakAs(peer, String(r.handoff.reply));
+          const peerId = idByName(peer);
+          if (peerId) emitBubble(peerId, String(r.handoff.reply).slice(0, 160));
+          // 协作气泡不朗读，避免多个音色同时说话
         }
       } catch (e) {
         err.value = errorText(e);
@@ -600,6 +639,7 @@ export default defineComponent({
       window.addEventListener("zg:toggle-chat", onToggleChat);
       window.addEventListener("zg:chat-opened", onOtherChat);
       window.addEventListener("zg:agent-message", onAgentMessage);
+      window.addEventListener("zg:agent-bubble", onAgentBubble);
       window.addEventListener("resize", onResize);
       window.addEventListener("hashchange", onHashChange);
     });
@@ -607,12 +647,25 @@ export default defineComponent({
       window.removeEventListener("zg:toggle-chat", onToggleChat);
       window.removeEventListener("zg:chat-opened", onOtherChat);
       window.removeEventListener("zg:agent-message", onAgentMessage);
+      window.removeEventListener("zg:agent-bubble", onAgentBubble);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("hashchange", onHashChange);
+      clearTimeout(bubbleTimer);
       stopSpeech();
     });
 
     return () => [
+      bubbleVisible.value
+        ? h("div", {
+            class: "agent-bubble-pop",
+            style: { left: Math.max(8, pos.value.x) + "px", top: Math.max(8, pos.value.y - 62) + "px" },
+            role: "status",
+          }, [
+            h("strong", null, "【" + props.name + "】"),
+            h("span", null, bubbleText.value),
+            h("i", { class: "agent-bubble-tail" }),
+          ])
+        : null,
       h("button", {
         class: "agent-chip" + (open.value ? " on" : ""),
         style: { left: pos.value.x + "px", top: pos.value.y + "px" },

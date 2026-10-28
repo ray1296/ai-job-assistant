@@ -610,11 +610,14 @@ function interviewSystem(agentId, mode, style, job, resumeText, first = false, d
   const resumePart = resumeText ? "\n用户简历（仅作事实来源，不得编造）：\n" + resumeText.slice(0, 5000) : "\n用户暂未提供简历。";
   if (mode === "candidate") {
     return base + "\n你现在的身份是求职者「" + name + "」，用户是面试官。你要用下面简历里的真实经历回答问题，口语化、具体，2~4 句；自信、直接，不谄媚、不堆客套；不知道就说不知道，绝不编造。" +
-      (first ? "这是开场，先做一段 1 分钟自我介绍。" : "面试已经开始，直接回答面试官的问题，不要重新自我介绍。") +
+      "\n回答结构优先使用 STAR：情境/任务（一句话）→你具体做了什么→结果或数据；只引用简历里真实存在的项目、技术、数字，简历没有的不要编。" +
+      "\n如果问题超出简历：先说明没有直接经历，再说可迁移能力或会怎么补，不要硬编。" +
+      (first ? "这是开场，先做一段 1 分钟自我介绍，包含岗位匹配点和一段最能证明能力的经历。" : "面试已经开始，直接回答面试官的问题，不要重新自我介绍。") +
       "\n面试风格：" + style + "\n" + jobText + resumePart;
   }
   const diff = normalizeDifficulty(difficulty);
   return base + "\n你现在的身份是面试官「" + name + "」，用户是求职者。你是考察者/上级，语气直接、专业，不刻意讨好；一次只问一个问题，等用户回答；根据回答自然追问；不要自问自答；不要输出分析或评分；80 字以内。" +
+    "\n追问要基于简历里的具体项目/技术/数字和岗位要求，优先问“你具体怎么做、为什么这样做、结果如何、遇到什么困难”，用 STAR 证据判断，不要问空泛的“你如何看待”。" +
     "\n本场难度：" + INTERVIEW_DIFFICULTIES[diff].label + "。" + INTERVIEW_DIFFICULTIES[diff].rule +
     (first ? "这是第一轮：简短问候，请用户做 1 分钟自我介绍。" : "面试已经开始：不要重新问候或让用户再做自我介绍，直接针对用户最新的回答追问一个问题。") +
     "\n面试风格：" + style + "\n" + jobText + resumePart;
@@ -2475,9 +2478,11 @@ const server = http.createServer(async (req, res) => {
         const now = Date.now();
         const title = (job.title + " · " + job.company + " 定制版").slice(0, 120);
         db.prepare("INSERT INTO resumes VALUES(?,?,?,?,?,?,?)").run(id, s.user_id, title, JSON.stringify({ text, document }), 1, now, now);
-        const copy = out.copy || ("您好，我是" + (document.header.name || "我") + "，" +
-          (document.header.headline || "希望应聘这个岗位") + "。我对" + job.company + "的「" + job.title +
-          "」很感兴趣，期待有机会进一步沟通，谢谢！").slice(0, 500);
+        const fallbackHeadline = String(document.header.headline || "我有相关项目经验，期待有机会进一步沟通。").replace(/[。；;\s]+$/, "");
+        const fallbackCopy = ("您好，我是" + (document.header.name || "我") + "，应聘" + job.company + "的「" + job.title +
+          "」岗位。" + fallbackHeadline + "。感谢您阅读，期待您的回复。").slice(0, 500);
+        let copy = String(out.copy || "").trim();
+        if (!copy || !/(您好|你好|HR)/i.test(copy) || !copy.includes(job.title)) copy = fallbackCopy;
         return send(res, 201, { resume: { id, title, revision: 1 }, copy });
       }
       if (p === "/api/ai/application-copy" && m === "POST") {
@@ -2707,7 +2712,12 @@ const server = http.createServer(async (req, res) => {
           const origin = (isSecure(req) ? "https://" : "http://") + req.headers.host;
           await page.goto(origin + "/#resume", { waitUntil: "domcontentloaded", timeout: 30000 });
           await page.waitForSelector(".resume-document", { timeout: 30000 });
-          await page.waitForTimeout(1000);
+          await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+          await page.evaluate(async () => {
+            try { await document.fonts.ready; } catch {}
+            await Promise.all(Array.from(document.images).map((img) => img.complete ? Promise.resolve() : new Promise((resolve) => { img.addEventListener("load", resolve, { once: true }); img.addEventListener("error", resolve, { once: true }); })));
+          });
+          await page.waitForTimeout(1800);
           await page.evaluate(() => document.body.classList.add("printing-resume"));
           await page.emulateMedia({ media: "print" });
           const pdf = await page.pdf({

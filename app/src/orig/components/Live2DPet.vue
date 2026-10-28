@@ -516,6 +516,11 @@ function loadScript(src) {
   })
 }
 
+function onAgentBubble(e) {
+  if (e?.detail?.agentId !== 'xingye') return
+  showBubble(String(e.detail.text || '').slice(0, 180), { type: 'info', duration: 6000 })
+}
+
 onMounted(async () => {
   try {
     await loadScript('/live2d/js/l2d.js?v=2')
@@ -523,6 +528,7 @@ onMounted(async () => {
     initPet()
     // 监听"问问AI"事件（其他页面把题目/知识点/卡片添加到对话）
     window.addEventListener('kaoshibang:ask-ai', onAskAI)
+    window.addEventListener('zg:agent-bubble', onAgentBubble)
     // 监听"错题知识点讲解"事件（进入科目复习时，根据错题主动讲解）
     window.addEventListener('kaoshibang:wrong-review', onWrongReview)
     // 监听"AI展示"事件（其他页面调用AI后，把回复交给看板娘显示+TTS）
@@ -1849,6 +1855,7 @@ onUnmounted(() => {
   stopSpeech()
   window.removeEventListener('zg:pet-model', onPetModelChange)
   window.removeEventListener('kaoshibang:ask-ai', onAskAI)
+  window.removeEventListener('zg:agent-bubble', onAgentBubble)
   window.removeEventListener('kaoshibang:wrong-review', onWrongReview)
   window.removeEventListener('kaoshibang:ai-show', onAiShow)
   window.removeEventListener('kaoshibang:proactive-review-toggle', startProactiveReview)

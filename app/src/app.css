@@ -2863,3 +2863,10 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
   body.printing-resume .pet-dialog,
   body.printing-resume .pet-input-box { display: none !important; }
 }
+
+/* 立绘 agents 的工作气泡（协作信息不朗读） */
+.agent-bubble-pop{position:fixed;z-index:88;max-width:230px;display:flex;align-items:flex-start;gap:5px;padding:8px 10px;border:1px solid rgba(218,197,255,.7);border-radius:12px;background:rgba(24,17,46,.94);color:#f4ecff;box-shadow:0 10px 26px rgba(20,10,45,.38),0 0 18px rgba(144,105,255,.25);font-size:11px;line-height:1.5;backdrop-filter:blur(8px);animation:agentBubbleIn .22s ease both;pointer-events:none}
+.agent-bubble-pop strong{flex:none;color:#f2d28d;font-size:10px}
+.agent-bubble-pop span{min-width:0;word-break:break-word}
+.agent-bubble-tail{position:absolute;left:28px;bottom:-7px;width:12px;height:12px;background:rgba(24,17,46,.94);border-right:1px solid rgba(218,197,255,.7);border-bottom:1px solid rgba(218,197,255,.7);transform:rotate(45deg)}
+@keyframes agentBubbleIn{from{opacity:0;transform:translateY(5px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
