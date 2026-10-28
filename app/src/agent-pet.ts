@@ -253,20 +253,32 @@ export default defineComponent({
       } catch {}
     }
 
+    const bubbleQueue: { text: string; duration: number }[] = [];
     function showBubble(text: string, duration = 6500) {
       const clean = String(text || "").replace(/\s+/g, " ").trim().slice(0, 180);
       if (!clean) return;
+      if (bubbleVisible.value) {
+        if (bubbleQueue.length < 4) bubbleQueue.push({ text: clean, duration });
+        return;
+      }
+      displayBubble(clean, duration);
+    }
+    function displayBubble(clean: string, duration: number) {
       bubbleText.value = clean;
       bubbleVisible.value = true;
       clearTimeout(bubbleTimer);
-      bubbleTimer = setTimeout(() => { bubbleVisible.value = false; }, duration);
+      bubbleTimer = setTimeout(() => {
+        bubbleVisible.value = false;
+        const next = bubbleQueue.shift();
+        if (next) setTimeout(() => displayBubble(next.text, next.duration), 180);
+      }, duration);
     }
     function onAgentBubble(ev: any) {
       if (ev?.detail?.agentId !== props.agentId) return;
       if (ev.detail.text) showBubble(String(ev.detail.text), Number(ev.detail.duration) || 6000);
     }
-    function emitBubble(agentId: string, text: string) {
-      window.dispatchEvent(new CustomEvent("zg:agent-bubble", { detail: { agentId, text } }));
+    function emitBubble(agentId: string, text: string, duration = 12000) {
+      window.dispatchEvent(new CustomEvent("zg:agent-bubble", { detail: { agentId, text, duration } }));
     }
     function idByName(name: string) {
       return ({ 星野: "xingye", 知微: "zhiwei", 砚舟: "yanzhou", 栖迟: "qichi" } as Record<string, string>)[name] || "";
@@ -524,7 +536,8 @@ export default defineComponent({
         log.value.push({ role: "ai", text: reply });
         if (r?.memory && addMemory(props.name, String(r.memory))) memPct.value = memoryStats(props.name).pct;
         showBubble(reply);
-        void speakAs(props.name, reply);
+        const collaborative = (Array.isArray(r?.plan) && r.plan.length) || !!r?.delegation || !!r?.handoff;
+        if (!collaborative) void speakAs(props.name, reply);
         if (r?.handoff?.reply) {
           const peer = String(r.handoff.to || "队友");
           log.value.push({ role: "ai", text: "【" + peer + "】" + r.handoff.reply });

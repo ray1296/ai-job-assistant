@@ -518,7 +518,7 @@ function loadScript(src) {
 
 function onAgentBubble(e) {
   if (e?.detail?.agentId !== 'xingye') return
-  showBubble(String(e.detail.text || '').slice(0, 180), { type: 'info', duration: 6000 })
+  showBubble(String(e.detail.text || '').slice(0, 180), { type: 'info', duration: Number(e.detail.duration) || 15000 })
 }
 
 onMounted(async () => {
@@ -1198,6 +1198,65 @@ async function uploadMemory() {
   }
 }
 
+const COLLAB_IDS = { 星野: "xingye", 知微: "zhiwei", 砚舟: "yanzhou", 栖迟: "qichi" }
+
+function looksLikeCollaboration(msg) {
+  const text = String(msg || "")
+  const domains = [/学习|刷题|进度|错题|复习/, /岗位|招聘|求职|简历|面试/, /租房|房租|通勤|城市|生活/]
+    .filter((r) => r.test(text)).length
+  return domains >= 2 || /(团队|协作|一起|分配|汇总|报告页|让\s*(知微|砚舟|栖迟))/.test(text)
+}
+
+function emitAgentBubble(name, text, duration = 15000) {
+  const agentId = COLLAB_IDS[name]
+  if (!agentId) return
+  window.dispatchEvent(new CustomEvent("zg:agent-bubble", { detail: { agentId, text, duration } }))
+}
+
+async function runCollaboration(msg, history, image) {
+  startWorkingBubble("多智能体协作")
+  try {
+    const res = await fetch("/api/companion/chat", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: Object.assign({ "Content-Type": "application/json" }, csrfHeaders()),
+      body: JSON.stringify({
+        message: msg,
+        persona: "星野",
+        page: location.hash.replace(/^#/, "") || "home",
+        history: (history || []).slice(-6).map((x) => ({ role: x.role, text: x.content || x.text })),
+        image: image || undefined,
+        memory: memoryText("星野") || undefined,
+      }),
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j.error || "协作任务失败")
+    const plan = Array.isArray(j.plan) ? j.plan : []
+    const delegation = j.delegation || null
+    if (plan.length) {
+      for (const step of plan) {
+        const peer = String(step.agent || "")
+        const task = String(step.task || "协作处理").slice(0, 90)
+        if (peer && peer !== "星野") emitAgentBubble(peer, "收到「星野」分配的任务：" + task)
+        if (step.ok && step.summary) emitAgentBubble(peer, "「" + peer + "」已完成，结果回传中…", 9000)
+      }
+    } else if (delegation) {
+      const peer = String(delegation.agent || "")
+      if (peer) emitAgentBubble(peer, "收到「星野」的任务：" + String(delegation.task || "查询资料").slice(0, 90))
+    }
+    if (j.handoff?.reply) {
+      const peer = String(j.handoff.to || "队友")
+      emitAgentBubble(peer, String(j.handoff.reply).slice(0, 160))
+    }
+    const reply = String(j.reply || "").trim() || "任务已完成，但我没有拿到可展示的结果。"
+    stopWorkingBubble()
+    await showReplyStreaming(reply, { speak: false, persistent: false })
+    return reply
+  } finally {
+    stopWorkingBubble()
+  }
+}
+
 async function sendMessage() {
   if (mode.value === 'rag') {
     if (ragAsking.value) return
@@ -1264,7 +1323,9 @@ async function sendMessage() {
   try {
     const asked = (msg || (doc ? '请阅读这个文件并帮我分析。' : '请看看这张图，帮我讲解一下。')) + (doc ? '\n\n【附件：' + doc.name + '】\n' + doc.text : '')
     const history = loadChatHistory()
-    const reply = await streamChatSSE(asked, history, image)
+    const reply = looksLikeCollaboration(asked)
+      ? await runCollaboration(asked, history, image)
+      : await streamChatSSE(asked, history, image)
     // 记录本轮对话到上下文记忆（user + assistant 成对）
     pushChatHistory('user', asked)
     pushChatHistory('assistant', reply)
@@ -1632,7 +1693,7 @@ async function showReplyStreaming(reply, opts) {
   dialogAction.value = opts.action || null
   // 1. 先等语音生成完成（TTS 失败则回退浏览器语音）
   const plain = (reply || '').replace(/[#*`~_]/g, '').replace(/\s+/g, ' ')
-  await speakReply(plain)
+  if (opts.speak !== false) await speakReply(plain)
   // 2. 开始逐字打字 + 同步播放语音（语音在生成完成后才开始，和打字同时进行）
   dialogVisible.value = true
   dialogText.value = ''

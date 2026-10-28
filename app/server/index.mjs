@@ -456,13 +456,22 @@ function augmentPlan(message, steps, memoryText) {
   const out = Array.isArray(steps) ? steps.slice(0, PLAN_MAX_STEPS) : [];
   const text = String(message || "");
   const mem = String(memoryText || "");
-  const hasJobs = out.some((s) => s.tool === "search_jobs" || s.agent === "yanzhou");
+  const hasJobs = out.some((s) => s.tool === "search_jobs");
   const hasLearn = out.some((s) => s.tool === "my_progress" || s.agent === "zhiwei");
   if (/岗位|求职|投什么|简历|面试/.test(text) && !hasJobs) {
-    out.push({ agent: "yanzhou", task: "查询平台岗位，并结合前序学习进度给出方向建议", tool: "search_jobs", args: jobArgsFromMessage(text + " " + mem) });
+    const yanzhouStep = out.find((s) => s.agent === "yanzhou" && !s.tool);
+    if (yanzhouStep) {
+      yanzhouStep.tool = "search_jobs";
+      yanzhouStep.args = jobArgsFromMessage(text + " " + mem);
+    } else {
+      out.push({ agent: "yanzhou", task: "查询平台岗位，并结合前序学习进度给出方向建议", tool: "search_jobs", args: jobArgsFromMessage(text + " " + mem) });
+    }
   }
   if (/学习|刷题|进度|错题|复习/.test(text) && !hasLearn) {
     out.push({ agent: "zhiwei", task: "查询用户学习进度和题库情况", tool: "my_progress", args: {} });
+  }
+  if (/(汇总|行动清单|报告页|报告)/.test(text) && !out.some((s) => s.agent === "xingye")) {
+    out.push({ agent: "xingye", task: "汇总前序结果，输出下一步行动清单", tool: null, args: {} });
   }
   return out.slice(0, PLAN_MAX_STEPS);
 }
@@ -475,6 +484,36 @@ function scrubUnprovided(reply, allowed) {
   return text.replace(/(?:你|您)?(?:准备|正在准备|参加|处在|处于)?[^，。；\n]{0,10}?(?:春招|秋招|应届生?|社招|校招)[^，。；\n]{0,10}?(?:的)?(?:情况|背景|阶段)?/g, "你的情况");
 }
 
+function summarizePlanResult(r) {
+  const s = String(r.summary || "");
+  if (r.detail) {
+    const data = r.detail;
+    if (Array.isArray(data.subjects)) return "学习题库：" + data.subjects.map((x) => x.name + " " + (x.versions?.[0]?.total || 0) + " 题").join("、");
+    if (Array.isArray(data.items)) {
+      if (!data.items.length) return "暂未查到符合条件的岗位/房源（可能是简历或意向为空）";
+      return "查到 " + (data.count || data.items.length) + " 条：" + data.items.slice(0, 3).map((x) => x.title || x.community || x.name || "结果").join("、");
+    }
+  }
+  if (!s) return r.ok ? "已完成" : "暂未拿到结果";
+  if (s.startsWith("已取得真实工具结果：")) {
+    try {
+      const data = JSON.parse(s.slice("已取得真实工具结果：".length));
+      if (Array.isArray(data.subjects)) return "学习题库：" + data.subjects.map((x) => x.name + " " + (x.versions?.[0]?.total || 0) + " 题").join("、");
+      if (Array.isArray(data.items)) {
+        if (!data.items.length) return "暂未查到符合条件的岗位/房源（可能是简历或意向为空）";
+        return "查到 " + (data.count || data.items.length) + " 条：" + data.items.slice(0, 3).map((x) => x.title || x.community || x.name || "结果").join("、");
+      }
+    } catch {}
+  }
+  return s.replace(/^已取得真实工具结果：/, "已查询：").slice(0, 120);
+}
+async function chatRetry(fn) {
+  let last = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await fn(); } catch (e) { last = e; if (attempt === 0) await new Promise((r) => setTimeout(r, 350)); }
+  }
+  throw last;
+}
 async function runPlan(userId, agentId, message, steps) {
   const results = [];
   const used = [];
@@ -500,11 +539,13 @@ async function runPlan(userId, agentId, message, steps) {
       }
     }
     let summary = "";
-    if (!error) {
+    if (!error && !step.tool && /(汇总|行动清单|报告页|报告|整理)/.test(step.task)) {
+      summary = "已根据前序步骤结果完成汇总，关注最终行动清单。";
+    } else if (!error) {
       try {
         const sys = agentSystemWithMemory(userId, targetId, "你正在执行一个多步计划中的第 " + (i + 1) + " 步：只完成当前子任务，用中文简洁回答（120 字内），不要扩展到别的板块，不要编造工具结果。" +
           "只能引用前序结果、工具数据和用户记忆；不得补充未提供的届别、城市、公司或求职季信息。");
-        const a = await aiGateway.chat(userId, {
+        const a = await chatRetry(() => aiGateway.chat(userId, {
           message: "总目标：" + message +
             (prior ? "\n\n前序步骤结果：\n" + prior : "") +
             "\n\n当前子任务：" + step.task +
@@ -512,14 +553,16 @@ async function runPlan(userId, agentId, message, steps) {
           persona: targetName,
           system: sys,
           model: cfg.model,
-        }, undefined);
+        }, undefined));
         summary = scrubUnprovided(String(a.reply || "").trim(), message + "\n" + prior);
       } catch (e) {
-        error = "执行失败";
+        // 上游模型偶发失败时，不丢掉已经拿到的真实工具数据。
+        if (data) summary = "已取得真实工具结果：" + JSON.stringify(data).slice(0, 260);
+        else error = "执行失败";
       }
     }
     const ok = !error && !!summary;
-    results.push({ step: i + 1, agent: targetName, task: step.task, tool: step.tool, ok, summary: summary.slice(0, 300), error });
+    results.push({ step: i + 1, agent: targetName, task: step.task, tool: step.tool, ok, summary: summary.slice(0, 300), error, detail: data || null });
     prior += "\n[" + (i + 1) + "] " + targetName + (step.tool ? "(" + step.tool + ")" : "") + "：" +
       (error ? "失败：" + error : summary.slice(0, 300)) +
       (data ? "\n数据：" + JSON.stringify(data).slice(0, 700) : "");
@@ -532,17 +575,22 @@ async function runPlan(userId, agentId, message, steps) {
   let reply = "";
   let memory = "";
   try {
-    const a = await aiGateway.chat(userId, {
+    const a = await chatRetry(() => aiGateway.chat(userId, {
       message: "用户问题：" + message + "\n\n多步执行结果：\n" + prior +
         "\n\n请综合以上结果用中文回答用户（180 字内），不要编造；如果某一步失败或没数据，要如实说明。",
       persona: currentName,
       system: sys,
       model: cfg.model,
-    }, undefined);
+    }, undefined));
     reply = scrubUnprovided(String(a.reply || "").trim(), message + "\n" + prior);
     memory = String(a.memory || "").trim();
   } catch (e) { /* 由上层兜底 */ }
-  return { reply, memory, plan: results, used };
+  if (!reply) {
+    // 最后综合失败时用每条子任务的真实状态兜底，不能显示“我再想想”。
+    reply = "团队任务已完成：\n" + results.map((r) => r.agent + "：" + summarizePlanResult(r)).join("\n") + "\n下一步：按上面的结果补齐简历/意向，再开始投递和面试练习。";
+    if (!reply) reply = "团队任务已结束，但上游暂时没有返回可用汇总。";
+  }
+  return { reply, memory, plan: results.map(({ detail, ...rest }) => rest), used };
 }
 function saveCompanion(userId, agentId, role, text, createdAt = Date.now()) {
   const clean = String(text || "").slice(0, 4000);
