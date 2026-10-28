@@ -875,6 +875,11 @@ function onDialogClick() {
 function onInput() {
   autoResize()
   syncDraftsFromDom()
+  const el = inputRef.value
+  if (el) {
+    // contenteditable 在高度变化时可能保留 scrollTop=0，导致光标在下方但看不到新字。
+    requestAnimationFrame(() => { try { el.scrollTop = el.scrollHeight } catch (e) {} })
+  }
 }
 
 // 点击输入框空白处（chip 间隙/两侧）：手动把光标放到对应 chip 之后
@@ -1250,7 +1255,7 @@ async function runCollaboration(msg, history, image) {
     }
     const reply = String(j.reply || "").trim() || "任务已完成，但我没有拿到可展示的结果。"
     stopWorkingBubble()
-    await showReplyStreaming(reply, { speak: false, persistent: false })
+    await showReplyStreaming(reply, { speak: false, persistent: true })
     return reply
   } finally {
     stopWorkingBubble()
@@ -1765,6 +1770,7 @@ function cancelTyping() {
 
 function scheduleAutoHide() {
   clearAutoHide()
+  if (persistentDialog.value) return
   autoHideTimer = setTimeout(() => {
     dialogVisible.value = false
     stopSpeech()

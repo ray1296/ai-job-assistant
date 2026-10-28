@@ -3121,3 +3121,9 @@ html[data-theme="night"] .pet-tool-btn { background: #14233a !important; border-
 html[data-theme="night"] .pet-tool-btn:hover { background: #1b2e4b !important; }
 .map-preload-images { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: .001; pointer-events: none; z-index: -1; }
 .map-preload-images img { width: 1px; height: 1px; object-fit: cover; display: block; }
+/* 看板娘气泡：隐藏滚动条但保留滚动能力 */
+.pet-dialog-text { scrollbar-width: none; -ms-overflow-style: none; }
+.pet-dialog-text::-webkit-scrollbar { width: 0; height: 0; display: none; }
+body.star-map-open .mouse-trail-canvas { display: none !important; }
+.star-map-slot { display: none; }
+body:not(.star-map-open):not(.map-mode) .mouse-trail-canvas { display: block !important; }

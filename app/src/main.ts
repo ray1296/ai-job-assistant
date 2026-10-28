@@ -15,6 +15,7 @@ import {
   computed,
   defineAsyncComponent,
   onMounted,
+  watch,
   onErrorCaptured,
 } from "vue";
 import { api, session, loadSession, errorText } from "./api";
@@ -142,6 +143,7 @@ const app = defineComponent({
     });
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
+    watch(orbit, (v) => { try { document.body.classList.toggle("star-map-open", !!v); } catch {} }, { immediate: true });
     onMounted(async () => {
       preloadRpgStarAssets();
       preloadClassicStarAssets();
@@ -648,21 +650,20 @@ const app = defineComponent({
             orbit.value = !orbit.value;
           },
         }),
-        orbit.value
-          ? starMapMode.value === "classic"
-            ? h(ClassicStarMap, {
-                pages,
-                active: active.value,
-                onGo: (id: string) => { orbit.value = false; go(id); },
-                onClose: () => (orbit.value = false),
-              })
-            : h(RpgStarMap, {
-                pages,
-                active: active.value,
-                onGo: (id: string) => { orbit.value = false; go(id); },
-                onClose: () => (orbit.value = false),
-              })
-          : null,
+        h("div", { class: "star-map-slot", style: { display: orbit.value && starMapMode.value === "rpg" ? "block" : "none" } },
+          h(RpgStarMap, {
+            pages,
+            active: active.value,
+            onGo: (id: string) => { orbit.value = false; go(id); },
+            onClose: () => (orbit.value = false),
+          })),
+        h("div", { class: "star-map-slot", style: { display: orbit.value && starMapMode.value === "classic" ? "block" : "none" } },
+          h(ClassicStarMap, {
+            pages,
+            active: active.value,
+            onGo: (id: string) => { orbit.value = false; go(id); },
+            onClose: () => (orbit.value = false),
+          })),
         fog.value ? h("div", { class: "fog-veil" }) : null,
         auth.value
           ? h(
