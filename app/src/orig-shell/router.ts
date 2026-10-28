@@ -9,6 +9,7 @@ const routes = [
     { path: "upload", name: "UploadCenter", component: () => import("../orig/views/upload/index.vue") },
   ]},
   { path: "/review/:subjectId", name: "SubjectReview", component: () => import("../orig/views/review/subject.vue") },
+  { path: "/ai-pages", name: "AiReportHistory", component: () => import("../orig/views/ai/history.vue") },
   { path: "/ai-page/:id", name: "AiReport", component: () => import("../orig/views/ai/page.vue") },
   { path: "/:pathMatch(.*)*", redirect: "/review" },
 ];

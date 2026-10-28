@@ -10,8 +10,12 @@
 
     <!-- 历史报告列表 -->
     <div v-if="showList" class="ai-page-history">
-      <div class="history-title">已生成的报告（点击查看）</div>
+
       <div v-if="historyList.length === 0" class="history-empty">还没有历史报告</div>
+      <div class="history-head-row">
+        <span>已生成的报告（点击查看）</span>
+        <button class="history-all-btn" @click="goHistoryList">查看全部</button>
+      </div>
       <div v-for="h in historyList" :key="h.id" class="history-item" @click="openHistory(h.id)">
         <span class="history-emoji">📄</span>
         <span class="history-name">{{ h.title }}</span>
@@ -21,7 +25,7 @@
     </div>
 
     <div v-if="html" class="ai-page-frame-wrap">
-      <iframe class="ai-page-frame" :srcdoc="html" sandbox=""></iframe>
+      <iframe ref="frameRef" class="ai-page-frame" :srcdoc="frameHtml" sandbox="allow-same-origin" @load="resizeFrame"></iframe>
     </div>
     <div v-else class="ai-page-empty">
       <div class="icon">📄</div>
@@ -32,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { aiPageDetail, aiPageList, aiPageDelete } from '../../api/ai'
 
@@ -43,6 +47,23 @@ const html = ref('')
 const title = ref('')
 const showList = ref(false)
 const historyList = ref([])
+const frameRef = ref(null)
+const frameHtml = computed(() => {
+  const raw = String(html.value || '')
+  if (!raw) return ''
+  const reset = '<style>html,body{min-height:0!important;height:auto!important;}</style>'
+  return /<\/head>/i.test(raw) ? raw.replace(/<\/head>/i, reset + '</head>') : reset + raw
+})
+function resizeFrame() {
+  const frame = frameRef.value
+  if (!frame) return
+  try {
+    const doc = frame.contentDocument
+    const bodyH = doc?.body?.scrollHeight || doc?.documentElement?.scrollHeight || 0
+    const h = Math.max(bodyH, 240)
+    frame.style.height = h + 'px'
+  } catch { /* cross-origin fallback */ }
+}
 
 const STORAGE_PREFIX = 'ai-page-'
 const INDEX_KEY = 'ai-page-index'
@@ -54,6 +75,7 @@ async function loadPage(id) {
     if (res.code === 200 && res.data?.html) {
       html.value = res.data.html
       title.value = res.data.title || 'AI 复习报告'
+      nextTick(resizeFrame)
       return
     }
   } catch (e) { /* 云端失败走本地 */ }
@@ -74,7 +96,7 @@ async function loadPage(id) {
 }
 
 async function loadHistory() {
-  // 云端列表优先，合并本地旧记录
+  // 云端列表优先；每次展开历史都刷新，避免刚生成的报告看不到。
   let cloud = []
   try {
     const res = await aiPageList()
@@ -95,6 +117,8 @@ async function loadHistory() {
   }
   historyList.value = merged
 }
+watch(showList, (v) => { if (v) loadHistory() })
+function goHistoryList() { router.push('/ai-pages') }
 
 function openHistory(id) {
   router.replace('/ai-page/' + id)
@@ -112,6 +136,7 @@ async function delHistory(id) {
   if (String(route.params.id) === String(id)) {
     html.value = ''
     title.value = ''
+    router.push('/ai-pages')
   }
 }
 
@@ -207,11 +232,23 @@ watch(() => route.params.id, refresh)
   border: 1px solid #ece9f7;
   box-shadow: 0 4px 16px rgba(108, 140, 255, 0.1);
 }
-.history-title {
+.history-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 13px;
   color: #888;
   margin-bottom: 8px;
 }
+.history-all-btn {
+  border: 0;
+  background: transparent;
+  color: #6c8cff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.history-all-btn:hover { text-decoration: underline; }
 .history-empty {
   font-size: 13px;
   color: #bbb;
@@ -260,7 +297,7 @@ watch(() => route.params.id, refresh)
 }
 
 .ai-page-frame-wrap {
-  flex: 1;
+  flex: 0 0 auto;
   margin: 0 16px 16px;
   border-radius: 16px;
   overflow: hidden;
@@ -270,8 +307,8 @@ watch(() => route.params.id, refresh)
 }
 .ai-page-frame {
   width: 100%;
-  height: 100%;
-  min-height: 70vh;
+  height: 70vh;
+  min-height: 0;
   border: none;
   display: block;
 }

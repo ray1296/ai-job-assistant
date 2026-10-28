@@ -4,6 +4,7 @@
     <div class="page-header review-header">
       <h1>知识冲刺</h1>
       <p>选一个岗位方向，直接开始刷题</p>
+      <button class="review-history-entry" @click="router.push('/ai-pages')" title="查看 AI 生成的历史报告">📚 历史报告</button>
       <div class="stats-bar" v-if="subjects.length">
         <div class="stat-chip"><strong>{{ subjects.length }}</strong> 科目</div>
         <div class="stat-chip"><strong class="num-mono">{{ stats?.questions || 0 }}</strong> 题目</div>
@@ -476,3 +477,22 @@ onActivated(loadData)
   }
 }
 </style>
+
+.review-header { position: relative; }
+.review-history-entry {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  border: 1px solid #d8d4f0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #fff;
+  color: #6c8cff;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(108, 140, 255, .12);
+}
+.review-history-entry:hover { background: #f3f1ff; }
+@media (max-width: 640px) {
+  .review-history-entry { right: 12px; top: 12px; padding: 6px 10px; font-size: 11px; }
+}
