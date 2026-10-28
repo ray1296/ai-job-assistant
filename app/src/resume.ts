@@ -67,6 +67,12 @@ export default defineComponent({
       layoutSuggestion = ref<any>(null),
       summaryOpen = ref(false),
       pagePlan = ref<{ section: Section; items: Entry[]; first: boolean; last: boolean }[][]>([]);
+    const aiWorking = computed(() => layoutBusy.value || sectionBusy.value);
+    const aiWorkingText = computed(() => layoutBusy.value
+      ? "AI 正在阅读简历结构并优化排版，通常需要十几秒…"
+      : sectionBusy.value
+      ? "AI 正在撰写新板块…"
+      : "");
     let paginationBusy = false;
     let saved = "";
     const snapshot = () =>
@@ -1494,6 +1500,15 @@ export default defineComponent({
           : null,
         notice.value
           ? h("p", { class: "notice", role: "status" }, notice.value)
+          : null,
+        aiWorking.value
+          ? h("div", { class: "ai-work-overlay", role: "dialog", "aria-modal": "true", "aria-live": "polite" },
+              h("div", { class: "ai-work-card" }, [
+                h("span", { class: "ai-work-spinner" }),
+                h("strong", "AI 正在工作"),
+                h("p", null, aiWorkingText.value),
+                h("small", null, "请先不要关闭页面；完成后会自动保存到当前草稿。"),
+              ]))
           : null,
         h(
           "p",

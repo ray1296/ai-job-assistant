@@ -1,6 +1,7 @@
 import type { ResumeDocument } from "./resume-model";
 export async function exportWord(d: ResumeDocument, title: string) {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } =
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+    HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType } =
     await import("docx");
   // 生图装饰：取回服务端图片并作为顶部横幅嵌入；失败不影响正文导出。
   let decorChild = null;
@@ -45,13 +46,20 @@ export async function exportWord(d: ResumeDocument, title: string) {
       const r = await fetch("/api/decoration-assets/" + d.background.image + ".png");
       if (r.ok) {
         const { ImageRun } = await import("docx");
+        // 整页背景：浮动在正文之后（behindDocument），保持 210:297 比例，不再裁成顶部横幅。
         backgroundChild = new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 140 },
+          spacing: { after: 0 },
           children: [new ImageRun({
             type: "png",
             data: await r.arrayBuffer(),
-            transformation: { width: 600, height: 130 },
+            transformation: { width: 600, height: Math.round(600 * 297 / 210) },
+            floating: {
+              horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
+              verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 },
+              behindDocument: true,
+              allowOverlap: true,
+              wrap: { type: TextWrappingType.NONE },
+            },
           })],
         });
       }

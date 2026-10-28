@@ -774,7 +774,7 @@ async function getPdfBrowser() {
   })();
   return pdfBrowserPromise;
 }
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const requestId = randomBytes(8).toString("hex");
   const requestStarted = Date.now();
   appMetrics.requests++;
@@ -1488,13 +1488,18 @@ const server = http.createServer(async (req, res) => {
           })),
         } : null;
         const prompt = JSON.stringify({ mode, style, difficulty, job: jobBrief(job), transcript, vision });
-        const out = await aiGateway.interviewFeedback({ system, prompt });
-        const m = String(out.text || "").match(/\{[\s\S]*\}/);
         let data = null;
-        try { data = m ? JSON.parse(m[0]) : null; } catch { data = null; }
-        if (!data) throw failure(502, "AI 没有返回有效反馈，请重试");
+        let feedbackError = "";
+        try {
+          const out = await aiGateway.interviewFeedback({ system, prompt });
+          const m = String(out.text || "").match(/\{[\s\S]*\}/);
+          data = m ? JSON.parse(m[0]) : null;
+          if (!data) feedbackError = "AI 没有返回有效反馈";
+        } catch (e) {
+          feedbackError = String(e?.message || "AI 反馈生成失败").slice(0, 160);
+        }
         const list = (v) => (Array.isArray(v) ? v : []).filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim().slice(0, 200)).slice(0, 4);
-        const feedback = {
+        const feedback = data ? {
           score: Math.max(0, Math.min(100, Math.round(Number(data.score) || 0))),
           verdict: String(data.verdict || "").trim().slice(0, 500),
           summary: String(data.summary || "").trim().slice(0, 300),
@@ -1502,13 +1507,22 @@ const server = http.createServer(async (req, res) => {
           improvements: list(data.improvements),
           suggestions: list(data.suggestions),
           visual: list(data.visual),
+        } : {
+          // 即使反馈服务失败，也先把本场文字记录存下来，不能整场消失。
+          score: 0,
+          verdict: "本场面试已结束，但 AI 反馈暂时生成失败；文字记录已保存。",
+          summary: "记录已保存，可稍后重新发起一场面试生成新的反馈。",
+          strengths: [],
+          improvements: [],
+          suggestions: [],
+          visual: [],
         };
         if (!feedback.summary) feedback.summary = (feedback.verdict || "本场面试已结束。").slice(0, 120);
         purgeInterviewSessions(s.user_id);
         const id = randomBytes(10).toString("hex");
         db.prepare("INSERT INTO interview_sessions(id,user_id,job_id,job_title,agent_id,mode,style,difficulty,transcript,feedback,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
           .run(id, s.user_id, job?.id || "", job?.title || "通用岗位", agentId, mode, style, difficulty, JSON.stringify(transcript).slice(0, 20000), JSON.stringify(feedback), Date.now());
-        return send(res, 201, { sessionId: id, feedback });
+        return send(res, 201, { sessionId: id, feedback, feedbackError: feedbackError || undefined });
       }
       if (p === "/api/interview/sessions" && m === "DELETE") {
         db.prepare("DELETE FROM interview_sessions WHERE user_id=?").run(s.user_id);
@@ -2699,7 +2713,7 @@ const server = http.createServer(async (req, res) => {
         try {
           const browser = await getPdfBrowser();
           context = await browser.newContext({
-            viewport: { width: 900, height: 1200 },
+            viewport: { width: 1280, height: 1200 },
             extraHTTPHeaders: req.headers.cookie ? { Cookie: req.headers.cookie } : {},
           });
           await context.addInitScript((id) => {
@@ -2899,8 +2913,8 @@ const server = http.createServer(async (req, res) => {
         }),
       );
   }
-});
-attachRealtimeProxy(server, {
+}
+const realtimeDeps = {
   session,
   getJob,
   jobBrief,
@@ -2911,7 +2925,9 @@ attachRealtimeProxy(server, {
   aiGateway,
   AGENT_NAME_BY_ID,
   normalizeDifficulty,
-});
+};
+const server = http.createServer(handleRequest);
+attachRealtimeProxy(server, realtimeDeps);
 server.requestTimeout = 15000;
 server.headersTimeout = 10000;
 server.keepAliveTimeout = 5000;
@@ -2920,12 +2936,33 @@ server.listen(
   process.env.HOST || "0.0.0.0",
   () => console.log("Career batch 3 listening on " + server.address().port),
 );
+// 可选 HTTPS 伴生服务：摄像头/麦克风只在 secure context 可用。
+let httpsServer = null;
+try {
+  const httpsPort = Number(process.env.HTTPS_PORT || 5175);
+  const keyFile = path.join(dataDir, "https", "key.pem");
+  const certFile = path.join(dataDir, "https", "cert.pem");
+  if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
+    const { createServer } = await import("node:https");
+    httpsServer = createServer({ key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) }, handleRequest);
+    attachRealtimeProxy(httpsServer, realtimeDeps);
+    httpsServer.requestTimeout = 15000;
+    httpsServer.headersTimeout = 10000;
+    httpsServer.keepAliveTimeout = 5000;
+    httpsServer.listen(httpsPort, process.env.HOST || "0.0.0.0", () => {
+      console.log("Career HTTPS listening on " + httpsServer.address().port);
+    });
+  }
+} catch (e) {
+  console.error("[https]", String(e?.message || e).slice(0, 160));
+}
 // 首次部署没有向量索引时，后台慢慢建，不阻塞请求；已有索引不会重复烧 token。
 setTimeout(() => { try { const s = rag.stats(); if (!s.total || s.embedded < s.total || !s.fresh) rag.startBackgroundBuild(); } catch {} }, 8000);
 let closing = false;
 function shutdown() {
   if (closing) return;
   closing = true;
+  try { httpsServer?.close(); } catch {}
   const cleanup = extraction.close();
   server.close(async () => {
     await cleanup;

@@ -88,6 +88,8 @@ export default defineComponent({
     const speechSupported = ref(true);
     const mediaError = ref("");
     const selfVideo = ref<HTMLVideoElement | null>(null);
+    const camOffset = ref({ x: 0, y: 0 });
+    let camDrag: { startX: number; startY: number; ox: number; oy: number } | null = null;
     const feedback = ref<any>(null);
     const feedbackBusy = ref(false);
     const sessions = ref<any[]>([]);
@@ -192,36 +194,79 @@ export default defineComponent({
     }
     async function openMedia() {
       mediaError.value = "";
+      if (!window.isSecureContext) {
+        mediaError.value = "当前页面是 HTTP 地址，浏览器会禁用摄像头和麦克风；需要 HTTPS 或 localhost 才能授权。可以先用文字面试。";
+        videoOn.value = false;
+        micOn.value = false;
+        return;
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
         mediaError.value = "当前浏览器不支持摄像头/麦克风，已切换为文字模式。";
         videoOn.value = false;
         micOn.value = false;
         return;
       }
+      let audio: MediaStream | null = null;
+      let video: MediaStream | null = null;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-          audio: true,
-        });
-        if (selfVideo.value) {
-          selfVideo.value.srcObject = stream;
-          await selfVideo.value.play().catch(() => {});
-        }
+        audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       } catch (e) {
-        mediaError.value = "没有拿到摄像头/麦克风权限，已切换为文字模式；可以继续用文字面试。";
-        videoOn.value = false;
+        mediaError.value = "麦克风没有授权，语音输入不可用；可以继续用文字面试。";
         micOn.value = false;
       }
+      if (videoOn.value) {
+        try {
+          video = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+            audio: false,
+          });
+        } catch (e) {
+          videoOn.value = false;
+          video = null;
+          mediaError.value = (mediaError.value ? mediaError.value + " " : "") + "摄像头没有授权，已关闭画面。";
+        }
+      }
+      try { stream?.getTracks().forEach((t) => t.stop()); } catch {}
+      const tracks = [...(video?.getTracks() || []), ...(audio?.getTracks() || [])];
+      stream = tracks.length ? new MediaStream(tracks) : null;
+      if (selfVideo.value && stream) {
+        selfVideo.value.srcObject = stream;
+        await selfVideo.value.play().catch(() => {});
+      }
+    }
+    function startCamDrag(e: PointerEvent) {
+      if (!started.value) return;
+      e.preventDefault();
+      camDrag = { startX: e.clientX, startY: e.clientY, ox: camOffset.value.x, oy: camOffset.value.y };
+      document.body.classList.add("interview-cam-dragging");
+      const move = (ev: PointerEvent) => {
+        if (!camDrag) return;
+        camOffset.value = { x: camDrag.ox + ev.clientX - camDrag.startX, y: camDrag.oy + ev.clientY - camDrag.startY };
+      };
+      const up = () => {
+        camDrag = null;
+        document.body.classList.remove("interview-cam-dragging");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
     }
     function stopMedia() {
       try { stream?.getTracks().forEach((t) => t.stop()); } catch {}
       stream = null;
       if (selfVideo.value) selfVideo.value.srcObject = null;
     }
-    function toggleCamera() {
-      videoOn.value = !videoOn.value;
+    async function toggleCamera() {
+      const next = !videoOn.value;
+      if (next && !stream?.getVideoTracks().length) {
+        videoOn.value = true;
+        await openMedia();
+        return;
+      }
+      videoOn.value = next;
       try {
-        stream?.getVideoTracks().forEach((t) => (t.enabled = videoOn.value));
+        stream?.getVideoTracks().forEach((t) => (t.enabled = next));
       } catch {}
     }
     function toggleSound() {
@@ -519,12 +564,13 @@ export default defineComponent({
         micOn.value = true;
       } catch {
         micOn.value = false;
+        mediaError.value = "浏览器没有启动语音识别；请检查麦克风权限，或继续用文字输入。";
       }
     }
     function pauseRecognition() {
       try { recog?.stop(); } catch {}
     }
-    function toggleMic() {
+    async function toggleMic() {
       if (realtime.value) {
         micOn.value = !micOn.value;
         if (!micOn.value) {
@@ -535,13 +581,19 @@ export default defineComponent({
       if (micOn.value) {
         micOn.value = false;
         pauseRecognition();
-      } else {
-        if (!speechSupported.value) {
-          error.value = "当前浏览器不支持语音识别，请用下方文字输入（Chrome/Edge 支持）。";
-          return;
-        }
-        startRecognition();
+        return;
       }
+      if (!stream?.getAudioTracks().length) await openMedia();
+      if (!stream?.getAudioTracks().length) {
+        mediaError.value = "没有可用的麦克风：请允许浏览器麦克风权限，或继续用文字输入。";
+        return;
+      }
+      if (!speechSupported.value) {
+        mediaError.value = "当前浏览器不支持语音识别；可以继续用文字输入。";
+        return;
+      }
+      setupRecognition();
+      startRecognition();
     }
 
     function scheduleTurnCheck() {
@@ -1027,6 +1079,18 @@ export default defineComponent({
             ]),
             mediaError.value ? h("p", { class: "muted" }, mediaError.value) : null,
             h("button", { class: "btn primary interview-start", disabled: starting.value, onClick: () => void start() }, starting.value ? "正在准备…" : "开始模拟面试"),
+            !window.isSecureContext
+              ? h("p", { class: "interview-privacy" }, [
+                  "当前是 HTTP 地址，浏览器不允许摄像头/麦克风。",
+                  h("a", {
+                    href: "https://" + location.hostname + ":5175/#interview",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    style: { color: "#7460c9", textDecoration: "underline", marginLeft: "4px" },
+                  }, "打开 HTTPS 版（首次需信任自签名证书）"),
+                  "；也可以继续用文字面试。",
+                ])
+              : null,
             h("p", { class: "interview-privacy" }, "原始音视频不会上传到逐光服务器、不落盘；语音转文字由浏览器自带能力完成（Chrome/Edge 可能由浏览器厂商处理），按需截图会压缩后发给 AI 做观察。对隐私要求高时请用文字输入。"),
           ]),
           h("section", { class: "card" }, [
@@ -1082,6 +1146,9 @@ export default defineComponent({
             autoplay: true,
             playsinline: true,
             muted: true,
+            title: "拖动调整摄像头位置",
+            onPointerdown: startCamDrag,
+            style: { transform: "scaleX(-1) translate(" + camOffset.value.x + "px," + camOffset.value.y + "px)" },
           }),
           cvOn.value
             ? h("div", { class: "interview-cv-badge", title: "端侧视觉：只在本机处理，不上传原始视频" }, [
@@ -1090,11 +1157,18 @@ export default defineComponent({
               ])
             : null,
           cvHint.value ? h("div", { class: "interview-cv-hint" }, cvHint.value) : null,
-          !videoOn.value ? h("div", { class: "interview-video-off" }, "摄像头未开启") : null,
+          !videoOn.value
+            ? h("div", {
+                class: "interview-video-off",
+                title: "拖动调整摄像头位置",
+                onPointerdown: startCamDrag,
+                style: { transform: "translate(" + camOffset.value.x + "px," + camOffset.value.y + "px)" },
+              }, "摄像头未开启")
+            : null,
           mediaError.value ? h("p", { class: "interview-media-note" }, mediaError.value) : null,
           h("div", { class: "interview-controls" }, [
-            h("button", { class: "interview-ctrl" + (micOn.value ? " on" : ""), onClick: toggleMic }, micOn.value ? "🎙 收音中" : "🎙 开麦"),
-            h("button", { class: "interview-ctrl" + (videoOn.value ? " on" : ""), onClick: toggleCamera }, videoOn.value ? "▣ 摄像头" : "▣ 已关"),
+            h("button", { class: "interview-ctrl" + (micOn.value ? " on" : ""), onClick: () => void toggleMic() }, micOn.value ? "🎙 关麦" : "🎙 开麦"),
+            h("button", { class: "interview-ctrl" + (videoOn.value ? " on" : ""), onClick: () => void toggleCamera() }, videoOn.value ? "▣ 摄像头" : "▣ 已关"),
             h("button", { class: "interview-ctrl" + (observing.value ? " on" : ""), onClick: toggleObservation }, observing.value ? "👁 视频观察" : "👁 已关"),
             h("button", { class: "interview-ctrl" + (soundOn.value ? " on" : ""), onClick: toggleSound }, soundOn.value ? "🔊 声音" : "🔇 静音"),
           ]),

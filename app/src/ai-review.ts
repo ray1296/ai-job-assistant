@@ -120,6 +120,17 @@ export default defineComponent({
       error.value ? h("p", { class: "error", role: "alert" }, error.value) : null,
       notice.value ? h("p", { class: "notice", role: "status" }, notice.value) : null,
       h("small", "未配置AI服务时会明确提示不可用；不会自动保存或伪造结果。"),
+      busy.value || props.decorBusy
+        ? h("div", { class: "ai-work-overlay", role: "dialog", "aria-modal": "true", "aria-live": "polite" },
+            h("div", { class: "ai-work-card" }, [
+              h("span", { class: "ai-work-spinner" }),
+              h("strong", "AI 正在工作"),
+              h("p", null, props.decorBusy
+                ? "正在读取简历版面并生成整页背景，通常需要几十秒…"
+                : "正在审阅简历内容并生成可核对建议，通常需要十几秒…"),
+              h("small", null, "请先不要关闭页面；完成后会回到简历，不会自动保存未确认的内容。"),
+            ]))
+        : null,
     ]);
   },
 });
