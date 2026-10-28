@@ -2808,3 +2808,12 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
 /* 面经八股再下移；给底部腾空间 */
 .star-map-stage{bottom:30px!important}
 .star-preview{top:44%!important}
+/* 深色协作侧栏内按钮的 hover 不能被全局浅色按钮样式覆盖 */
+.ds-chat-sidebar .ds-new-chat:hover:not(:disabled),
+.ds-chat-sidebar .ds-session-open:hover:not(:disabled),
+.ds-chat-sidebar .ds-agent-item:hover:not(:disabled){background:rgba(255,255,255,.11)!important;border-color:rgba(255,255,255,.18)!important;color:#fff!important}
+.ds-chat-sidebar .ds-session-open{color:#eee9f8!important}
+.ds-chat-sidebar .ds-session-open strong{color:#eee9f8!important}
+.ds-chat-sidebar .ds-session-open small{color:#a99bb8!important}
+.ds-chat-sidebar .ds-session-open:hover strong{color:#fff!important}
+.ds-chat-sidebar .ds-session-del:hover:not(:disabled){background:#fff3f5!important;border-color:#e3b7c1!important;color:#b04a63!important}
