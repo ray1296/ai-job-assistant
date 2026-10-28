@@ -19,12 +19,12 @@
 说明：
 
 - 微调**不是本竞赛的评分项**，当前无明确应用场景，暂不做；RAG、Agent、MCP、多模态和安全才是得分点。
-- 当前本地验收是 HTTP；正式部署必须 HTTPS + `CAREER_SECURE_COOKIE=true`，并配置私有的 `app/private/ai-config.json`。
+- 本地可用 HTTP；需要摄像头/麦克风或远程访问时必须 HTTPS。HTTPS 证书放在 `app/private/https/`，服务启动时自动启用；配置私有的 `app/private/ai-config.json`。
 - 原始音视频不落盘；RAG 不索引个人资料、简历、聊天记录或用户上传文件。
 
 ## 查看
 
-- 本地验收：`http://127.0.0.1:5173/`
+- 本地验收：有 `app/private/https/` 证书时 `https://127.0.0.1:5173/`（HTTP 兜底 5174）；无证书时 `http://127.0.0.1:5173/`。
 - 岗位 / 投递方案：`#jobs` / `#plan`
 - 学习：`#knowledge` / `#practice`
 - RAG / Tool RAG 说明：[RAG.md](docs/RAG.md) / [TOOL_RAG.md](docs/TOOL_RAG.md)
@@ -38,23 +38,121 @@
 - 产品价值：[PRODUCT_VALUE.md](docs/PRODUCT_VALUE.md)
 - 第三方与原创说明：[THIRD_PARTY.md](docs/THIRD_PARTY.md)
 - 保留旧外观：`/preview/index.html`
-- 注册自己的测试账号。当前本地 HTTP 环境请勿输入真实敏感资料或常用密码；未实现邮件验证/密码找回。
+- 注册自己的测试账号。本地/测试环境请勿输入真实敏感资料或常用密码；未实现邮件验证/密码找回。
 
-## 本地运行
+## 在其他电脑上首次运行
+
+### 1. 环境要求
+
+推荐 **Ubuntu/Debian Linux**：
+
+- Node.js **22.13+**（项目使用 `node:sqlite`），npm
+- Python 3
+- Chromium 或 Google Chrome（服务端生成 PDF 用；也可设置 `CHROME_PATH`）
+- OCR/PDF 导入需要：`bwrap`、`prlimit`、`nice`、`pdfinfo`、`pdftotext`、`pdftoppm`、`apt-get`、`dpkg-deb`
+- HTTPS 证书需要 `openssl`
+- 不需要 Docker；不需要全局安装 Playwright 浏览器，但服务端必须能找到 Chromium
+- `npm ci` 不会自动下载 Chromium；可安装系统 Chromium/Chrome，或用 `CHROME_PATH=/path/to/chrome` 指定。Ubuntu 可用 `sudo apt install chromium-browser`（包名随发行版可能不同）
+
+macOS/Windows 可以运行页面和普通接口，但本项目 OCR 的 `bwrap` 沙箱和资源限制按 Linux 设计；Windows/macOS 上简历 OCR/部分 PDF 导入可能不可用。
+
+### 2. 安装、构建、启动
+
+```sh
+cd app
+npm ci
+npm run typecheck          # 可选，先检查 TypeScript
+npm run build
+npm run setup:ocr          # 可选；需要 PDF/OCR 时执行，Linux 无 sudo
+HOST=0.0.0.0 PORT=5173 npm start
+```
+
+只启动产品主壳不需要先构建 `prototype`。`prototype` 只是旧版 `/preview` 布局和兼容静态资源，可选：
+
 ```sh
 cd prototype
 npm ci
 npm run build
-cd ../app
-npm ci
-npm run setup:ocr # Ubuntu: 私有展开OCR工具，无sudo/系统安装/服务重启
-npm run typecheck
-npm run build
-HOST=0.0.0.0 PORT=5173 npm start
 ```
-Vue3+TypeScript组件，esbuild路由模块分包；Node22原生SQLite（该Node版本仍提示实验性），小规模验收持久层使用WAL与索引。不是已压测的高并发/高可用生产集群，后续迁移/容量/备份与HTTPS仍待专项。
 
-数据默认存`app/private/`，不被静态服务器提供，不进入Git。密码scrypt散列，服务端会话、CSRF/Origin校验、账号所有权检查、乐观版本冲突校验。生产需HTTPS后开启Secure Cookie、配置可信代理与限流、备份与恢复验证。
+### 3. 配置 AI
+
+AI 功能需要私有配置，不要把密钥提交到 Git：
+
+```sh
+cd app
+mkdir -p private
+cp ai-config.example.json private/ai-config.json
+chmod 600 private/ai-config.json
+```
+
+编辑 `private/ai-config.json`，至少填：
+
+- `baseUrl`、`apiKey`、`model`：文本/规划/面试等 AI 功能
+- `visionModel`：图片理解（若使用视觉能力）
+- `imageBaseUrl`、`imageApiKey`、`imageModel`：AI 生图/装饰（可选）
+- `aliyunKey`、`aliyunTtsModel`、`aliyunTtsVoice`：阿里云 TTS/ASR（可选，但语音功能需要）
+
+未配置时应用仍能启动，但相关 AI 接口会明确报“AI 未配置/上游不可用”，不会把离线结果伪装成 AI 结果。
+
+高德地图是可选配置：
+
+```sh
+mkdir -p private
+cp geo-config.example.json private/geo-config.json
+chmod 600 private/geo-config.json
+```
+
+填入 `amapKey`、`amapJsKey`、`amapJsSecurity`；未配置时地图功能不可用或退回占位。
+
+### 4. HTTPS 与端口
+
+需要摄像头/麦克风、或从另一台电脑通过局域网 IP 访问时，必须使用 HTTPS。生成自签名证书：
+
+```sh
+cd app
+mkdir -p private/https
+openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
+  -keyout private/https/key.pem \
+  -out private/https/cert.pem \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+chmod 600 private/https/key.pem private/https/cert.pem
+```
+
+如果从另一台电脑访问，把证书的 `subjectAltName` 改成实际域名/局域网 IP，并在浏览器信任该证书。重启服务后：
+
+- 有证书：主站 `https://<host>:5173`，HTTP 兜底 `http://<host>:5174`
+- 无证书：`http://<host>:5173`
+
+不要把自签名证书用于公网正式服务；正式部署应使用受信任证书和反向代理。服务端在 HTTPS 连接上会自动写 Secure Cookie，反向代理后用 `CAREER_SECURE_COOKIE=true`。
+
+### 5. 数据、管理员和备份
+
+- 数据默认在 `app/private/career.sqlite`，不进入 Git；第一次启动自动建表。
+- 首次启动自动创建管理员，随机密码在 `app/private/admin-initial.txt`；可用 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 指定。
+- 迁移电脑时复制整个 `app/private/`（数据库、配置、证书）并保持权限 600；不要只复制数据库而漏掉 WAL 文件。
+- 没有数据库备份/恢复演练前，不要把它当作高可用生产集群；这是小规模验收实现。
+
+### 6. 可选环境变量
+
+```sh
+HOST=0.0.0.0
+PORT=5173
+HTTP_PORT=5174          # 有 HTTPS 时的 HTTP 兜底端口
+HTTPS_PORT=5173         # HTTPS 端口
+CAREER_DATA_DIR=./private
+CHROME_PATH=/usr/bin/chromium
+CAREER_SECURE_COOKIE=false
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=至少10位密码
+```
+
+`.env` 不会自动加载；请在 shell 中 export，或使用进程管理器注入。
+
+### 7. 构建与运行原理
+
+Vue3+TypeScript 组件由 esbuild 路由分包；Node22 原生 SQLite，持久层使用 WAL 与索引。`npm run build` 清理并重建 `app/dist`，服务默认从 `dist` 静态提供；`CAREER_STATIC_DIR` 可覆盖。密码 scrypt 散列，服务端会话、CSRF/Origin 校验、账号所有权检查、乐观版本冲突校验。
 
 ## AI审阅配置与保护
 - 服务端支持OpenAI兼容的`/chat/completions`端点，配置参考 `app/ai-config.example.json`（复制到 `app/private/ai-config.json`，权限 600，真实密钥不提交）；用户已提供项目凭据，具体可用性以私有运行时配置及请求结果为准；未配置会明确提示，不能把离线测试或模型列表响应当真实AI效果。
@@ -66,6 +164,9 @@ Vue3+TypeScript组件，esbuild路由模块分包；Node22原生SQLite（该Node
 - 默认全站1个任务、≤5MiB、PDF≤4页、图片≤1200万像素且长边≤6000；时间/进程资源有上限，繁忙拒绝重任务而不排无限队列。详见[资源预算](docs/CAPACITY_BUDGET.md)。
 
 ## 验证
+
+先按上面的方式启动服务；有 HTTPS 时把 `TEST_BASE_URL` 改成 `https://127.0.0.1:5173`。测试脚本默认使用本机 Chromium 路径，只用于开发验收，不是运行时必需。
+
 ```sh
 cd app
 npm run typecheck
