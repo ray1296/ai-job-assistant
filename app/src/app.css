@@ -2856,3 +2856,10 @@ html[data-theme="night"] .housing-rent select { color: #eaf2ff; }
   body.printing-resume .studio-photo-tools,
   body.printing-resume .ai-help-strip { display: none !important; }
 }
+@media print {
+  body.printing-resume .live2d-pet-container,
+  body.printing-resume .live2d-pet-container *,
+  body.printing-resume .pet-frame,
+  body.printing-resume .pet-dialog,
+  body.printing-resume .pet-input-box { display: none !important; }
+}

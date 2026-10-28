@@ -538,8 +538,9 @@ export default defineComponent({
       if (!groups.length) groups.push([]);
       return groups;
     });
+    let paginationQueued = false;
     async function recalcPagination() {
-      if (paginationBusy) return;
+      if (paginationBusy) { paginationQueued = true; return; }
       paginationBusy = true;
       try {
         await nextTick();
@@ -550,8 +551,8 @@ export default defineComponent({
         const header = first.querySelector(".document-header") as HTMLElement | null;
         const summary = first.querySelector(".document-summary") as HTMLElement | null;
         // 预留 30px 余量，避免条目 margin/续页标题把页面撑过 A4。
-        const contentHeight = 985;
-        let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 20;
+        const contentHeight = 1008;
+        let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 10;
         const sectionsEl = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
         const headerH = new Map<string, number>();
         const entryH = new Map<string, number>();
@@ -560,13 +561,13 @@ export default defineComponent({
           if (id && !headerH.has(id)) headerH.set(id, (el.querySelector(".section-heading") as HTMLElement | null)?.getBoundingClientRect().height || 36);
           for (const entry of Array.from(el.querySelectorAll(".document-entry"))) {
             const eid = (entry as HTMLElement).getAttribute("data-entry-id") || "";
-            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 30);
+            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 12);
           }
         }
         const plan: PageFragment[][] = [];
         let page: PageFragment[] = [];
         const finish = () => { if (page.length) plan.push(page); page = []; };
-        const newPage = () => { finish(); used = 50; };
+        const newPage = () => { finish(); used = 40; };
         const breaks = new Set(doc.value.pageBreaks || []);
         for (const s of doc.value.sections) {
           if (breaks.has(s.id) && page.length) newPage();
@@ -591,7 +592,7 @@ export default defineComponent({
             if (part.length && used + need > contentHeight) {
               page.push({ section: s, items: part, first, last: false });
               finish();
-              used = 50;
+              used = 40;
               first = false;
               headerPriced = true;
               part = [];
@@ -610,6 +611,7 @@ export default defineComponent({
         pagePlan.value = plan.length ? plan : [];
       } finally {
         paginationBusy = false;
+        if (paginationQueued) { paginationQueued = false; void recalcPagination(); }
       }
     }
     watch(doc, () => { void recalcPagination(); }, { deep: true });
@@ -635,20 +637,34 @@ export default defineComponent({
         busy.value = false;
       }
     }
-    function print() {
-      if (!flush()) return;
+    async function print() {
+      if (!current.value || !flush()) return;
       panel.value = "";
-      notice.value = "请在打印窗口选择“另存为PDF”；只会打印简历纸张，不会打印网站界面。";
-      document.body.classList.add("printing-resume");
-      const cleanup = () => {
-        document.body.classList.remove("printing-resume");
-        window.removeEventListener("afterprint", cleanup);
-      };
-      window.addEventListener("afterprint", cleanup);
-      nextTick(() => {
-        window.print();
-        setTimeout(cleanup, 2500);
-      });
+      if (dirty.value || editDirty.value) await save();
+      if (!current.value) return;
+      notice.value = "正在生成 PDF…";
+      try {
+        const r = await fetch("/api/resumes/" + current.value.id + "/pdf", { credentials: "same-origin" });
+        if (!r.ok) {
+          let detail = "";
+          try { detail = String((await r.json()).error || ""); } catch {}
+          throw new Error(detail || "PDF生成失败");
+        }
+        const { download } = await import("./resume-export");
+        download(await r.blob(), (title.value || "我的简历") + ".pdf");
+        notice.value = "PDF 已生成，只包含简历纸张，不包含网站界面或浏览器页眉页脚。";
+      } catch (e) {
+        error.value = "PDF生成失败：" + errorText(e);
+        // 后端 PDF 服务不可用时仍保留浏览器打印作为兜底
+        notice.value = "PDF 服务不可用，已打开浏览器打印；请关闭浏览器页眉页脚后另存。";
+        document.body.classList.add("printing-resume");
+        const cleanup = () => {
+          document.body.classList.remove("printing-resume");
+          window.removeEventListener("afterprint", cleanup);
+        };
+        window.addEventListener("afterprint", cleanup);
+        nextTick(() => { window.print(); setTimeout(cleanup, 2500); });
+      }
     }
     function keydown(e: KeyboardEvent) {
       if (e.isComposing) return;
@@ -911,7 +927,7 @@ export default defineComponent({
             ),
             h(
               "button",
-              { disabled: !current.value || busy.value, onClick: print },
+              { disabled: !current.value || busy.value, onClick: () => void print() },
               "下载 PDF",
             ),
           ]),

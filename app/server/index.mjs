@@ -744,6 +744,33 @@ const contentTypes = {
   ".mjs": "application/javascript; charset=utf-8",
 };
 const appMetrics = { startedAt: Date.now(), requests: 0, errors: 0, totalMs: 0 };
+let pdfBrowserPromise = null;
+async function getPdfBrowser() {
+  if (pdfBrowserPromise) return pdfBrowserPromise;
+  pdfBrowserPromise = (async () => {
+    const { chromium } = await import("playwright-core");
+    const roots = [
+      process.env.CHROME_PATH,
+      "/home/ubuntu/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",
+      "/usr/bin/chromium",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/google-chrome",
+    ].filter(Boolean);
+    let executablePath = roots.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+    if (!executablePath) {
+      try {
+        const base = path.join(os.homedir(), ".cache", "ms-playwright");
+        for (const dir of fs.readdirSync(base)) {
+          const p = path.join(base, dir, "chrome-linux64", "chrome");
+          if (fs.existsSync(p)) { executablePath = p; break; }
+        }
+      } catch {}
+    }
+    if (!executablePath) throw new Error("没有可用的 Chromium，无法生成 PDF");
+    return chromium.launch({ executablePath, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  })();
+  return pdfBrowserPromise;
+}
 const server = http.createServer(async (req, res) => {
   const requestId = randomBytes(8).toString("hex");
   const requestStarted = Date.now();
@@ -2658,6 +2685,51 @@ const server = http.createServer(async (req, res) => {
         return send(res, 201, {
           resume: resumeOut(stmt.resume.get(id, s.user_id)),
         });
+      }
+      const pdfMatch = p.match(/^\/api\/resumes\/([a-f0-9]{32})\/pdf$/);
+      if (pdfMatch && m === "GET") {
+        const row = stmt.resume.get(pdfMatch[1], s.user_id);
+        if (!row) throw failure(404, "简历版本不存在或无访问权限");
+        let context = null;
+        try {
+          const browser = await getPdfBrowser();
+          context = await browser.newContext({
+            viewport: { width: 900, height: 1200 },
+            extraHTTPHeaders: req.headers.cookie ? { Cookie: req.headers.cookie } : {},
+          });
+          await context.addInitScript((id) => {
+            try {
+              localStorage.setItem("zg.resumeOpenId", id);
+              localStorage.removeItem("zg.resumeAutoPolish");
+            } catch {}
+          }, row.id);
+          const page = await context.newPage();
+          const origin = (isSecure(req) ? "https://" : "http://") + req.headers.host;
+          await page.goto(origin + "/#resume", { waitUntil: "domcontentloaded", timeout: 30000 });
+          await page.waitForSelector(".resume-document", { timeout: 30000 });
+          await page.waitForTimeout(1000);
+          await page.evaluate(() => document.body.classList.add("printing-resume"));
+          await page.emulateMedia({ media: "print" });
+          const pdf = await page.pdf({
+            format: "A4",
+            printBackground: true,
+            preferCSSPageSize: true,
+            displayHeaderFooter: false,
+            margin: { top: "0", right: "0", bottom: "0", left: "0" },
+          });
+          const name = encodeURIComponent(String(row.title || "简历") + ".pdf");
+          res.writeHead(200, {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": "attachment; filename*=UTF-8''" + name,
+            "Cache-Control": "no-store",
+            "Content-Length": pdf.length,
+          });
+          return res.end(pdf);
+        } catch (e) {
+          throw failure(503, "PDF生成暂时不可用，请改用浏览器打印：" + String(e?.message || "").slice(0, 100));
+        } finally {
+          try { await context?.close(); } catch {}
+        }
       }
       const match = p.match(/^\/api\/resumes\/([a-f0-9]{32})$/);
       if (match) {
