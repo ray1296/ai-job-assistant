@@ -25,6 +25,13 @@ import OrbitTrigger from "./draggable-orbit";
 import ClassicStarMap, { preloadStarAssets as preloadClassicStarAssets } from "./star-map";
 import RpgStarMap, { preloadStarAssets as preloadRpgStarAssets } from "./star-map-rpg";
 import MouseTrail from "./mouse-trail";
+const MAP_PRELOAD = [
+  "/assets/star-map/rpg-cosmos.webp",
+  "/assets/star-map/cosmos.webp",
+  "/assets/star-map/astrolabe.webp",
+  "/assets/star-map/astrolabe2.webp",
+  ...["home","guide","profile","resume","data","jobs","dashboard","map","companies","housing","knowledge","practice","interview","chat","wish","plan","study-upload","settings"].map((id) => "/assets/star-map/" + id + ".webp"),
+];
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const Jobs = defineAsyncComponent(() => import("./jobs"));
@@ -525,6 +532,8 @@ const app = defineComponent({
         ? h(Admin, { key: "admin" })
         : h("div", { class: "immersive-main" }, [
         h(MouseTrail),
+        h("div", { class: "map-preload-images", "aria-hidden": "true" },
+          MAP_PRELOAD.map((src) => h("img", { key: src, src, alt: "", draggable: false }))),
         h("header", { class: "sky-header" }, [
           h(
             "a",

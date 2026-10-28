@@ -3105,3 +3105,19 @@ html[data-theme="night"] .agent-session-item { color: #dce7f8 !important; }
 html[data-theme="night"] .agent-session-item.on,
 html[data-theme="night"] .agent-session-item:hover { background: #1b2e4b !important; }
 html[data-theme="night"] .agent-chat .companion-log { color: #dce7f8; }
+/* 夜间：Live2D 看板娘输入框与气泡 */
+html[data-theme="night"] .norem.pet-input { background: #0b1628 !important; color: #e8effb !important; border-color: #6c8cff !important; box-shadow: 0 4px 18px rgba(0,0,0,.35); caret-color: #f2d28d; }
+html[data-theme="night"] .norem.pet-input:focus { background: #0b1628 !important; color: #fff !important; border-color: #9d86db !important; }
+html[data-theme="night"] .norem.pet-input:empty::before { color: #8fa5c4 !important; }
+html[data-theme="night"] .pet-dialog { background: #132238 !important; color: #e8effb !important; border-color: #304966 !important; }
+html[data-theme="night"] .pet-dialog-tail { border-top-color: #132238 !important; }
+html[data-theme="night"] .pet-session-bar button,
+html[data-theme="night"] .pet-session-menu,
+html[data-theme="night"] .pet-img-chip { background: #132238 !important; color: #dce7f8 !important; border-color: #304966 !important; }
+html[data-theme="night"] .pet-session-menu button { color: #dce7f8 !important; }
+html[data-theme="night"] .pet-session-menu button:hover,
+html[data-theme="night"] .pet-session-menu button.on { background: #1b2e4b !important; }
+html[data-theme="night"] .pet-tool-btn { background: #14233a !important; border-color: #36506f !important; }
+html[data-theme="night"] .pet-tool-btn:hover { background: #1b2e4b !important; }
+.map-preload-images { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: .001; pointer-events: none; z-index: -1; }
+.map-preload-images img { width: 1px; height: 1px; object-fit: cover; display: block; }
