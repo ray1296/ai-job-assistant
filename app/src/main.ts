@@ -22,7 +22,7 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
-import StarMap, { preloadStarAssets } from "./star-map";
+import StarMap, { preloadStarAssets } from "./star-map-rpg";
 import MouseTrail from "./mouse-trail";
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
