@@ -625,7 +625,16 @@ async function onPickDoc(e) {
 function onPaste(e) {
   const items = Array.from((e.clipboardData && e.clipboardData.items) || [])
   const hit = items.find(it => (it.type || '').startsWith('image/'))
-  if (!hit) return
+  if (!hit) {
+    // 纯文本粘贴走 insertText，避免浏览器插入 div/br 后 buildMessage 读不到内容。
+    const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || ''
+    if (text) {
+      e.preventDefault()
+      try { document.execCommand('insertText', false, text) } catch (err) {}
+      setTimeout(() => { autoResize(); const el = inputRef.value; if (el) el.scrollTop = el.scrollHeight }, 0)
+    }
+    return
+  }
   const f = hit.getAsFile()
   if (!f) return
   e.preventDefault()
@@ -1058,15 +1067,25 @@ function buildMessage() {
   const el = inputRef.value
   if (!el) return ''
   const parts = []
-  for (const node of Array.from(el.childNodes)) {
+  const walk = (node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       if (node.textContent) parts.push(node.textContent)
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.classList && node.classList.contains('pet-token')) {
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    if (node.classList && node.classList.contains('pet-token')) {
       const d = getAIDraft(Number(node.dataset.rid))
       if (d) parts.push(d.content)
+      return
     }
+    if (node.tagName === 'BR') { parts.push('\n'); return }
+    const block = /^(DIV|P|LI|UL|OL)$/.test(node.tagName)
+    if (block && parts.length && !String(parts[parts.length - 1]).endsWith('\n')) parts.push('\n')
+    for (const ch of Array.from(node.childNodes)) walk(ch)
+    if (block && parts.length && !String(parts[parts.length - 1]).endsWith('\n')) parts.push('\n')
   }
-  return parts.join('').trim()
+  walk(el)
+  return parts.join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 /* ===== 长按拖动 ===== */
@@ -1336,7 +1355,7 @@ async function sendMessage() {
     pushChatHistory('assistant', reply)
     mode.value = 'chat'
   } catch (e) {
-    dialogText.value = '呜，我这边开小差了，稍后再试吧~'
+    dialogText.value = '发送失败：' + ((e && e.message) || '网络或 AI 上游暂时不可用') + '。内容已放回输入框，请稍后重试。'
     pendingImage.value = image
     // 发送失败：把刚才的内容原样放回输入框，用户不用重写
     restoreInput(draftBackup, inputSnap)
