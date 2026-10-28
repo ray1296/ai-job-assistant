@@ -52,7 +52,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
           children: [new ImageRun({
             type: "png",
             data: await r.arrayBuffer(),
-            transformation: { width: 600, height: Math.round(600 * 297 / 210) },
+            transformation: { width: 794, height: 1123 },
             floating: {
               horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
               verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 },

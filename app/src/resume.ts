@@ -273,6 +273,7 @@ export default defineComponent({
               next.splice(0, next.length, ...rest);
             }
             doc.value.sections = next;
+            splitLongEntries(doc.value.sections);
             const ids = new Set(next.map((s) => s.id));
             doc.value.pageBreaks = (doc.value.pageBreaks || []).filter((id) => ids.has(id));
           }
@@ -363,6 +364,7 @@ export default defineComponent({
       try {
         await recommendLayout();
         if (layoutSuggestion.value) applyLayout();
+        splitLongEntries(doc.value.sections);
         await nextTick();
         await generateDecoration();
         await save();
@@ -526,6 +528,32 @@ export default defineComponent({
         sectionError.value = errorText(e);
       } finally {
         sectionBusy.value = false;
+      }
+    }
+    /** 把超长条目按段落拆成可跨页的多个条目，避免一个条目独占一页。 */
+    function splitLongEntries(sections: Section[]) {
+      for (const s of sections) {
+        const out: Entry[] = [];
+        for (const item of s.items) {
+          const lines = String(item.content || "").split("\n");
+          const tooLong = String(item.content || "").length > 650 || lines.length > 6;
+          if (!tooLong || lines.length < 3) { out.push(item); continue; }
+          let firstChunk = true;
+          for (let i = 0; i < lines.length; i += 4) {
+            const chunk = lines.slice(i, i + 4).join("\n").trimEnd();
+            if (!chunk.trim()) continue;
+            out.push({
+              ...item,
+              id: uid(),
+              title: firstChunk ? item.title : "",
+              meta: firstChunk ? item.meta : "",
+              content: chunk,
+              ...( { __entryChunk: true, __continuation: !firstChunk } as any),
+            } as Entry);
+            firstChunk = false;
+          }
+        }
+        if (out.length) s.items = out;
       }
     }
     function move(i: number, delta: number) {
@@ -766,8 +794,8 @@ export default defineComponent({
                 h("span", { class: "section-continued-title" }, s.title),
               ]),
           h("div", { class: "section-items" }, items.map((item, i) =>
-            h("div", { key: item.id, class: "document-entry", "data-entry-id": item.id }, [
-              h("div", { class: "entry-line" }, [
+            h("div", { key: item.id, class: "document-entry" + ((item as any).__continuation ? " entry-continuation" : ""), "data-entry-id": item.id }, [
+              !(item as any).__continuation ? h("div", { class: "entry-line" }, [
                 edit(
                   item.title,
                   "条目标题-" + item.id,
@@ -788,7 +816,7 @@ export default defineComponent({
                   false,
                   200,
                 ),
-              ]),
+              ]) : null,
               edit(
                 item.content,
                 "条目内容-" + item.id,
