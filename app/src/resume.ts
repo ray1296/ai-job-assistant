@@ -277,7 +277,6 @@ export default defineComponent({
               next.splice(0, next.length, ...rest);
             }
             doc.value.sections = next;
-            splitLongEntries(doc.value.sections);
             const ids = new Set(next.map((s) => s.id));
             doc.value.pageBreaks = (doc.value.pageBreaks || []).filter((id) => ids.has(id));
           }
@@ -368,7 +367,6 @@ export default defineComponent({
       try {
         await recommendLayout();
         if (layoutSuggestion.value) applyLayout();
-        splitLongEntries(doc.value.sections);
         await nextTick();
         await generateDecoration();
         await save();
@@ -534,32 +532,6 @@ export default defineComponent({
         sectionBusy.value = false;
       }
     }
-    /** 把超长条目按段落拆成可跨页的多个条目，避免一个条目独占一页。 */
-    function splitLongEntries(sections: Section[]) {
-      for (const s of sections) {
-        const out: Entry[] = [];
-        for (const item of s.items) {
-          const lines = String(item.content || "").split("\n");
-          const tooLong = String(item.content || "").length > 650 || lines.length > 6;
-          if (!tooLong || lines.length < 3) { out.push(item); continue; }
-          let firstChunk = true;
-          for (let i = 0; i < lines.length; i += 4) {
-            const chunk = lines.slice(i, i + 4).join("\n").trimEnd();
-            if (!chunk.trim()) continue;
-            out.push({
-              ...item,
-              id: uid(),
-              title: firstChunk ? item.title : "",
-              meta: firstChunk ? item.meta : "",
-              content: chunk,
-              ...( { __entryChunk: true, __continuation: !firstChunk } as any),
-            } as Entry);
-            firstChunk = false;
-          }
-        }
-        if (out.length) s.items = out;
-      }
-    }
     function move(i: number, delta: number) {
       if (i + delta < 0 || i + delta >= doc.value.sections.length) return;
       change(() => {
@@ -627,26 +599,68 @@ export default defineComponent({
           let headerPriced = false;
           let part: Entry[] = [];
           for (let i = 0; i < s.items.length; i++) {
-            // 两栏板块按“每两项约一行”估算，仍允许跨页补满当前页；
-            // 否则一页只放一个两栏板块，后面会留下大片空白。
+            const item = s.items[i];
             const eh = s.columns === 2 ? hs[i] / 2 : hs[i];
-            let headerCost = headerPriced ? 28 : sh;
-            let need = headerCost + eh;
-            if (part.length && used + need > contentHeight) {
-              page.push({ section: s, items: part, first, last: false });
-              finish();
-              used = 40;
-              first = false;
+            const headerCost = headerPriced ? 28 : sh;
+            // 短条目仍按整条排版，保留直接编辑。
+            if (used + headerCost + eh <= contentHeight || String(item.content || "").split("\n").length <= 1) {
+              if (part.length && used + headerCost + eh > contentHeight) {
+                page.push({ section: s, items: part, first, last: false });
+                finish(); used = 40; first = false; headerPriced = true; part = [];
+              } else if (!part.length && used + headerCost + eh > contentHeight && page.length) {
+                newPage();
+              }
+              used += (part.length || !headerPriced ? headerCost : 28) + eh;
               headerPriced = true;
-              part = [];
-              headerCost = 28;
-              need = headerCost + eh;
-            } else if (!part.length && used + need > contentHeight && page.length) {
-              newPage();
+              part.push(item);
+              continue;
             }
-            used += need;
-            headerPriced = true;
-            part.push(s.items[i]);
+            // 长条目按当前页剩余空间逐行切分，切不完的进入下一页。
+            const lines = String(item.content || "").split("\n");
+            const visualTotal = lines.reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 54)), 0) || 1;
+            // 长条目按实际正文行高切分，避免用整块 measured 高度把每行估得过大。
+            const perVisual = doc.value.layout.template === "compact" ? 21 : 26;
+            let lineIndex = 0;
+            let chunkFirst = true;
+            while (lineIndex < lines.length) {
+              const hCost = headerPriced ? 28 : sh;
+              if (hCost + 24 > contentHeight - used && part.length) {
+                page.push({ section: s, items: part, first, last: false });
+                finish(); used = 40; first = false; headerPriced = true; part = [];
+                continue;
+              }
+              const avail = contentHeight - used - hCost - (chunkFirst ? 42 : 8);
+              let take = 0;
+              let chunkH = 0;
+              for (let j = lineIndex; j < lines.length; j++) {
+                const lh = Math.max(1, Math.ceil(lines[j].length / 54)) * perVisual;
+                if (take > 0 && chunkH + lh > avail) break;
+                chunkH += lh;
+                take++;
+                if (chunkH > avail) break;
+              }
+              if (take === 0) take = 1;
+              const chunkLines = lines.slice(lineIndex, lineIndex + take);
+              const chunkText = chunkLines.join("\n");
+              let start = 0;
+              for (let k = 0; k < lineIndex; k++) start += lines[k].length + 1;
+              part.push({
+                ...item,
+                id: item.id + "__page" + lineIndex,
+                title: chunkFirst ? item.title : "",
+                meta: chunkFirst ? item.meta : "",
+                content: chunkText,
+                ...( { __source: item, __start: start, __continuation: !chunkFirst, __entryChunk: true } as any),
+              } as Entry);
+              used += hCost + chunkH + (chunkFirst ? 42 : 8);
+              headerPriced = true;
+              lineIndex += take;
+              chunkFirst = false;
+              if (lineIndex < lines.length) {
+                page.push({ section: s, items: part, first, last: false });
+                finish(); used = 40; first = false; headerPriced = true; part = [];
+              }
+            }
           }
           if (part.length) page.push({ section: s, items: part, first, last: true });
         }
@@ -803,7 +817,10 @@ export default defineComponent({
                 edit(
                   item.title,
                   "条目标题-" + item.id,
-                  (v) => (item.title = v),
+                  (v) => {
+                    const source = (item as any).__source as Entry | undefined;
+                    if (source) source.title = v; else item.title = v;
+                  },
                   "h3",
                   s.title === "教育经历"
                     ? "双击填写学校 / 专业 / 学历"
@@ -814,7 +831,10 @@ export default defineComponent({
                 edit(
                   item.meta,
                   "条目时间-" + item.id,
-                  (v) => (item.meta = v),
+                  (v) => {
+                    const source = (item as any).__source as Entry | undefined;
+                    if (source) source.meta = v; else item.meta = v;
+                  },
                   "p",
                   "双击填写时间",
                   false,
@@ -824,12 +844,19 @@ export default defineComponent({
               edit(
                 item.content,
                 "条目内容-" + item.id,
-                (v) => (item.content = v),
+                (v) => {
+                  const source = (item as any).__source as Entry | undefined;
+                  if (source && typeof (item as any).__start === "number") {
+                    const start = Number((item as any).__start) || 0;
+                    source.content = source.content.slice(0, start) + v + source.content.slice(start + item.content.length);
+                    item.content = v;
+                  } else item.content = v;
+                },
                 "p",
                 "双击写下你的经历与成果，支持多行",
                 true,
               ),
-              s.items.length > 1 && last
+              s.items.length > 1 && last && !(item as any).__source
                 ? h(
                     "button",
                     {
