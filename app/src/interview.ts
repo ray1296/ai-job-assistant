@@ -34,7 +34,7 @@ const MODES = [
   { id: "candidate", title: "AI 当求职者", desc: "你当面试官，AI 拿着你的简历回答你的问题。" },
 ] as const;
 
-type Msg = { role: "ai" | "me" | "system"; text: string };
+type Msg = { role: "ai" | "me" | "system"; text: string; tts?: "pending" | "ok" | "fail" | "off" };
 
 export default defineComponent({
   setup() {
@@ -94,6 +94,7 @@ export default defineComponent({
     const feedbackBusy = ref(false);
     const sessions = ref<any[]>([]);
     const soundOn = ref(true);
+    const paused = ref(false);
     const speaking = ref(false);
     const checkingTurn = ref(false);
     const askDone = ref(false);
@@ -116,6 +117,7 @@ export default defineComponent({
     let rtDropAudio = false;
     let rtAiText = "";
     let rtSources = new Set<AudioBufferSourceNode>();
+    let rtAudioForCurrent = false;
     let coach: VideoCoach | null = null;
     let lastVisionAt = 0;
     let cvHintTimer = 0;
@@ -209,7 +211,7 @@ export default defineComponent({
       let audio: MediaStream | null = null;
       let video: MediaStream | null = null;
       try {
-        audio = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audio = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       } catch (e) {
         mediaError.value = "麦克风没有授权，语音输入不可用；可以继续用文字面试。";
         micOn.value = false;
@@ -272,6 +274,29 @@ export default defineComponent({
     function toggleSound() {
       soundOn.value = !soundOn.value;
       if (!soundOn.value) stopSpeech();
+    }
+    function togglePause() {
+      if (!started.value) return;
+      if (!paused.value) {
+        paused.value = true;
+        stopSpeech();
+        pauseRecognition();
+        micOn.value = false;
+        clearRealtimePlayback();
+        window.clearInterval(elapsedTimer);
+        window.clearInterval(observeTimer);
+        elapsedTimer = 0;
+        observeTimer = 0;
+        speaking.value = false;
+        rtStatus.value = "已暂停";
+      } else {
+        paused.value = false;
+        if (realtime.value) micOn.value = true;
+        else if (speechSupported.value) { setupRecognition(); startRecognition(); }
+        elapsedTimer = window.setInterval(() => { if (alive && !paused.value) elapsed.value++; }, 1000);
+        startObservation();
+        rtStatus.value = realtime.value ? (rtReady.value ? "在线" : "连接实时模型…") : "在线";
+      }
     }
 
     function setDuplex(v: "half" | "full") {
@@ -356,7 +381,7 @@ export default defineComponent({
       micOn.value = true;
     }
     async function playPcm(base64: string) {
-      if (!soundOn.value || !base64) return;
+      if (paused.value || !soundOn.value || !base64) return;
       try {
         const bin = atob(base64);
         const bytes = new Uint8Array(bin.length);
@@ -394,7 +419,11 @@ export default defineComponent({
       }
       if (msg.type === "user_text") {
         const text = String(msg.text || "").trim();
-        if (text) { messages.value.push({ role: "me", text }); scrollTranscript(); }
+        const last = messages.value[messages.value.length - 1];
+        if (text && !(last?.role === "me" && last.text.trim() === text)) {
+          messages.value.push({ role: "me", text });
+          scrollTranscript();
+        }
         return;
       }
       if (msg.type === "ai_delta") {
@@ -407,16 +436,23 @@ export default defineComponent({
         const text = String(msg.text || rtAiDraft.value || "").trim();
         rtAiDraft.value = "";
         rtAiText = "";
-        if (text) { messages.value.push({ role: "ai", text }); scrollTranscript(); }
+        if (text) {
+          messages.value.push({ role: "ai", text, tts: soundOn.value ? (rtAudioForCurrent ? "ok" : "pending") : "off" });
+          scrollTranscript();
+        }
         flushRealtimeAudio();
         speaking.value = true;
         return;
       }
       if (msg.type === "audio") {
-        if (soundOn.value && !rtDropAudio) rtPendingAudio.push(String(msg.data || ""));
+        rtAudioForCurrent = true;
+        const last = [...messages.value].reverse().find((m) => m.role === "ai" && m.tts === "pending");
+        if (last) last.tts = "ok";
+        if (soundOn.value && !rtDropAudio) void playPcm(String(msg.data || ""));
         return;
       }
       if (msg.type === "speech_started") {
+        rtAudioForCurrent = false;
         rtDropAudio = true;
         clearRealtimePlayback();
         speaking.value = false;
@@ -430,6 +466,8 @@ export default defineComponent({
         return;
       }
       if (msg.type === "response_done") {
+        const pending = [...messages.value].reverse().find((m) => m.role === "ai" && m.tts === "pending");
+        if (pending) pending.tts = rtAudioForCurrent ? "ok" : "fail";
         rtDropAudio = false;
         busy.value = false;
         speaking.value = false;
@@ -665,6 +703,16 @@ export default defineComponent({
     async function submitDraft() {
       const text = (draft.value + " " + interim.value).trim();
       if (!text || busy.value) return;
+      // 同一问题重复发送只处理一次；如果上一问已经有 AI 回答，直接忽略。
+      const lastMe = [...messages.value].reverse().find((m) => m.role === "me");
+      if (lastMe && lastMe.text.trim() === text) {
+        let seenMe = false;
+        const answered = messages.value.some((m) => {
+          if (m.role === "me" && m.text.trim() === text) seenMe = true;
+          return seenMe && m.role === "ai";
+        });
+        if (answered || realtime.value) { draft.value = ""; interim.value = ""; return; }
+      }
       window.clearTimeout(submitTimer);
       askDone.value = false;
       turnHint.value = "";
@@ -699,13 +747,14 @@ export default defineComponent({
         if (!alive || !started.value) return;
         const reply = String(r.reply || "").trim();
         if (!reply) throw new Error("AI 没有回复，请再说一次");
-        messages.value.push({ role: "ai", text: reply });
+        const aiMsg: Msg = { role: "ai", text: reply, tts: soundOn.value ? "pending" : "off" };
+        messages.value.push(aiMsg);
         scrollTranscript();
         // 文字先出现，语音紧接着用这个 agent 配置的音色朗读；默认一定出声
         if (soundOn.value) {
           speaking.value = true;
           // 面试专用语气：短句、自然停顿、重点词轻读，避免整段平铺直叙。
-          try { await speakAs(agent.value.name, reply, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，关键结论前稍作停顿，像真人在思考后开口，不要播音腔。"); } finally { speaking.value = false; }
+          try { await speakAs(agent.value.name, reply, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，关键结论前稍作停顿，像真人在思考后开口，不要播音腔。", (ok) => { aiMsg.tts = ok ? "ok" : "fail"; }); } finally { speaking.value = false; }
         }
       } catch (e) {
         if (alive) error.value = errorText(e);
@@ -1130,6 +1179,7 @@ export default defineComponent({
           h("strong", (mode.value === "candidate" ? "你是面试官" : "你是求职者") + " · " + (currentJob.value?.title || "通用岗位") +
             (mode.value === "interviewer" ? " · " + difficultyInfo.value.label + "难度" : "")),
           h("span", { class: "interview-timer" }, fmt(elapsed.value)),
+          h("button", { class: "interview-pause-btn", onClick: togglePause, disabled: feedbackBusy.value }, paused.value ? "继续" : "暂停"),
           h("button", { class: "interview-end-btn", onClick: () => void endInterview(), disabled: feedbackBusy.value }, feedbackBusy.value ? "整理反馈…" : "结束面试"),
         ]),
         h("div", { class: "interview-stage" }, [
@@ -1149,7 +1199,7 @@ export default defineComponent({
             muted: true,
             title: "拖动调整摄像头位置",
             onPointerdown: startCamDrag,
-            style: { transform: "scaleX(-1) translate(" + camOffset.value.x + "px," + camOffset.value.y + "px)" },
+            style: { transform: "translate(" + camOffset.value.x + "px," + camOffset.value.y + "px) scaleX(-1)" },
           }),
           cvOn.value
             ? h("div", { class: "interview-cv-badge", title: "端侧视觉：只在本机处理，不上传原始视频" }, [
@@ -1167,6 +1217,14 @@ export default defineComponent({
               }, "摄像头未开启")
             : null,
           mediaError.value ? h("p", { class: "interview-media-note" }, mediaError.value) : null,
+          paused.value
+            ? h("div", { class: "interview-pause-mask", role: "dialog", "aria-modal": "true" }, h("div", { class: "interview-pause-card" }, [
+                h("span", "PAUSED"),
+                h("h3", "面试已暂停"),
+                h("p", "可以先深呼吸、整理思路，准备好后继续。"),
+                h("button", { class: "btn primary", onClick: togglePause }, "继续面试"),
+              ]))
+            : null,
           h("div", { class: "interview-controls" }, [
             h("button", { class: "interview-ctrl" + (micOn.value ? " on" : ""), onClick: () => void toggleMic() }, micOn.value ? "🎙 关麦" : "🎙 开麦"),
             h("button", { class: "interview-ctrl" + (videoOn.value ? " on" : ""), onClick: () => void toggleCamera() }, videoOn.value ? "▣ 摄像头" : "▣ 已关"),
@@ -1179,6 +1237,9 @@ export default defineComponent({
             h("p", { key: i, class: "interview-line " + m.role }, [
               m.role === "system" ? "👁 " : "",
               m.text,
+              m.role === "ai" && m.tts
+                ? h("small", { class: "interview-tts-status " + m.tts }, m.tts === "pending" ? "语音生成中…" : m.tts === "ok" ? "语音已生成" : m.tts === "fail" ? "转语音失败" : "语音已关闭")
+                : null,
             ])
           )),
           rtAiDraft.value ? h("p", { class: "interview-line ai typing" }, rtAiDraft.value) : null,

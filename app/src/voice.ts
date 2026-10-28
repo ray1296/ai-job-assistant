@@ -62,7 +62,7 @@ function fallbackSpeak(text: string) {
  * 用指定 agent 的音色朗读。force=true 时忽略全局静音（设置页试听用）。
  * 新语音开始前会停掉上一条，避免多个 chip 同时说话。
  */
-export async function speakAs(name: string, text: string, force = false, instruction = ""): Promise<void> {
+export async function speakAs(name: string, text: string, force = false, instruction = "", onStatus?: (ok: boolean) => void): Promise<void> {
   const clean = String(text || "").replace(/\s+/g, " ").trim();
   if (!clean) return;
   if (!voiceOn.value && !force) return;
@@ -90,6 +90,7 @@ export async function speakAs(name: string, text: string, force = false, instruc
     if (mine !== seq) return;
     const url = URL.createObjectURL(blob);
     const el = new Audio(url);
+    onStatus?.(true);
     // 保持音色/音高不变，只略快播放；比等待更快的 TTS 上游更直接。
     el.playbackRate = 1.12;
     el.preservesPitch = true;
@@ -113,6 +114,7 @@ export async function speakAs(name: string, text: string, force = false, instruc
       el.addEventListener("error", () => resolve(), { once: true });
     });
   } catch (e) {
+    onStatus?.(false);
     console.warn("[voice] TTS 不可用，改用系统语音", e);
     if (mine === seq && (voiceOn.value || force)) fallbackSpeak(clean);
   }

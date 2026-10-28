@@ -67,6 +67,7 @@ export function attachRealtimeProxy(server, deps) {
     let started = false;
     let ali = null;
     let aliReady = false;
+    let pendingText = [];
 
     const send = (obj) => {
       if (closed) return;
@@ -85,6 +86,14 @@ export function attachRealtimeProxy(server, deps) {
       try { ali.send(JSON.stringify(obj)); return true; } catch { return false; }
     };
 
+    function sendUserText(text) {
+      if (!text || !aliReady) return false;
+      try {
+        ali.send(JSON.stringify({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: String(text).slice(0, 800) }] } }));
+        ali.send(JSON.stringify({ type: "response.create" }));
+        return true;
+      } catch { return false; }
+    }
     function onClientMessage(opcode, payload) {
       if (opcode === 8) return close(1000);
       if (opcode === 9) { try { socket.write(frame(payload, 10)); } catch {} return; }
@@ -102,10 +111,9 @@ export function attachRealtimeProxy(server, deps) {
       if (msg.type === "stop") return close(1000);
       if (msg.type === "clear") { sendAli({ type: "input_audio_buffer.clear" }); return; }
       if (msg.type === "text" && typeof msg.text === "string" && msg.text.trim()) {
-        // 实时模式也允许打字；用户文字会作为一条 user 消息
-        if (!aliReady) return;
-        sendAli({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: msg.text.slice(0, 800) }] } });
-        sendAli({ type: "response.create" });
+        // 实时连接尚未 ready 时不能丢消息；先排队，session.updated 后补发。
+        if (!aliReady) { pendingText.push(msg.text.slice(0, 800)); return; }
+        sendUserText(msg.text);
         return;
       }
       if (msg.type !== "start" || started) return;
@@ -158,6 +166,14 @@ export function attachRealtimeProxy(server, deps) {
               send({ type: "ready" });
               setTimeout(() => {
                 if (!aliReady) return;
+                if (pendingText.length) {
+                  const queued = pendingText.splice(0);
+                  for (const text of queued) {
+                    sendAli({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
+                  }
+                  sendAli({ type: "response.create" });
+                  return;
+                }
                 sendAli({
                   type: "response.create",
                   response: {

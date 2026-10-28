@@ -3005,3 +3005,17 @@ html[data-theme="night"] .plan-job-list button.selected { background-color: #2a2
 .interview-cv-toggle input[type="checkbox"]::after { position: absolute; left: 50%; top: 50%; width: 9px; height: 5px; transform: translate(-50%, -50%) rotate(-45deg) scale(0); transform-origin: center; }
 .interview-cv-toggle input[type="checkbox"]:checked::after { transform: translate(-50%, -50%) rotate(-45deg) scale(1); }
 .interview-cv-toggle input[type="checkbox"] { width: 18px !important; height: 18px !important; min-width: 18px; min-height: 18px; padding: 0 !important; margin: 1px 0 0 !important; box-sizing: border-box; line-height: 0; }
+.interview-pause-btn { border: 1px solid rgba(255,255,255,.24); background: rgba(255,255,255,.1); color: #fff; border-radius: 999px; padding: 6px 12px; font-size: 11px; cursor: pointer; }
+.interview-pause-mask { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(15,20,36,.72); backdrop-filter: blur(5px); border-radius: 16px; }
+.interview-pause-card { width: min(360px, 86%); background: #fff; color: #3f3353; border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.interview-pause-card span { font-size: 10px; letter-spacing: .16em; color: #9c8fae; }
+.interview-pause-card h3 { margin: 7px 0; font-size: 20px; }
+.interview-pause-card p { margin: 0 0 14px; font-size: 12px; line-height: 1.7; color: #6f627f; }
+.interview-tts-status { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; letter-spacing: .02em; }
+.interview-tts-status.pending { color: #a58adf; }
+.interview-tts-status.ok { color: #5f9e86; }
+.interview-tts-status.fail { color: #c25b72; }
+.interview-tts-status.off { color: #9c8fae; }
+html[data-theme="night"] .interview-pause-card { background: #132238; color: #e6edfb; border: 1px solid #2d4565; }
+html[data-theme="night"] .interview-pause-card h3 { color: #f3f2ff; }
+html[data-theme="night"] .interview-pause-card p { color: #a6b7d4; }
