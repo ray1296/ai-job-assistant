@@ -451,7 +451,7 @@ export default defineComponent({
                         h(
                           "p",
                           { class: "plan-help", id: "plan-help" },
-                          "请核对事实，勿加入未具备的经历或能力。切换岗位保留本页草稿；离开页面前请保存。定制简历会新建一份针对该岗位的简历；生成/优化文案只改发给 HR 的文字，不改简历。",
+                          "请核对事实，勿加入未具备的经历或能力。切换岗位保留本页草稿；离开页面前请保存。定制简历会新建一份针对该岗位的简历，并生成投递文案；文案可手动修改后保存，或复制并打开岗位。",
                         ),
                         h("label", { for: "application-text" }, "投递话术"),
                         h("textarea", {
@@ -488,28 +488,6 @@ export default defineComponent({
                           h(
                             "button",
                             {
-                              onClick: generate,
-                              disabled:
-                                aiBusy.value ||
-                                tailorBusy.value ||
-                                row.text.length > maxLength.value,
-                            },
-                            aiBusy.value
-                              ? "AI 正在处理…"
-                              : row.text.trim()
-                                ? "AI 优化投递文案"
-                                : "AI 生成投递文案",
-                          ),
-                          aiBusy.value
-                            ? h(
-                                "button",
-                                { onClick: () => cancelAI(true) },
-                                "取消 AI 请求",
-                              )
-                            : null,
-                          h(
-                            "button",
-                            {
                               onClick: () => save(row),
                               disabled:
                                 row.saving ||
@@ -517,11 +495,6 @@ export default defineComponent({
                                 row.text.length > maxLength.value,
                             },
                             row.saving ? "正在保存…" : "保存草稿",
-                          ),
-                          h(
-                            "button",
-                            { onClick: copy, disabled: !row.text },
-                            "仅复制投递文案",
                           ),
                           url
                             ? h(
