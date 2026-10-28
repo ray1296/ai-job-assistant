@@ -90,6 +90,9 @@ export async function speakAs(name: string, text: string, force = false): Promis
     if (mine !== seq) return;
     const url = URL.createObjectURL(blob);
     const el = new Audio(url);
+    // 保持音色/音高不变，只略快播放；比等待更快的 TTS 上游更直接。
+    el.playbackRate = 1.12;
+    el.preservesPitch = true;
     (el as any).__zgUrl = url;
     audio = el;
     const done = () => {

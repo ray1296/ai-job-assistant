@@ -2889,3 +2889,4 @@ body.interview-cam-dragging, body.interview-cam-dragging * { cursor: grabbing !i
 .photo-profile-pick span { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; font-size: 9px; color: #fff; background: rgba(65,43,98,.62); text-align: center; }
 .photo-profile-pick.selected { border-color: #8f70d0; }
 .photo-profile-pick:disabled { opacity: .72; cursor: default; }
+.interview-feedback-head button { display: grid; place-items: center; padding: 0; line-height: 1; font-size: 16px; }

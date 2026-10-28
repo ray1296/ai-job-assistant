@@ -616,7 +616,7 @@ function interviewSystem(agentId, mode, style, job, resumeText, first = false, d
       "\n面试风格：" + style + "\n" + jobText + resumePart;
   }
   const diff = normalizeDifficulty(difficulty);
-  return base + "\n你现在的身份是面试官「" + name + "」，用户是求职者。你是考察者/上级，语气直接、专业，不刻意讨好；一次只问一个问题，等用户回答；根据回答自然追问；不要自问自答；不要输出分析或评分；80 字以内。" +
+  return base + "\n你现在的身份是面试官「" + name + "」，用户是求职者。你是考察者/上级，语气直接、专业，不刻意讨好；一次只问一个问题，等用户回答；根据回答自然追问；不要自问自答；不要输出分析或评分；60 字以内。" +
     "\n追问要基于简历里的具体项目/技术/数字和岗位要求，优先问“你具体怎么做、为什么这样做、结果如何、遇到什么困难”，用 STAR 证据判断，不要问空泛的“你如何看待”。" +
     "\n本场难度：" + INTERVIEW_DIFFICULTIES[diff].label + "。" + INTERVIEW_DIFFICULTIES[diff].rule +
     (first ? "这是第一轮：简短问候，请用户做 1 分钟自我介绍。" : "面试已经开始：不要重新问候或让用户再做自我介绍，直接针对用户最新的回答追问一个问题。") +
