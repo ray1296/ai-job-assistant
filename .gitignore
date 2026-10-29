@@ -37,3 +37,13 @@
 prototype/public/app.js
 prototype/public/legacy.js
 prototype/public/legacy.css
+
+# 新外观项目：源码进仓库，运行时资产仍忽略
+!/app-redesign/
+!/app-redesign/**
+/app-redesign/node_modules/
+/app-redesign/private/
+/app-redesign/dist/
+/app-redesign/.tools/
+/app-redesign/artifacts/
+/app-redesign/*.log
