@@ -211,6 +211,7 @@
 - 数据空间列名映射补充中英文别名；CSV 英文表头也能映射 title/company/city/salary/education
 - 学习/刷题 iframe 常驻主壳，切换板块只切 display；首页空闲预加载，避免每次进入重新加载
 - Excel 解析支持多工作表（跳过空 sheet）；旧版 .xls 有 LibreOffice 时转 xlsx，否则提示另存
+- 看板娘 ASR 改为当前 /api/ai/asr 响应格式，补 CSRF header 与 403 刷新 token 重试，不再把 403 当“识别失败”
 
 ## 17. 题库 iframe 的夜间与拖尾
 

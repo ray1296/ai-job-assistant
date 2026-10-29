@@ -1622,17 +1622,32 @@ async function onRecordingStop() {
     dialogText.value = '正在听你说话...'
     dialogVisible.value = true
     clearAutoHide()
-    const form = new FormData()
-    form.append('file', blob, 'voice.webm')
-    const res = await fetch('/api/ai/asr', {
+    const makeForm = () => {
+      const form = new FormData()
+      form.append('file', blob, 'voice.' + ((mediaRecorder?.mimeType || '').includes('mp4') ? 'm4a' : 'webm'))
+      return form
+    }
+    const send = () => fetch('/api/ai/asr', {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + (localStorage.getItem('exam_prep_token') || '') },
-      body: form,
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': window.__zgCsrf || '' },
+      body: makeForm(),
     })
-    const json = await res.json()
-    if (json.code !== 200) throw new Error(json.message || '识别失败')
-    const data = json.data || {}
-    const text = (data.text || '').trim()
+    let res = await send()
+    if (res.status === 403) {
+      try {
+        const s = await fetch('/api/auth/session', { credentials: 'same-origin' })
+        const sj = await s.json().catch(() => ({}))
+        if (sj?.csrf) {
+          window.__zgCsrf = sj.csrf
+          res = await send()
+        }
+      } catch { /* keep original error */ }
+    }
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json.error || '识别失败')
+    const text = String(json.text || '').trim()
+    const data = { sentences: Array.isArray(json.sentences) ? json.sentences : [] }
     if (!text) {
       dialogText.value = '没听清呢，再说一遍吧～'
       scheduleAutoHide()
