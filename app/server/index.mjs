@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS wishes_order ON wishes(sort_order,created_at);
 CREATE TABLE IF NOT EXISTS announcements(id TEXT PRIMARY KEY,title TEXT NOT NULL,body TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,created_by TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS announcements_active ON announcements(active,created_at);
 PRAGMA user_version=1;`);
-try { const cols = db.prepare("PRAGMA table_info(users)").all(); if (!cols.some((c) => c.name === "role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'"); if (!cols.some((c) => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT"); } catch {}
+try { const cols = db.prepare("PRAGMA table_info(users)").all(); if (!cols.some((c) => c.name === "role")) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'"); if (!cols.some((c) => c.name === "display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT"); if (!cols.some((c) => c.name === "tutorial_done")) db.exec("ALTER TABLE users ADD COLUMN tutorial_done INTEGER NOT NULL DEFAULT 0"); } catch {}
 // 心愿审核迁移：老数据保留为已采纳，新提交默认 pending。
 try { const wc = db.prepare("PRAGMA table_info(wishes)").all(); for (const [name, ddl] of [["status", "TEXT NOT NULL DEFAULT 'approved'"], ["review_note", "TEXT"], ["reviewed_at", "INTEGER"], ["reviewed_by", "TEXT"]]) if (!wc.some((c) => c.name === name)) db.exec("ALTER TABLE wishes ADD COLUMN " + name + " " + ddl); } catch {}
 db.exec("CREATE TABLE IF NOT EXISTS study_favorites(user_id TEXT NOT NULL, question_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,question_id));");
@@ -139,10 +139,10 @@ const geo = createGeo(dataDir, {
 });
 const stmt = {
   user: db.prepare(
-    "SELECT id,email,password_hash,salt,role,display_name FROM users WHERE email=?",
+    "SELECT id,email,password_hash,salt,role,display_name,tutorial_done FROM users WHERE email=?",
   ),
   session: db.prepare(
-    "SELECT s.user_id,s.csrf,u.email,u.role,u.display_name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?",
+    "SELECT s.user_id,s.csrf,u.email,u.role,u.display_name,u.tutorial_done FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?",
   ),
   profile: db.prepare(
     "SELECT body,revision,updated_at FROM profiles WHERE user_id=?",
@@ -746,7 +746,7 @@ function login(res, u, req) {
       "; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800" +
       (isSecure(req) ? "; Secure" : ""),
   );
-  return { user: { id: u.id, email: u.email, role: u.role === "admin" ? "admin" : "user", displayName: u.display_name || normalizeDisplayName("", u.email) }, csrf };
+  return { user: { id: u.id, email: u.email, role: u.role === "admin" ? "admin" : "user", displayName: u.display_name || normalizeDisplayName("", u.email), tutorialDone: !!u.tutorial_done }, csrf };
 }
 function resumeOut(r) {
   return r ? { ...r, body: JSON.parse(r.body) } : null;
@@ -893,7 +893,7 @@ async function handleRequest(req, res) {
           res,
           200,
           s
-            ? { user: { id: s.user_id, email: s.email, role: s.role === "admin" ? "admin" : "user", displayName: s.display_name || normalizeDisplayName("", s.email) }, csrf: s.csrf }
+            ? { user: { id: s.user_id, email: s.email, role: s.role === "admin" ? "admin" : "user", displayName: s.display_name || normalizeDisplayName("", s.email), tutorialDone: !!s.tutorial_done }, csrf: s.csrf }
             : { user: null, csrf: null },
         );
       }
@@ -986,7 +986,11 @@ async function handleRequest(req, res) {
         const x = await body(req);
         const displayName = normalizeDisplayName(x.displayName, s.email);
         db.prepare("UPDATE users SET display_name=? WHERE id=?").run(displayName, s.user_id);
-        return send(res, 200, { user: { id: s.user_id, email: s.email, role: s.role === "admin" ? "admin" : "user", displayName } });
+        return send(res, 200, { user: { id: s.user_id, email: s.email, role: s.role === "admin" ? "admin" : "user", displayName, tutorialDone: !!s.tutorial_done } });
+      }
+      if (p === "/api/account/tutorial" && m === "POST") {
+        db.prepare("UPDATE users SET tutorial_done=1 WHERE id=?").run(s.user_id);
+        return send(res, 200, { ok: true, tutorialDone: true });
       }
       if (p === "/api/account/password" && m === "POST") {
         once("pwd:" + s.user_id, 3000);

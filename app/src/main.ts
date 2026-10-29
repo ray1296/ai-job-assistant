@@ -26,6 +26,7 @@ import OrbitTrigger from "./draggable-orbit";
 import ClassicStarMap, { preloadStarAssets as preloadClassicStarAssets } from "./star-map";
 import RpgStarMap, { preloadStarAssets as preloadRpgStarAssets } from "./star-map-rpg";
 import MouseTrail from "./mouse-trail";
+import TutorialOverlay from "./tutorial";
 const MAP_PRELOAD = [
   "/assets/star-map/rpg-cosmos.webp",
   "/assets/star-map/cosmos.webp",
@@ -92,6 +93,7 @@ const app = defineComponent({
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
       starMapMode = ref<"rpg" | "classic">("rpg"),
+      tutorial = ref(false),
       fog = ref(false),
       auth = ref(false),
       authMode = ref<"login" | "register">("login"),
@@ -128,6 +130,22 @@ const app = defineComponent({
       document.documentElement.style.colorScheme = t === "night" ? "dark" : "light";
     }
     function toggleTheme() { applyTheme(theme.value === "night" ? "light" : "night"); }
+    function startTutorial(force = false) {
+      if (!session.user) return;
+      if (!force && session.user.tutorialDone) return;
+      if (active.value !== "home") void go("home");
+      tutorial.value = true;
+    }
+    async function finishTutorial() {
+      tutorial.value = false;
+      if (!session.user) return;
+      session.user.tutorialDone = true;
+      try { await api("/account/tutorial", "POST", {}); } catch { /* 下次登录会再次引导 */ }
+    }
+    function maybeStartTutorial() {
+      if (!session.user || session.user.tutorialDone || tutorial.value) return;
+      startTutorial(false);
+    }
     function markNoticeRead(id: string) {
       if (!readNoticeIds.value.includes(id)) {
         readNoticeIds.value = [...readNoticeIds.value, id];
@@ -166,6 +184,7 @@ const app = defineComponent({
         try { readNoticeIds.value = JSON.parse(localStorage.getItem("zg.readNotices") || "[]") || []; } catch { readNoticeIds.value = []; }
         void loadAnnouncements();
         try { (window as any).__zgCsrf = session.csrf || ""; } catch {}
+        setTimeout(maybeStartTutorial, 120);
       } catch (e) {
         notice.value = errorText(e);
       }
@@ -285,11 +304,13 @@ const app = defineComponent({
         if (r.user?.role === "admin") {
           notice.value = "管理员登录成功";
           go("admin");
+          setTimeout(maybeStartTutorial, 120);
         } else {
           notice.value =
             authMode.value === "register"
               ? "账号已创建，资料将只保存在你的账号下"
               : "登录成功";
+          setTimeout(maybeStartTutorial, 120);
         }
       } catch (e) {
         error.value = errorText(e);
@@ -431,7 +452,7 @@ const app = defineComponent({
           ),
         ]);
       if (active.value === "home") return home();
-      if (active.value === "guide") return h(Guide, { key: "guide" });
+      if (active.value === "guide") return h(Guide, { key: "guide", onStartTutorial: () => startTutorial(true) });
       if (active.value === "knowledge") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
@@ -632,6 +653,7 @@ const app = defineComponent({
             ])
           : null,
         hidePets.value || orbit.value ? null : petSkin.value === "live2d" ? h(MainPet) : null,
+        tutorial.value ? h(TutorialOverlay, { onFinish: finishTutorial }) : null,
         hidePets.value || orbit.value ? null : petSkin.value === "avatar"
           ? h(AgentPet, { key: "xingye", agentId: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", slot: 0, page: active.value })
           : null,

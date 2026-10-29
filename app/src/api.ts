@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role?: "user" | "admin";
   displayName?: string;
+  tutorialDone?: boolean;
 }
 export const session = reactive<{
   user: User | null;
