@@ -1295,7 +1295,7 @@ export default defineComponent({
                                           ),
                                       },
                                       [
-                                        ["purple", "逐光紫"],
+                                        ["purple", "主题紫"],
                                         ["navy", "深海蓝"],
                                         ["charcoal", "石墨黑"],
                                       ].map(([v, t]) =>

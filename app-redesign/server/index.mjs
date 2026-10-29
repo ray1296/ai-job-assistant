@@ -1314,6 +1314,11 @@ async function handleRequest(req, res) {
         const payload = await body(req);
         return send(res, 201, { subject: study.createSubject(s.user_id, payload.name) });
       }
+      // 面经八股页展示「我上传的题库」：只读当前用户自己上传的题目
+      if (p === "/api/study/uploads" && m === "GET") {
+        const qp = new URL(req.url, "http://local").searchParams;
+        return send(res, 200, study.uploadedQuestions(s.user_id, Object.fromEntries(qp)));
+      }
       {
         const mm = p.match(/^\/api\/study\/subjects\/([a-z0-9]+)$/);
         if (mm && m === "PUT") {

@@ -163,7 +163,7 @@ export async function exportWord(d: ResumeDocument, title: string) {
   }
   const backgroundHeader = backgroundChild ? new Header({ children: [backgroundChild] }) : null;
   const document = new Document({
-    creator: "逐光 · Career Companion",
+    creator: "AI求职助手 · AI Career Assistant",
     title,
     styles: {
       default: {

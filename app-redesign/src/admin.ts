@@ -398,7 +398,7 @@ export default defineComponent({
       if (!isAdmin.value) return loginView();
       return h("div", { class: "admin-shell" }, [
         h("aside", { class: "admin-side" }, [
-          h("div", { class: "admin-brand" }, [h("span", "✦"), h("div", [h("strong", "逐光 · 管理中心"), h("small", "ADMIN CONSOLE")])]),
+          h("div", { class: "admin-brand" }, [h("span", "✦"), h("div", [h("strong", "AI求职助手 · 管理中心"), h("small", "ADMIN CONSOLE")])]),
           h("button", { class: "admin-tab" + (tab.value === "overview" ? " on" : ""), onClick: () => (tab.value = "overview") }, "概览"),
           h("button", { class: "admin-tab" + (tab.value === "users" ? " on" : ""), onClick: () => (tab.value = "users") }, "用户账号"),
           h("button", { class: "admin-tab" + (tab.value === "wishes" ? " on" : ""), onClick: () => (tab.value = "wishes") }, "心愿池"),

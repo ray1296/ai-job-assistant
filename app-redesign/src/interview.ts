@@ -1141,7 +1141,7 @@ export default defineComponent({
                   "；也可以继续用文字面试。",
                 ])
               : null,
-            h("p", { class: "interview-privacy" }, "原始音视频不会上传到逐光服务器、不落盘；语音转文字由浏览器自带能力完成（Chrome/Edge 可能由浏览器厂商处理），按需截图会压缩后发给 AI 做观察。对隐私要求高时请用文字输入。"),
+            h("p", { class: "interview-privacy" }, "原始音视频不会上传到 AI求职助手 服务器、不落盘；语音转文字由浏览器自带能力完成（Chrome/Edge 可能由浏览器厂商处理），按需截图会压缩后发给 AI 做观察。对隐私要求高时请用文字输入。"),
           ]),
           h("section", { class: "card" }, [
             h("div", { class: "interview-history-head" }, [
@@ -1266,7 +1266,7 @@ export default defineComponent({
             }),
             h("button", { class: "btn primary", onClick: () => void submitDraft(), disabled: busy.value || !draft.value.trim() }, "发送"),
           ]),
-          h("p", { class: "interview-privacy" }, "逐光只保存文字记录和评分反馈（保留 30 天，到期自动删除），不保存原始音视频；浏览器语音识别可能由浏览器厂商处理，介意时可用文字输入。"),
+          h("p", { class: "interview-privacy" }, "AI求职助手 只保存文字记录和评分反馈（保留 30 天，到期自动删除），不保存原始音视频；浏览器语音识别可能由浏览器厂商处理，介意时可用文字输入。"),
         ]),
       ]);
     }

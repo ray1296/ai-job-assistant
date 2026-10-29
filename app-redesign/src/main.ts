@@ -23,17 +23,9 @@ import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
 import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
-import ClassicStarMap, { preloadStarAssets as preloadClassicStarAssets } from "./star-map";
-import RpgStarMap, { preloadStarAssets as preloadRpgStarAssets } from "./star-map-rpg";
+import NavMap from "./nav-map";
 import MouseTrail from "./mouse-trail";
 import TutorialOverlay from "./tutorial";
-const MAP_PRELOAD = [
-  "/assets/star-map/rpg-cosmos.webp",
-  "/assets/star-map/cosmos.webp",
-  "/assets/star-map/astrolabe.webp",
-  "/assets/star-map/astrolabe2.webp",
-  ...["home","guide","profile","resume","data","jobs","dashboard","map","companies","housing","knowledge","practice","interview","chat","wish","plan","study-upload","settings"].map((id) => "/assets/star-map/" + id + ".webp"),
-];
 const Profile = defineAsyncComponent(() => import("./profile"));
 const Resume = defineAsyncComponent(() => import("./resume"));
 const Jobs = defineAsyncComponent(() => import("./jobs"));
@@ -53,25 +45,26 @@ const Chat = defineAsyncComponent(() => import("./chat"));
 const Wish = defineAsyncComponent(() => import("./wish"));
 const Admin = defineAsyncComponent(() => import("./admin"));
 const Guide = defineAsyncComponent(() => import("./guide"));
+// 顺序即求职流程：前置工作 → 投递岗位 → 准备面试 → 工具栏
 const pages = [
   ["home", "求职工作台", "✦"],
   ["guide", "项目介绍", "?"],
   ["profile", "个人信息", "◎"],
   ["resume", "简历工作室", "▤"],
-  ["data", "我的数据空间", "▧"],
+  ["data", "数据空间", "▧"],
   ["jobs", "发现岗位", "▦"],
-  ["dashboard", "就业数据大屏", "◴"],
-  ["map", "城市与通勤地图", "◇"],
   ["companies", "企业观察", "▥"],
-  ["housing", "租房与生活", "⌂"],
-  ["knowledge", "面经与八股", "▣"],
-  ["practice", "学习与刷题", "✎"],
-  ["interview", "模拟面试", "◉"],
-  ["plan", "投递意向与方案", "↗"],
-  ["chat", "AI协作空间", "✧"],
-  ["wish", "心愿池", "☷"],
+  ["housing", "租房生活", "⌂"],
+  ["dashboard", "数据大屏", "◴"],
+  ["map", "通勤地图", "◇"],
+  ["plan", "投递方案", "↗"],
   ["study-upload", "上传题库", "⬆"],
-  ["settings", "个性化设置", "⚙"],
+  ["knowledge", "面经八股", "▣"],
+  ["practice", "学习刷题", "✎"],
+  ["interview", "模拟面试", "◉"],
+  ["chat", "AI协作", "✧"],
+  ["wish", "心愿池", "☷"],
+  ["settings", "设置", "⚙"],
 ];
 const known = new Set([...pages.map((p) => p[0]), "admin"]);
 const initialRaw0 = location.hash.slice(1);
@@ -92,7 +85,6 @@ const app = defineComponent({
     window.addEventListener("zg:pet-skin", (ev: any) => { petSkin.value = ev?.detail?.skin === "avatar" ? "avatar" : "live2d"; });
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
-      starMapMode = ref<"rpg" | "classic">("rpg"),
       tutorial = ref(false),
       fog = ref(false),
       auth = ref(false),
@@ -162,7 +154,7 @@ const app = defineComponent({
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     const practiceSrc = computed(() => reviewId.value ? "/orig/#/review/" + reviewId.value : bootPracticeRoute);
-    watch(orbit, (v) => { try { document.body.classList.toggle("star-map-open", !!v); } catch {} }, { immediate: true });
+    watch(orbit, (v) => { try { document.body.classList.toggle("nav-map-open", !!v); } catch {} }, { immediate: true });
     watch(active, (v) => { try { document.body.classList.toggle("orig-route", v === "practice" || v === "study-upload"); } catch {} }, { immediate: true });
     let noticeTimer: ReturnType<typeof setTimeout> | undefined;
     watch(notice, (v) => {
@@ -171,8 +163,6 @@ const app = defineComponent({
       noticeTimer = setTimeout(() => { if (notice.value === v) notice.value = ""; }, 6000);
     });
     onMounted(async () => {
-      preloadRpgStarAssets();
-      preloadClassicStarAssets();
       // 四只 agent 头像很小，首屏空闲时预取，后续页面/刷新直接命中缓存。
       requestIdleCallback?.(() => {
         ["a-1.jpg", "a-2.png", "b-1.png", "b-3.png"].forEach((name) => {
@@ -559,8 +549,6 @@ const app = defineComponent({
         ? h(Admin, { key: "admin" })
         : h("div", { class: "immersive-main" }, [
         h(MouseTrail),
-        h("div", { class: "map-preload-images", "aria-hidden": "true" },
-          MAP_PRELOAD.map((src) => h("img", { key: src, src, alt: "", draggable: false }))),
         session.user ? h("iframe", {
           class: "orig-frame",
           title: "学习与刷题",
@@ -580,19 +568,11 @@ const app = defineComponent({
             },
             [
               h("span", "✦"),
-              h("div", ["逐光", h("small", "CAREER COMPANION")]),
+              h("div", ["AI求职助手", h("small", "AI CAREER ASSISTANT")]),
             ],
           ),
           h("span", { class: "sky-now" }, title.value),
           h("div", { class: "sky-actions" }, [
-            h(
-              "button",
-              {
-                class: "journey-map-entry",
-                onClick: () => { starMapMode.value = "classic"; orbit.value = true; },
-              },
-              "旅程地图",
-            ),
             h("button", { class: "notice-entry", title: "站内通告", onClick: () => (noticeOpen.value = true) }, [
               "通告",
               unreadNotices.value.length ? h("b", unreadNotices.value.length > 9 ? "9+" : String(unreadNotices.value.length)) : null,
@@ -672,30 +652,21 @@ const app = defineComponent({
           h(
             "footer",
             { class: "page-footer" },
-            "逐光 · 不替你决定，陪你迈出下一步",
+            "AI求职助手 · 不替你决定，陪你迈出下一步",
           ),
         ]),
         h(OrbitTrigger, {
           expanded: orbit.value,
-          onToggle: () => {
-            if (!orbit.value) starMapMode.value = "rpg";
-            orbit.value = !orbit.value;
-          },
+          onToggle: () => (orbit.value = !orbit.value),
         }),
-        h("div", { class: "star-map-slot", style: { display: orbit.value && starMapMode.value === "rpg" ? "block" : "none" } },
-          h(RpgStarMap, {
-            pages,
-            active: active.value,
-            onGo: (id: string) => { orbit.value = false; go(id); },
-            onClose: () => (orbit.value = false),
-          })),
-        h("div", { class: "star-map-slot", style: { display: orbit.value && starMapMode.value === "classic" ? "block" : "none" } },
-          h(ClassicStarMap, {
-            pages,
-            active: active.value,
-            onGo: (id: string) => { orbit.value = false; go(id); },
-            onClose: () => (orbit.value = false),
-          })),
+        orbit.value
+          ? h(NavMap, {
+              pages,
+              active: active.value,
+              onGo: (id: string) => { orbit.value = false; go(id); },
+              onClose: () => (orbit.value = false),
+            })
+          : null,
         fog.value ? h("div", { class: "fog-veil" }) : null,
         auth.value
           ? h(

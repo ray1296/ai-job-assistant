@@ -309,10 +309,56 @@ export function createStudy(db, options = {}) {
     return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }
 
+  /**
+   * 面经八股页的「我上传的题库」。
+   * 只返回当前用户自己上传的题目（version.is_system=0）：
+   * 平台题库本身来自 learning catalog，在面经八股里已经有一份，不在这里重复。
+   */
+  function uploadedQuestions(userId, opts = {}) {
+    const keyword = String(opts.q || "").trim().slice(0, 100);
+    const pageSize = Math.min(20, Math.max(1, Number(opts.pageSize) || 10));
+    const where = ["v.user_id = ?", "v.is_system = 0"];
+    const params = [userId];
+    if (keyword) {
+      where.push("(q.stem LIKE ? OR q.answer LIKE ?)");
+      const like = "%" + keyword + "%";
+      params.push(like, like);
+    }
+    const from =
+      " FROM study_questions q JOIN study_versions v ON v.id = q.version_id" +
+      " JOIN study_subjects s ON s.id = v.subject_id WHERE " + where.join(" AND ");
+    const total = db.prepare("SELECT COUNT(*) AS n" + from).get(...params).n;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(pages, Math.max(1, Number(opts.page) || 1));
+    const rows = db
+      .prepare(
+        "SELECT q.id, q.stem, q.answer, q.analysis, q.source, q.created_at, v.name AS version_name, s.name AS subject_name" +
+          from + " ORDER BY q.created_at DESC, q.seq DESC LIMIT ? OFFSET ?",
+      )
+      .all(...params, pageSize, (page - 1) * pageSize);
+    return {
+      total,
+      page,
+      pages,
+      pageSize,
+      questions: rows.map((r) => ({
+        id: r.id,
+        stem: r.stem,
+        answer: r.answer || "",
+        analysis: r.analysis || "",
+        source: r.source || "",
+        subject: r.subject_name,
+        version: r.version_name,
+        createdAt: r.created_at,
+      })),
+    };
+  }
+
   return {
     subjects, createSubject, renameSubject, removeSubject,
     createVersion, renameVersion, removeVersion,
     questions, recordAttempt, appendQuestions, questionsFromCatalog, catalogDirections, ensureSystemLibrary,
+    uploadedQuestions,
     ownQuestion, ownVersion, ai,
   };
 }

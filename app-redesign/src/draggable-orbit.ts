@@ -16,7 +16,7 @@ const EDGE_MARGIN = 8;
 const CLICK_SUPPRESS_MS = 500;
 
 const TITLE =
-  "拖动可移动星盘开关 · Enter/空格 展开或收起 · Alt+方向键移动 · Alt+Home 复位";
+  "拖动可移动求职导航开关 · Enter/空格 展开或收起 · Alt+方向键移动 · Alt+Home 复位";
 
 interface NormalizedPosition {
   x: number;
@@ -461,7 +461,7 @@ export default defineComponent({
         },
         [
           h("span", { class: "orbit-trigger-orb", style: { backgroundImage: 'url("/assets/star-map/astrolabe2.webp")' }, "aria-hidden": "true" }),
-          h("span", { class: "orbit-trigger-label" }, expanded ? "收起星盘" : "展开星盘"),
+          h("span", { class: "orbit-trigger-label" }, expanded ? "收起导航" : "展开求职导航"),
         ],
       );
     };
