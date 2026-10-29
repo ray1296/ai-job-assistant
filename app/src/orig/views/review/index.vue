@@ -68,14 +68,12 @@
                 <span class="vp-version-stats">{{ v.questionCount }}题 / {{ v.cardCount }}卡</span>
               </div>
               <button
-                v-if="!v.isSystem"
                 class="vp-delete"
                 type="button"
                 title="删除这个版本"
                 aria-label="删除版本"
                 @click.stop="removeVersion(v)"
               >×</button>
-              <span v-else class="vp-system-badge" title="平台题库只读，不能删除">平台只读</span>
               <van-icon name="arrow" color="var(--text-light)" size="14" />
             </div>
           </div>
@@ -492,15 +490,6 @@ onActivated(loadData)
   cursor: pointer;
 }
 .vp-delete:hover { background: var(--danger-bg); border-color: var(--danger); }
-.vp-system-badge {
-  flex: 0 0 auto;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--bg-alt);
-  color: var(--text-light);
-  font-size: 9px;
-  white-space: nowrap;
-}
 
 .vp-version-name {
   font-size: 14px;

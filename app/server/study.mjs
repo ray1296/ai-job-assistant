@@ -70,7 +70,11 @@ export function createStudy(db, options = {}) {
         sid = "sys" + uid().slice(0, 21);
         db.prepare("INSERT INTO study_subjects(id,user_id,name,is_system,created_at) VALUES(?,?,?,1,?)").run(sid, userId, d.name, now);
       }
+      // 用户主动删除平台版本后，记录按账号/科目的删除标记，避免下次进入又自动长回来。
+      const hiddenKey = "system_version_hidden:" + userId + ":" + sid + ":平台题库";
+      const hidden = db.prepare("SELECT 1 FROM study_meta WHERE key=?").get(hiddenKey);
       const exists = db.prepare("SELECT id FROM study_versions WHERE subject_id=? AND is_system=1 AND name=?").get(sid, "平台题库");
+      if (hidden && !exists) continue;
       if (exists) {
         if (!needsRefresh) continue;
         const rows = questionsFromCatalog(d.name, 200);
@@ -205,7 +209,13 @@ export function createStudy(db, options = {}) {
   }
   function removeVersion(userId, id) {
     const v = ownVersion(userId, id);
-    if (v.is_system) throw fail(403, "平台题库是只读的");
+    // 平台版本是每个用户自己的副本；删除时写 tombstone，防止 ensureSystemLibrary 下次重建。
+    if (v.is_system) {
+      try {
+        db.prepare("INSERT INTO study_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
+          .run("system_version_hidden:" + userId + ":" + v.subject_id + ":" + v.name, "1");
+      } catch {}
+    }
     db.prepare("DELETE FROM study_questions WHERE version_id=?").run(id);
     db.prepare("DELETE FROM study_versions WHERE id=?").run(id);
     return { ok: true };
