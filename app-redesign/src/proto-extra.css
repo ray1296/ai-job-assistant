@@ -762,3 +762,13 @@ body.zg-pets-hidden .agent-chat { display: none !important; }
 .agent-page-actions button { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border: 1px solid rgba(255,255,255,.4); border-radius: 50%; background: rgba(255,255,255,.14); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
 .agent-page-actions button:hover { background: rgba(255,255,255,.28); }
 .agent-page-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+
+/* ===== AI 伙伴：功能图标（替代花哨立绘头像） ===== */
+.agent-chip .agent-chip-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 21px; font-style: normal; line-height: 1;
+  background: linear-gradient(135deg, #f3eeff, #e6f1ff);
+  color: #4b3f8f;
+}
+html[data-theme="night"] .agent-chip .agent-chip-icon { background: linear-gradient(135deg, #1d2740, #16233a); color: #cfe0ff; }

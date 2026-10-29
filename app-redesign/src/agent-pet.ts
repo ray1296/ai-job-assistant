@@ -37,7 +37,9 @@ export default defineComponent({
     agentId: { type: String, required: true },
     name: { type: String, required: true },
     role: { type: String, default: "" },
-    avatar: { type: String, required: true },
+    avatar: { type: String, default: "" },
+    // 功能图标（emoji）：按需求用图标代替花哨立绘头像
+    icon: { type: String, default: "" },
     slot: { type: Number, default: 0 },
     page: { type: String, default: "" },
   },
@@ -697,7 +699,9 @@ export default defineComponent({
         title: props.name + " · " + props.role + "（单击对话，再点收起，按住拖动）",
         "aria-expanded": open.value ? "true" : "false",
       }, [
-        h("img", { src: props.avatar, alt: props.name, draggable: false }),
+        props.icon
+          ? h("i", { class: "agent-chip-icon", "aria-hidden": "true" }, props.icon)
+          : h("img", { src: props.avatar, alt: props.name, draggable: false }),
         h("span", props.name + "·" + (ROLE_SHORT[props.role] || props.role)),
       ]),
       open.value

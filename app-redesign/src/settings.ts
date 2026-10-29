@@ -5,28 +5,12 @@ import { resetPetPositions } from "./pet-store";
 
 const STORE = "zg.companions.v2";
 
-/** 顺序必须与 Live2DPet.vue 的 MODELS / MODEL_NAMES 完全一致，否则存进 localStorage 的索引会选错模型。 */
-const PET_MODELS = [
-  { key: "miku", file: "miku", label: "未来" },
-  { key: "shizuku", file: "shizuku", label: "静流" },
-  { key: "chitose", file: "chitose", label: "千岁" },
-  { key: "koharu", file: "koharu", label: "小春" },
-  { key: "haru", file: "haru", label: "春" },
-  { key: "wanko", file: "wanko", label: "汪仔" },
-  { key: "vert", file: "vert", label: "薇尔" },
-  { key: "nepgear", file: "nepgear_extra", label: "涅普" },
-  { key: "haruto", file: "haruto", label: "春人" },
-  { key: "haru2", file: "haru2", label: "春·二" },
-  { key: "histoire", file: "histoire", label: "史黛" },
-  { key: "blanc", file: "blanc_normal", label: "布兰" },
-];
 const AGENTS = ["星野", "知微", "砚舟", "栖迟"];
 
 export default defineComponent({
   setup() {
     const conf = ref<any>({ size: 1, voice: true, x: 18, y: 96 });
     const accent = ref("purple");
-    const currentModel = ref(localStorage.getItem("live2d-pet-model") || "0");
     const hidden = ref(localStorage.getItem("zg.petsHidden") === "1");
     const saved = ref(false);
     const health = ref<any>(null);
@@ -72,15 +56,6 @@ export default defineComponent({
     function flash(_msg: string) {
       saved.value = true;
       window.setTimeout(() => (saved.value = false), 1600);
-    }
-    function setModel(i: number, key: string) {
-      currentModel.value = String(i);
-      try {
-        localStorage.setItem("live2d-pet-model", String(i));
-        localStorage.setItem("zg.petModel", key);
-      } catch {}
-      flash("默认形象已保存");
-      window.dispatchEvent(new CustomEvent("zg:pet-model", { detail: { index: i, key } }));
     }
     function setHidden(v: boolean) {
       hidden.value = v;
@@ -166,15 +141,15 @@ export default defineComponent({
             passwordNotice.value ? h("p", { class: "settings-ok", role: "status" }, passwordNotice.value) : null,
           ]),
           h("section", { class: "card" }, [
-            h("h3", "看板娘（四只）"),
+            h("h3", "AI 伙伴（四位）"),
             h("label", { class: "settings-row" }, [
-              h("span", "显示看板娘"),
+              h("span", "显示 AI 伙伴"),
               h("input", {
                 type: "checkbox",
                 checked: !hidden.value,
                 onChange: (e: Event) => setHidden(!(e.target as HTMLInputElement).checked),
               }),
-              h("small", "关闭后四只立绘全部隐藏，只保留圆盘入口"),
+              h("small", "关闭后四位 AI 伙伴全部隐藏，只保留圆盘入口"),
             ]),
             h("div", { class: "settings-row" }, [
               h("span", "位置"),
@@ -191,8 +166,8 @@ export default defineComponent({
               }, voiceOn.value ? "🔊 自动朗读" : "🔇 静音"),
               h("small", "默认自动；也可以在每个对话右上角单独切换"),
             ]),
-            h("p", { class: "muted" }, "单击任一立绘打开它自己的对话框（再点一次收起），对话框跟随立绘位置；回复会自动用该 agent 的音色朗读。看板娘可以按住拖动，各自对话彼此独立。"),
-            h("p", { class: "muted" }, "为了不挡住这里的控件，设置页会暂时隐藏悬浮看板娘；回到其他页面即可看到改动。"),
+            h("p", { class: "muted" }, "单击任一伙伴图标打开它自己的对话框（再点一次收起），对话框跟随图标位置；回复会自动用该 agent 的音色朗读。图标可以按住拖动，各自对话彼此独立。"),
+            h("p", { class: "muted" }, "为了不挡住这里的控件，设置页会暂时隐藏悬浮伙伴；回到其他页面即可看到改动。"),
             h("h3", { class: "settings-subhead" }, "站点配色"),
             h("div", { class: "settings-accent" }, [["purple", "紫"], ["teal", "青"], ["orange", "橙"], ["navy", "藏蓝"]].map(([k, t]) =>
               h("button", {
@@ -228,22 +203,6 @@ export default defineComponent({
               ])
             )),
             h("p", { class: "muted" }, "共 " + ALIYUN_VOICES.length + " 档阿里云音色，每个 agent 独立记忆。试听走服务端 qwen3-tts-flash。"),
-            h("h3", { class: "settings-subhead" }, "看板娘形象（默认）"),
-            h("div", { class: "settings-models" }, PET_MODELS.map((m, i) =>
-              h("button", {
-                class: "settings-model" + (String(i) === currentModel.value ? " on" : ""),
-                onClick: () => setModel(i, m.key),
-                title: m.key,
-              }, [
-                h("img", {
-                  src: "/assets/companions/model-" + m.file + ".png",
-                  alt: m.label,
-                  loading: "lazy",
-                }),
-                h("span", m.label),
-              ])
-            )),
-            h("p", { class: "muted" }, "这是主看板娘（星野 Live2D 形态）的默认形象，点击即保存为默认。立绘形态下四只显示的是各自头像。"),
           ]),
         ]),
         h("div", { class: "toolbar" }, [

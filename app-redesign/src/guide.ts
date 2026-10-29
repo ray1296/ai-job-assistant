@@ -20,7 +20,7 @@ export default defineComponent({
       h("header", { class: "scene-heading" }, [
         h("span", { class: "eyebrow" }, "PROJECT GUIDE"),
         h("h1", "项目介绍"),
-        h("p", "不知道某个按钮是做什么的？先在这里按板块看说明；也可以直接问看板娘，她会调用项目说明工具。"),
+        h("p", "不知道某个按钮是做什么的？先在这里按板块看说明；也可以直接问 AI 伙伴，它会调用项目说明工具。"),
         props.onStartTutorial
           ? h("button", { class: "guide-tutorial-btn", onClick: () => props.onStartTutorial?.() }, "🎓 重新开始新手教程")
           : null,

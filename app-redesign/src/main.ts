@@ -21,7 +21,6 @@ import {
 import { api, session, loadSession, errorText } from "./api";
 import CompanionsV3 from "./companions";
 import AgentPet from "./agent-pet";
-import MainPet from "./orig/components/Live2DPet.vue";
 import OrbitTrigger from "./draggable-orbit";
 import NavMap from "./nav-map";
 import MouseTrail from "./mouse-trail";
@@ -81,8 +80,6 @@ if (initial === "practice" && !initialReview) {
 const app = defineComponent({
   setup() {
     const reviewId = ref(initialReview);
-    const petSkin = ref((() => { try { return localStorage.getItem("zg.petSkin") || "live2d"; } catch { return "live2d"; } })());
-    window.addEventListener("zg:pet-skin", (ev: any) => { petSkin.value = ev?.detail?.skin === "avatar" ? "avatar" : "live2d"; });
     const active = ref(known.has(initial) ? initial : "home"),
       orbit = ref(false),
       tutorial = ref(false),
@@ -206,11 +203,7 @@ const app = defineComponent({
         if (ev.origin !== location.origin) return;
         const d: any = ev.data || {};
         if (d.type === "zg:study-mode") {
-          if (petSkin.value === "avatar") {
-            window.dispatchEvent(new CustomEvent("zg:toggle-chat", { detail: { agentId: "xingye", open: true } }));
-          } else {
-            window.dispatchEvent(new CustomEvent("kaoshibang:set-mode", { detail: { mode: d.mode || "agent" } }));
-          }
+          window.dispatchEvent(new CustomEvent("zg:toggle-chat", { detail: { agentId: "xingye", open: true } }));
         } else if (d.type === "zg:ai-busy") {
           window.dispatchEvent(new CustomEvent("kaoshibang:ai-busy", { detail: { active: !!d.active, tool: d.tool || "" } }));
         } else if (d.type === "zg:ask-learning-pet") {
@@ -362,7 +355,7 @@ const app = defineComponent({
         h("div", { class: "guide-prompt" }, [
           h("span", "第一次使用？"),
           h("button", { onClick: () => go("guide") }, "看项目介绍"),
-          h("span", "不知道某个按钮做什么，就点“功能说明”，或直接问看板娘。"),
+          h("span", "不知道某个按钮做什么，就点“功能说明”，或直接问 AI 伙伴。"),
         ]),
         h("div", { class: "journey-choices" }, [
           h(
@@ -548,7 +541,7 @@ const app = defineComponent({
       active.value === "admin"
         ? h(Admin, { key: "admin" })
         : h("div", { class: "immersive-main" }, [
-        h(MouseTrail),
+        active.value === "home" ? h(MouseTrail) : null,
         session.user ? h("iframe", {
           class: "orig-frame",
           title: "学习与刷题",
@@ -636,16 +629,14 @@ const app = defineComponent({
               ),
             ])
           : null,
-        hidePets.value || orbit.value ? null : petSkin.value === "live2d" ? h(MainPet) : null,
         tutorial.value ? h(TutorialOverlay, { onFinish: finishTutorial }) : null,
-        hidePets.value || orbit.value ? null : petSkin.value === "avatar"
-          ? h(AgentPet, { key: "xingye", agentId: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png", slot: 0, page: active.value })
-          : null,
+        hidePets.value || orbit.value ? null
+          : h(AgentPet, { key: "xingye", agentId: "xingye", name: "星野", role: "主理人", icon: "🧭", slot: 0, page: active.value }),
         ...(hidePets.value || orbit.value ? [] : [
-          { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png", slot: 1 },
-          { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png", slot: 2 },
-          { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg", slot: 3 },
-        ].map((a) => h(AgentPet, { key: a.id, agentId: a.id, name: a.name, role: a.role, avatar: a.avatar, slot: a.slot, page: active.value }))),
+          { id: "zhiwei", name: "知微", role: "学习助教", icon: "📚", slot: 1 },
+          { id: "yanzhou", name: "砚舟", role: "求职顾问", icon: "💼", slot: 2 },
+          { id: "qichi", name: "栖迟", role: "生活管家", icon: "🏠", slot: 3 },
+        ].map((a) => h(AgentPet, { key: a.id, agentId: a.id, name: a.name, role: a.role, icon: a.icon, slot: a.slot, page: active.value }))),
         hidePets.value || orbit.value ? null : h(CompanionsV3),
         h("main", { class: "page-content" }, [
           content(),

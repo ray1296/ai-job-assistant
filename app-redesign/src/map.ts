@@ -589,8 +589,13 @@ export default defineComponent({
           zoom: 12,
           center: [121.4737, 31.2304],
           viewMode: "2D",
-          features: ["bg", "road", "building", "point"],
+          // 去掉高德默认标注：features 去掉 point/building，showLabel 关掉 POI 与道路文字，
+          // 地图上只保留平台自己画的图钉
+          features: ["bg", "road"],
+          showLabel: false,
         });
+        // 调试探针（定位完即删）：确认运行时 features 是否生效
+        try { (window as any).__zgMap = map; (window as any).__zgFeatures = typeof map.getFeatures === "function" ? map.getFeatures() : "no-getFeatures"; } catch {}
         // 高德自带组件：保持它自己的默认位置
         map.addControl(new AMap.ToolBar({ position: { right: "18px", bottom: "170px" } }));
         map.addControl(new AMap.Scale({ position: { left: "18px", bottom: "18px" } }));
