@@ -2,7 +2,7 @@
   <div class="page subject-page">
     <!-- 主题化Header（渐变跟随当前主题） -->
     <div class="page-header subject-header" :style="{ background: headerGradient }">
-      <span class="back-btn" @click="router.back()">←</span>
+      <button class="subject-back" type="button" @click="backToSubjects">← 返回</button>
       <div class="subject-icon">{{ subject.icon }}</div>
     <AiStudyTools :subject-id="subjectId" :version-id="versionId" :questions="allQuestions" @changed="loadData" />
       <h1>{{ subject.name }}</h1>
@@ -442,6 +442,10 @@ defineOptions({ name: 'SubjectReview' })
 
 const route = useRoute()
 const router = useRouter()
+function backToSubjects() {
+  // 明确回到科目选择页，不用 history.back()，避免把用户带回站外。
+  window.location.hash = "#/review"
+}
 const subjectId = route.params.subjectId
 const versionId = route.query.versionId || null
 const isMarketMode = route.query.mode === 'market'
@@ -1607,15 +1611,32 @@ function askQuestionAI(q) {
   position: relative;
 }
 
-.back-btn {
+.subject-back {
   position: absolute;
   left: 16px;
   top: 16px;
-  color: inherit;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--header-fg);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 20px;
-  z-index: 2;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
+.subject-back:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+.subject-back:active { transform: translateY(0); background: rgba(255, 255, 255, 0.32); }
 
 .subject-icon { font-size: 48px; margin-bottom: 8px; position: relative; }
 .subject-header h1 { font-size: 1.6em; margin-bottom: 12px; }
