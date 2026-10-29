@@ -253,16 +253,19 @@ onActivated(loadData)
 .card-stats {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 10px;
   color: var(--text-light);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .card-stats span {
-  padding: 2px 8px;
+  padding: 2px 5px;
   background: var(--bg-alt);
   border-radius: var(--chip-radius);
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .card-arrow {
@@ -471,10 +474,11 @@ onActivated(loadData)
   }
 
   .card-stats {
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    gap: 3px;
     align-items: center;
   }
+  .card-stats span { padding: 2px 4px; }
 }
 
 .review-header { position: relative; }
