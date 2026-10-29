@@ -3224,7 +3224,7 @@ html[data-theme="night"] .uploaded-bank-search input { background: #0b1628; colo
 /* ===== 地图：淡化高德底图，让平台图钉成为唯一重点 =====
    当前高德 key 只拿到栅格底图，POI 标注是烤进瓦片图片里的，
    features / showLabel 在栅格模式下都不生效，客户端无法单独移除。
-   这里把底图整体降饱和、提亮，让默认标注退到背景，平台自己画的图钉保持高对比。 */
+   现在只做很轻的降饱和（.92），保持底图接近真实配色；平台自己画的图钉依旧高对比。 */
 .map-canvas .amap-layers,
-.map-canvas .amap-layer { filter: saturate(.25) brightness(1.08) contrast(.9); }
-.map-canvas .amap-layers img { opacity: .88; }
+.map-canvas .amap-layer { filter: saturate(.92) brightness(1.02); }
+.map-canvas .amap-layers img { opacity: .98; }
