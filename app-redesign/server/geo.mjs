@@ -198,7 +198,34 @@ export function createGeo(privateDir, deps) {
       .map(([lng, lat]) => [lng, lat]);
   }
 
-  // 汇总该账号地图图层：投递意向岗位 + 租房数据（地址地理编码后缓存）
+// 城市中心坐标：地址地理编码失败时（例如演示用模拟数据、只有城市没有门牌）把点落在城市中心附近，
+// 避免地图上完全看不到这一条数据。
+const CITY_CENTER = {
+  北京: [116.407, 39.905], 上海: [121.474, 31.230], 广州: [113.264, 23.129], 深圳: [114.057, 22.543],
+  杭州: [120.155, 30.274], 成都: [104.066, 30.572], 南京: [118.796, 32.060], 武汉: [114.305, 30.593],
+  西安: [108.940, 34.341], 苏州: [120.585, 31.299], 天津: [117.190, 39.126], 重庆: [106.551, 29.563],
+  长沙: [112.938, 28.228], 郑州: [113.625, 34.746], 合肥: [117.283, 31.861], 厦门: [118.089, 24.479],
+  福州: [119.306, 26.075], 济南: [117.000, 36.675], 青岛: [120.382, 36.067], 宁波: [121.550, 29.874],
+  无锡: [120.312, 31.491], 东莞: [113.751, 23.020], 佛山: [113.121, 23.021], 珠海: [113.552, 22.271],
+  昆明: [102.712, 25.040], 南昌: [115.892, 28.676], 贵阳: [106.713, 26.578], 太原: [112.549, 37.857],
+  石家庄: [114.502, 38.045], 沈阳: [123.429, 41.796], 大连: [121.618, 38.914], 长春: [125.324, 43.886],
+  哈尔滨: [126.642, 45.756], 南宁: [108.320, 22.824], 海口: [110.331, 20.031], 兰州: [103.823, 36.058],
+  乌鲁木齐: [87.617, 43.792], 呼和浩特: [111.670, 40.818], 银川: [106.278, 38.466], 西宁: [101.778, 36.623],
+};
+function centerPos(city, seed) {
+  const key = String(city || "").replace(/市$/, "").replace(/·.*$/, "").trim();
+  const c = CITY_CENTER[key];
+  if (!c) return null;
+  // 用 seed 生成稳定的偏移，避免所有点叠在同一个坐标上
+  let h = 0;
+  const s = String(seed || key);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
+  const dx = ((h % 97) / 97 - 0.5) * 0.06;
+  const dy = ((Math.floor(h / 97) % 89) / 89 - 0.5) * 0.05;
+  return { lng: +(c[0] + dx).toFixed(6), lat: +(c[1] + dy).toFixed(6) };
+}
+
+  // 汇总该账号地图图层：投递意向岗位（没有则用平台岗位兜底）+ 租房数据（地址地理编码后缓存）
   async function layers(userId, city, signal) {
     const jobs = [];
     const ids = deps.intentJobIds(userId);
@@ -206,7 +233,8 @@ export function createGeo(privateDir, deps) {
       const job = deps.getJob(id);
       if (!job) continue;
       const address = job.address || [job.city, job.title].filter(Boolean).join(" ");
-      const pos = await geocode(address, job.city, signal).catch(() => null);
+      const pos = (await geocode(address, job.city, signal).catch(() => null)) || centerPos(job.city, job.id);
+      if (!pos) continue;
       jobs.push({
         id: job.id,
         title: job.title,
@@ -216,6 +244,23 @@ export function createGeo(privateDir, deps) {
         url: job.url || "",
         pos,
       });
+    }
+    // 还没有投递意向时，用当前城市的平台岗位兜底，避免地图上"岗位 0"空空一片
+    if (!jobs.length && typeof deps.platformJobs === "function") {
+      for (const job of deps.platformJobs(city, 14)) {
+        const cpos = centerPos(city || job.city, job.id) || centerPos(job.city, job.id);
+        if (!cpos) continue;
+        jobs.push({
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          city: job.city,
+          address: job.address || "",
+          url: job.url || "",
+          platform: true,
+          pos: cpos,
+        });
+      }
     }
     const housing = [];
     // 平台内置租房（所有账号可见）：只取当前城市附近的前 N 条，避免一次地理编码上百条
@@ -229,7 +274,8 @@ export function createGeo(privateDir, deps) {
     }
     const platform = [...byCity.values()].flat().slice(0, 60);
     for (const h of platform) {
-      const pos = await geocode(h.address, h.city, signal).catch(() => null);
+      const pos = (await geocode(h.address, h.city, signal).catch(() => null)) || centerPos(h.city, h.id);
+      if (!pos) continue;
       housing.push({
         id: h.id,
         datasetId: "platform",

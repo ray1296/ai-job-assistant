@@ -136,6 +136,8 @@ const geo = createGeo(dataDir, {
   intentJobIds: (userId) => applicationPlan.jobIds(userId),
   getJob,
   housingSets: (userId) => datasets.rowsForMap(userId, "housing", 120),
+  // 地图「岗位」图层的兜底数据：当前城市的平台岗位（每个城市都有，保证图层不空）
+  platformJobs: (city, limit) => (listJobs({ city, pageSize: limit }, []).jobs || []).slice(0, limit),
 });
 const stmt = {
   user: db.prepare(
