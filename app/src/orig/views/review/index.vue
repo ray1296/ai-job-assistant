@@ -67,6 +67,15 @@
                 <span class="vp-version-name">{{ v.name }}</span>
                 <span class="vp-version-stats">{{ v.questionCount }}题 / {{ v.cardCount }}卡</span>
               </div>
+              <button
+                v-if="!v.isSystem"
+                class="vp-delete"
+                type="button"
+                title="删除这个版本"
+                aria-label="删除版本"
+                @click.stop="removeVersion(v)"
+              >×</button>
+              <span v-else class="vp-system-badge" title="平台题库只读，不能删除">平台只读</span>
               <van-icon name="arrow" color="var(--text-light)" size="14" />
             </div>
           </div>
@@ -83,7 +92,7 @@ import { showConfirmDialog, showToast } from 'vant'
 import { useUserStore } from '../../stores/userStore'
 import { useStatsStore } from '../../stores/statsStore'
 import { getQuestionStats } from '../../api/question'
-import { getSubjectReview, getVersionList } from '../../api/material'
+import { getSubjectReview, getVersionList, deleteVersion } from '../../api/material'
 import EmptyState from '../../components/EmptyState.vue'
 
 defineOptions({ name: 'ReviewList' })
@@ -121,6 +130,24 @@ async function goSubject(s) {
 function goVersion(subjectId, v) {
   showVersionPopup.value = false
   router.push(`/review/${subjectId}?versionId=${v.id}`)
+}
+
+async function removeVersion(v) {
+  try {
+    await showConfirmDialog({
+      title: '删除版本',
+      message: '确定删除「' + v.name + '」？该版本下的题目也会一起删除，且不可恢复。',
+      confirmButtonText: '删除',
+      confirmButtonColor: '#d9534f',
+    })
+  } catch { return }
+  try {
+    await deleteVersion(v.id)
+    popupVersions.value = popupVersions.value.filter((x) => x.id !== v.id)
+    showToast('版本已删除')
+  } catch (e) {
+    showToast((e && e.message) || '删除失败')
+  }
 }
 
 function getStat(subjectId, field) {
@@ -445,6 +472,34 @@ onActivated(loadData)
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vp-delete {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--danger);
+  font-size: 17px;
+  cursor: pointer;
+}
+.vp-delete:hover { background: var(--danger-bg); border-color: var(--danger); }
+.vp-system-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--bg-alt);
+  color: var(--text-light);
+  font-size: 9px;
+  white-space: nowrap;
 }
 
 .vp-version-name {

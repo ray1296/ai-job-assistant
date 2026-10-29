@@ -1796,7 +1796,7 @@ async function handleRequest(req, res) {
         const mm = p.match(/^\/api\/version\/subject\/([a-z0-9]+)$/);
         if (mm && m === "GET") {
           const sub = study.subjects(s.user_id).find((x) => x.id === mm[1]);
-          return send(res, 200, sub ? sub.versions.map((v2) => ({ id: v2.id, name: v2.name, questionCount: v2.total, total: v2.total })) : []);
+          return send(res, 200, sub ? sub.versions.map((v2) => ({ id: v2.id, name: v2.name, questionCount: v2.total, total: v2.total, isSystem: !!v2.isSystem })) : []);
         }
       }
       if (p === "/api/version/create" && m === "POST") {
