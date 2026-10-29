@@ -16,8 +16,13 @@ onMounted(() => {
   const sync = () => {
     const onUpload = location.hash.startsWith("#/upload");
     const onReport = location.hash.startsWith("#/ai-page");
+    const onSubject = /^#\/review\/[a-z0-9]+/.test(location.hash);
     // 报告页自带返回按钮，悬浮上传入口会盖住它
     a.style.display = onReport ? "none" : "";
+    // 选择科目列表页右上角已有历史报告，上传入口保持左上；
+    // 科目刷题页左上角是返回键，把上传入口移到右上角。
+    a.style.left = onSubject ? "auto" : "16px";
+    a.style.right = onSubject ? "16px" : "auto";
     a.textContent = onUpload ? "← 继续刷题" : "⬆ 上传题库";
     a.href = onUpload ? "#/review" : "#/upload";
   };
