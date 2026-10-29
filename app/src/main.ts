@@ -161,7 +161,9 @@ const app = defineComponent({
     });
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
+    const practiceSrc = computed(() => reviewId.value ? "/orig/#/review/" + reviewId.value : bootPracticeRoute);
     watch(orbit, (v) => { try { document.body.classList.toggle("star-map-open", !!v); } catch {} }, { immediate: true });
+    watch(active, (v) => { try { document.body.classList.toggle("orig-route", v === "practice" || v === "study-upload"); } catch {} }, { immediate: true });
     let noticeTimer: ReturnType<typeof setTimeout> | undefined;
     watch(notice, (v) => {
       if (noticeTimer) clearTimeout(noticeTimer);
@@ -477,15 +479,11 @@ const app = defineComponent({
         if (!session.user) return loginPrompt();
         return h(Interview, { key: session.user.id + "interview" });
       }
-      // 学习与刷题：原项目 review 页面（科目列表 / 版本 / 复习）
+      // 学习与刷题 iframe 常驻在主壳，切换板块只切 display，避免每次重新加载。
       if (active.value === "practice") {
         if (!session.ready) return h("p", { role: "status" }, "正在恢复会话…");
         if (!session.user) return loginPrompt();
-        return h("iframe", {
-          class: "orig-frame",
-          title: "学习与刷题",
-          src: reviewId.value ? "/orig/#/review/" + reviewId.value : bootPracticeRoute,
-        });
+        return null;
       }
       // 个性化设置：真实设置页
       if (active.value === "settings") {
@@ -563,6 +561,12 @@ const app = defineComponent({
         h(MouseTrail),
         h("div", { class: "map-preload-images", "aria-hidden": "true" },
           MAP_PRELOAD.map((src) => h("img", { key: src, src, alt: "", draggable: false }))),
+        session.user ? h("iframe", {
+          class: "orig-frame",
+          title: "学习与刷题",
+          src: practiceSrc.value,
+          style: { display: active.value === "practice" ? "block" : "none" },
+        }) : null,
         h("header", { class: "sky-header" }, [
           h(
             "a",

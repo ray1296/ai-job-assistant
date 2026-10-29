@@ -3129,7 +3129,7 @@ body.star-map-open .mouse-trail-canvas { display: none !important; }
 body:not(.star-map-open):not(.map-mode) .mouse-trail-canvas { display: block !important; }
 
 /* 题库 iframe 内部已有自己的拖尾，父层不要叠一份冻结的 */
-body:has(.orig-frame) .immersive-main > .mouse-trail-canvas { display: none !important; }
+body.orig-route .immersive-main > .mouse-trail-canvas { display: none !important; }
 
 /* 登录/注册弹窗与右上角提示：夜间与白天都要保证可读 */
 .toast { color: #3f3353; }
@@ -3165,3 +3165,5 @@ html[data-theme="night"] .auth-modal .modal-close { background: transparent !imp
 .guide-tutorial-btn { margin-top: 16px; border: 1px solid #d8c9f0 !important; border-radius: 999px; padding: 9px 16px; background: #fff !important; color: #7460c9 !important; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(116,96,201,.12); }
 .guide-tutorial-btn:hover { background: #f3efff !important; }
 html[data-theme="night"] .guide-tutorial-btn { background: #14233a !important; border-color: #3a5578 !important; color: #d9c9ff !important; }
+.immersive-main > .orig-frame { position: fixed !important; left: 0; top: 69px !important; width: 100vw; height: calc(100vh - 69px); z-index: 2; border: 0; background: var(--bg); }
+@media (max-width: 900px) { .immersive-main > .orig-frame { top: 130px !important; height: calc(100vh - 130px); } }

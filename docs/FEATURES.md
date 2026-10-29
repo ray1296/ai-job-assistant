@@ -209,6 +209,8 @@
 - 聊天/立绘上传文件遇 403 自动刷新 CSRF 后重试一次
 - 看板娘附件支持直接导入数据空间：识别“导入岗位/企业/租房/知识数据到账号”，上传原始 CSV/XLSX/JSON/XML 并返回打开数据空间入口
 - 数据空间列名映射补充中英文别名；CSV 英文表头也能映射 title/company/city/salary/education
+- 学习/刷题 iframe 常驻主壳，切换板块只切 display；首页空闲预加载，避免每次进入重新加载
+- Excel 解析支持多工作表（跳过空 sheet）；旧版 .xls 有 LibreOffice 时转 xlsx，否则提示另存
 
 ## 17. 题库 iframe 的夜间与拖尾
 

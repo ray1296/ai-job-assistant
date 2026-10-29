@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { toMonthlyK } from "./dashboard.mjs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 
 export const CATEGORIES = ["jobs", "companies", "housing", "knowledge"];
 export const FIELDS = {
@@ -13,6 +16,7 @@ export const FIELDS = {
 };
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_ROWS_SERVED = 500;
+const execFileAsync = promisify(execFile);
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -180,10 +184,24 @@ export function createDatasets(db, privateDir, options = {}) {
       throw fail(415, "支持 CSV / TSV / JSON / NDJSON / XML / XLSX");
     const folder = path.join(privateDir, "dataset-tmp");
     await fs.mkdir(folder, { recursive: true, mode: 0o700 });
-    const tmp = path.join(folder, randomUUID() + "." + (e === "txt" || e === "xls" ? "csv" : e));
+    const tmp = path.join(folder, randomUUID() + "." + (e === "txt" ? "csv" : e));
     try {
       await fs.writeFile(tmp, buffer, { mode: 0o600 });
-      const parsed = await runParser(script, tmp, e === "txt" ? "csv" : e);
+      let parsePath = tmp;
+      let parseExt = e === "txt" ? "csv" : e;
+      if (e === "xls") {
+        // 旧版 .xls 没有标准库解析器；有 LibreOffice 时先转 xlsx，否则明确提示用户另存。
+        try {
+          await execFileAsync("libreoffice", ["--headless", "--convert-to", "xlsx", "--outdir", folder, tmp], { timeout: 30000, maxBuffer: 1024 * 1024 });
+          const converted = tmp.replace(/\.xls$/i, ".xlsx");
+          if (!fsSync.existsSync(converted)) throw new Error("convert output missing");
+          parsePath = converted;
+          parseExt = "xlsx";
+        } catch {
+          throw fail(422, "旧版 .xls 无法解析，请另存为 .xlsx 或 CSV 再上传");
+        }
+      }
+      const parsed = await runParser(script, parsePath, parseExt);
       const columns = parsed.columns;
       const rows = parsed.rows;
       if (!columns?.length || !rows?.length) throw fail(422, "没有解析到有效数据");

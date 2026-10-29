@@ -113,36 +113,45 @@ def col_index(ref):
 def parse_xlsx(path):
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
-        sheet = next((n for n in names if n == "xl/worksheets/sheet1.xml"), None)
-        if not sheet:
-            sheet = next((n for n in names if re.fullmatch(r"xl/worksheets/[^/]+\.xml", n)), None)
-        if not sheet: fail("XLSX 里没有工作表")
+        sheets = [n for n in names if re.fullmatch(r"xl/worksheets/[^/]+\.xml", n)]
+        # 优先 sheet1，但第一个表为空时继续找后面的工作表。
+        sheets.sort(key=lambda n: (0 if n.endswith("/sheet1.xml") else 1, n))
+        if not sheets: fail("XLSX 里没有工作表")
         shared = []
         if "xl/sharedStrings.xml" in names:
             tree = ET.fromstring(z.read("xl/sharedStrings.xml"))
             for si in tree.findall(NS + "si"):
                 shared.append("".join(t.text or "" for t in si.iter(NS + "t")))
-        tree = ET.fromstring(z.read(sheet))
-        grid = []
-        for row in tree.iter(NS + "row"):
-            values = {}
-            for c in row.findall(NS + "c"):
-                idx = col_index(c.get("r"))
-                t = c.get("t")
-                if t == "inlineStr":
-                    v = "".join(x.text or "" for x in c.iter(NS + "t"))
-                else:
-                    vnode = c.find(NS + "v")
-                    v = vnode.text if vnode is not None else ""
-                    if t == "s" and v not in (None, ""):
-                        try: v = shared[int(v)]
-                        except Exception: pass
-                values[idx] = v
-            if values:
-                width = max(values) + 1
-                grid.append([values.get(i, "") for i in range(width)])
-        if not grid: fail("工作表是空的")
-        return grid[0], grid[1:]
+        first_header = None
+        for sheet in sheets:
+            try:
+                tree = ET.fromstring(z.read(sheet))
+            except Exception:
+                continue
+            grid = []
+            for row in tree.iter(NS + "row"):
+                values = {}
+                for c in row.findall(NS + "c"):
+                    idx = col_index(c.get("r"))
+                    t = c.get("t")
+                    if t == "inlineStr":
+                        v = "".join(x.text or "" for x in c.iter(NS + "t"))
+                    else:
+                        vnode = c.find(NS + "v")
+                        v = vnode.text if vnode is not None else ""
+                        if t == "s" and v not in (None, ""):
+                            try: v = shared[int(v)]
+                            except Exception: pass
+                    values[idx] = v
+                if values:
+                    width = max(values) + 1
+                    grid.append([values.get(i, "") for i in range(width)])
+            if not grid: continue
+            if len(grid) >= 1 and first_header is None: first_header = grid[0]
+            if len(grid) >= 2:
+                return grid[0], grid[1:]
+        if first_header is not None: fail("XLSX 只有表头，没有数据行")
+        fail("工作表是空的")
 
 def main():
     if len(sys.argv) < 3: fail("用法：parse-dataset.py <file> <ext>")
