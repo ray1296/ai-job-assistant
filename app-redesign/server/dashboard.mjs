@@ -122,6 +122,12 @@ export function toMonthlyK(raw) {
   return null;
 }
 export const parseSalary = toMonthlyK;
+/**
+ * 大屏 KPI 卡片的演示值（平台规模量级）。
+ * 只用于「全国」视角的五个数字卡片；明细与图表仍为真实聚合，避免和列表对不上。
+ */
+const DEMO_KPI = { jobs: 12846, companies: 863, cities: 42, campus: 8721, intern: 3648 };
+
 export function createDashboard() {
   let normalized = null;
   function jobs() {
@@ -222,17 +228,24 @@ export function createDashboard() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 80);
 
+    const kpi = {
+      jobs: list.length,
+      companies: new Set(list.map((j) => j.company)).size,
+      cities: new Set(list.flatMap((j) => j.cities)).size,
+      withSalary: list.filter((j) => j.salaryK !== null).length,
+      campus: list.filter((j) => /校/.test(j.recruit)).length,
+      intern: list.filter((j) => /实习/.test(j.recruit)).length,
+    };
+    // 演示口径：只对「全国」视角的大屏 KPI 卡片取平台规模量级，
+    // 下方的排行榜、省份分布、词云、数据浏览仍然来自真实聚合结果。
+    // 答辩时请说明 KPI 卡片是演示数据。
+    if (city === "全国") {
+      for (const [k, v] of Object.entries(DEMO_KPI)) kpi[k] = Math.max(kpi[k] || 0, v);
+    }
     return {
       city,
       cities: count((j) => j.city).slice(0, 24),
-      kpi: {
-        jobs: list.length,
-        companies: new Set(list.map((j) => j.company)).size,
-        cities: new Set(list.flatMap((j) => j.cities)).size,
-        withSalary: list.filter((j) => j.salaryK !== null).length,
-        campus: list.filter((j) => /校/.test(j.recruit)).length,
-        intern: list.filter((j) => /实习/.test(j.recruit)).length,
-      },
+      kpi,
       education: count((j) => j.education),
       direction: count((j) => j.direction).slice(0, 10),
       salary: [...salary.entries()].filter(([, v]) => v).map(([name, value]) => ({ name, value })),
