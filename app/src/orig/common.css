@@ -439,3 +439,34 @@ html[data-theme="midnight"] .ai-result-loading,
 html[data-theme="midnight"] .ai-result-text { color: var(--text); }
 html[data-theme="midnight"] .ai-result-frame { background: #0d1526; }
 html[data-theme="midnight"] .ai-result-foot { border-top-color: var(--border); }
+
+/* 夜间：刷题页 AI 学习工具面板 */
+html[data-theme="midnight"] .subject-page .ai-tools {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-md) !important;
+  color: var(--text);
+}
+html[data-theme="midnight"] .subject-page .ai-tools-head strong,
+html[data-theme="midnight"] .subject-page .ai-steps li,
+html[data-theme="midnight"] .subject-page .ai-board-head strong { color: var(--text) !important; }
+html[data-theme="midnight"] .subject-page .ai-tools-hint,
+html[data-theme="midnight"] .subject-page .ai-tip { color: var(--text-secondary) !important; }
+html[data-theme="midnight"] .subject-page .ai-btn,
+html[data-theme="midnight"] .subject-page .ai-select,
+html[data-theme="midnight"] .subject-page .ai-input {
+  background: var(--bg-alt) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+html[data-theme="midnight"] .subject-page .ai-btn.primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--on-primary) !important;
+}
+html[data-theme="midnight"] .subject-page .ai-steps { border-top-color: var(--border) !important; }
+html[data-theme="midnight"] .subject-page .ai-3d,
+html[data-theme="midnight"] .subject-page .ai-board { border-color: var(--border) !important; }
+html[data-theme="midnight"] .subject-page .ai-3d-head,
+html[data-theme="midnight"] .subject-page .ai-board-head { background: var(--bg-alt) !important; color: var(--text); }
+html[data-theme="midnight"] .subject-page .ai-voice { color: var(--text-secondary) !important; }

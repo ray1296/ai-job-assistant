@@ -194,6 +194,7 @@
 - `/orig` 题库外壳读取 `zg.theme=night` 映射到内置 midnight 主题，不再固定 paper
 - 学习列表、上传、刷题、历史报告、报告页外层均补夜间；生成报告正文保留自己的文档配色
 - 题库 iframe 内部单独挂 MouseTrail，解决 iframe 截断父页面 pointermove 导致拖尾消失
+- 刷题页 AI 学习工具面板、按钮、提示、3D/板书区补 midnight 夜间配色
 
 ## 16. 多智能体协作气泡
 
