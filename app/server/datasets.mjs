@@ -27,14 +27,57 @@ export function mask(text) {
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[\s_\-()（）]/g, "");
 
-// AI 不可用或返回不合规时的兜底：按字段名做包含匹配。
+// AI 不可用或返回不合规时的兜底：中英文列名都做包含匹配。
+const ALIASES = {
+  jobs: {
+    title: /岗位|职位|职务|title|job|position/i,
+    company: /公司|企业|company|employer|firm/i,
+    city: /城市|地点|city|location/i,
+    salary: /薪资|工资|待遇|salary|pay|compensation/i,
+    education: /学历|education|degree/i,
+    address: /地址|address/i,
+    status: /状态|status/i,
+    link: /链接|网址|url|link/i,
+    appliedAt: /投递|申请时间|applied/i,
+    notes: /备注|note|remark/i,
+  },
+  companies: {
+    name: /企业|公司|名称|name|company/i,
+    industry: /行业|industry/i,
+    scale: /规模|scale|size/i,
+    city: /城市|地点|city|location/i,
+    address: /地址|address/i,
+    website: /官网|网站|website|url/i,
+    notes: /备注|note|remark/i,
+  },
+  housing: {
+    title: /房源|标题|title|name/i,
+    address: /地址|address|location/i,
+    rent: /租金|月租|rent|price/i,
+    area: /面积|area|size/i,
+    layout: /户型|layout|room/i,
+    city: /城市|city/i,
+    contact: /联系人|contact|name/i,
+    phone: /电话|手机|phone|tel/i,
+    notes: /备注|note|remark/i,
+  },
+  knowledge: {
+    topic: /主题|topic|category/i,
+    question: /问题|题目|question/i,
+    answer: /答案|answer/i,
+    tags: /标签|tags/i,
+    source: /来源|source/i,
+  },
+};
 function heuristicMap(category, columns) {
   const wanted = FIELDS[category] || {};
+  const rules = ALIASES[category] || {};
   const map = {};
   for (const [field, label] of Object.entries(wanted)) {
     const hit = columns.find((c) => {
       const n = norm(c);
-      return n === norm(label) || n.includes(norm(label)) || norm(label).includes(n) || (field === "title" && /岗位|职位|title|name/.test(n));
+      const rule = rules[field];
+      return (rule && rule.test(c)) || n === norm(label) || n.includes(norm(label)) || norm(label).includes(n);
     });
     if (hit && !Object.values(map).includes(hit)) map[field] = hit;
   }
@@ -146,8 +189,15 @@ export function createDatasets(db, privateDir, options = {}) {
       if (!columns?.length || !rows?.length) throw fail(422, "没有解析到有效数据");
       const sample = rows.slice(0, 3).map((r) => Object.fromEntries(columns.map((c, i) => [c, r[i]])));
       let mapping = await mapWithAi(category, columns, sample);
-      const mappedBy = mapping ? "ai" : "heuristic";
-      if (!mapping) mapping = heuristicMap(category, columns);
+      const aiUsed = !!mapping;
+      const heuristic = heuristicMap(category, columns);
+      // AI 只映射到部分列时，用中英文列名规则补齐，避免 company/city 等全部丢失。
+      if (mapping) {
+        for (const [field, column] of Object.entries(heuristic)) if (!mapping[field]) mapping[field] = column;
+      } else {
+        mapping = heuristic;
+      }
+      const mappedBy = aiUsed ? "ai" : "heuristic";
       // 岗位数据：把薪资统一折算成"月薪(K)"，规则算不出的交给 AI
       let salaryCol = null;
       const salaryValues = {};

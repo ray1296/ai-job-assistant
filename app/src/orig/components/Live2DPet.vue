@@ -35,8 +35,8 @@
       ></div>
       <div v-if="pendingDoc" class="pet-img-chip pet-file-chip">
         <span>📄 {{ pendingDoc.name }}</span>
-        <small>{{ Math.ceil(pendingDoc.chars / 1000) }}k 字上下文</small>
-        <button title="移除文件" @mousedown.prevent @click.stop="pendingDoc = null">✕</button>
+        <small>{{ pendingDoc.dataFile ? '数据文件，可直接导入' : Math.ceil(pendingDoc.chars / 1000) + 'k 字上下文' }}</small>
+        <button title="移除文件" @mousedown.prevent @click.stop="removeDoc">✕</button>
       </div>
       <div v-if="pendingImage" class="pet-img-chip">
         <img :src="pendingImage" alt="待发送图片" />
@@ -49,7 +49,7 @@
           🖼️
         </button>
         <input ref="imgInput" type="file" accept="image/*" style="display: none" @change="onPickImage" />
-        <input ref="docInput" type="file" accept=".pdf,.docx,.xlsx,.pptx" style="display: none" @change="onPickDoc" />
+        <input ref="docInput" type="file" accept=".pdf,.docx,.xlsx,.xls,.csv,.json,.xml,.txt,.pptx" style="display: none" @change="onPickDoc" />
         <button class="pet-tool-btn" title="上传 PDF/Word/Excel/PPT（解析文字后作为上下文）" @mousedown.prevent @click.stop="pickDoc">
           📎
         </button>
@@ -86,6 +86,7 @@ import { useRouter } from '../router'
 import { showToast } from 'vant'
 import { aiWrongReview } from '../api/ai'
 import { extractFile } from '../../extract-file'
+import { importDataset, isDatasetDataFile, detectDatasetCategory, wantsDatasetImport } from '../../dataset-import'
 import { confirmPendingAction } from '../../agent-action'
 import GestureCam from './GestureCam.vue'
 import ScreenWatcher from './ScreenWatcher.vue'
@@ -115,6 +116,8 @@ const petContainer = ref(null)
 // 待发送图片（粘贴截图或本地选图），发送后清空
 const pendingImage = ref('')
 const pendingDoc = ref(null)
+// File 不能放进 Vue 深层响应式对象：Proxy 传给 fetch 可能导致上传请求一直 pending。
+let pendingDocRaw = null
 const docInput = ref(null)
 // 持久显示：重要 AI 分析（考点总结/错题精讲等）不自动消失，点击人物才关
 const persistentDialog = ref(false)
@@ -608,13 +611,25 @@ function onPickImage(e) {
 function pickDoc() {
   if (docInput.value) docInput.value.click()
 }
+function removeDoc() {
+  pendingDoc.value = null
+  pendingDocRaw = null
+}
 async function onPickDoc(e) {
   const f = e.target.files && e.target.files[0]
   e.target.value = ''
   if (!f) return
+  if (isDatasetDataFile(f.name)) {
+    pendingDocRaw = f
+    pendingDoc.value = { name: f.name, text: '', chars: 0, dataFile: true }
+    if (!inputVisible.value) inputVisible.value = true
+    showToast('已附上数据文件；可以说“导入岗位数据到我的账号”')
+    return
+  }
   showToast('正在解析 ' + f.name + '…')
   try {
     const d = await extractFile(f)
+    pendingDocRaw = f
     pendingDoc.value = { name: d.name, text: d.text, chars: d.chars }
     if (!inputVisible.value) inputVisible.value = true
     showToast(d.truncated ? '文件较长，已截取前 3 万字' : '已附上文件，输入问题后发送')
@@ -1385,6 +1400,37 @@ async function sendMessage() {
     return
   }
 
+  // 数据文件 + 明确“导入到我的账号”：直接走数据空间导入，不让 AI 只做文本总结。
+  const importCategory = pendingDocRaw && wantsDatasetImport(msg) ? detectDatasetCategory(msg, doc?.name || pendingDocRaw.name) : null
+  if (importCategory && pendingDocRaw) {
+    const rawDoc = doc
+    const rawFile = pendingDocRaw
+    inputVisible.value = false
+    if (inputRef.value) inputRef.value.innerHTML = ''
+    clearAIDrafts()
+    pendingImage.value = ''
+    pendingDoc.value = null
+    pendingDocRaw = null
+    stopSpeech()
+    startWorkingBubble('导入数据空间')
+    try {
+      const ds = await importDataset(rawFile, importCategory)
+      const labels = { jobs: '岗位', companies: '企业', housing: '租房', knowledge: '知识' }
+      const text = '已导入「' + rawDoc.name + '」到' + (labels[importCategory] || '数据') + '数据，共 ' + ds.rowCount + ' 行' +
+        (ds.deduped ? '，去重 ' + ds.deduped + ' 行' : '') + '。可在「我的数据空间」查看、核对字段或撤销。'
+      stopWorkingBubble()
+      await showReplyStreaming(text, { speak: false, persistent: true, action: { label: '打开我的数据空间', type: 'navigate', path: '/data' } })
+    } catch (e) {
+      stopWorkingBubble()
+      pendingDoc.value = rawDoc
+      pendingDocRaw = rawFile
+      dialogText.value = '导入失败：' + ((e && e.message) || '文件格式或数据内容不支持') + '。文件已保留，可修正后重试。'
+    } finally {
+      sending.value = false
+    }
+    return
+  }
+
   // 快照输入内容（草稿 + 文字/chip 顺序）：发送失败时原样恢复，避免重新输入
   const draftBackup = JSON.parse(JSON.stringify(readAIDrafts()))
   const inputSnap = snapshotInput()
@@ -1394,6 +1440,7 @@ async function sendMessage() {
   clearAIDrafts()
   pendingImage.value = ''
   pendingDoc.value = null
+  pendingDocRaw = null
 
   stopSpeech()
   clearAutoHide()
