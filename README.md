@@ -1,202 +1,175 @@
-# 逐光 · AI求职助手
+# AI求职助手 · AI Career Assistant
 
-## 当前状态
+> 面向大学生的 **AI 求职工作台**：把「认识自己 → 打磨简历 → 探索岗位 → 针对性准备 → 模拟面试」做成一条能真正走完的路径，并用 Agent、RAG、多模态把每一步自动化。
+>
+> 参赛作品 · 全国大学生计算机应用能力与数字素养大赛暨第八届传智杯全国 IT 技能大赛 **AI Web 网页开发挑战赛**
 
-逐光是一个以 AI 为核心的求职工作台：简历/投递、岗位与企业、学习刷题、模拟面试、AI 协作空间、心愿池和管理中心。
+---
 
-已接通：
+## 1. 项目简介
 
-- 账号/会话、资料与多版本简历、PDF/Word 导入识别、投递方案与事实校验
-- 岗位、企业风评、租房地图与数据空间
-- 学习刷题：1761 道面经/八股，来源、答案来源标记、收藏、错题、进度
-- AI 协作空间：四个 agent、图片/文本附件、多 agent 规划与只读工具
-- 模拟面试：难度、半双工/全双工实时、端侧 MediaPipe + 关键帧 VLM 四层视频理解
-- **RAG 知识库问答**：混合检索（BM25 + text-embedding-v4）→ RRF → qwen3-rerank → qwen-plus，带引用和拒答；只检索公开题库/岗位/企业/房源
-- **Tool RAG**：工具注册表按问题检索 top3，不再每次塞完整工具表
-- 心愿池、独立管理中心、AI 页面、实时地图、Live2D 兜底
-- 生产硬化：CSP、iframe sandbox、会话撤销、RAG/登录/写接口限流、并发 guard
+求职难，难在**信息散、路径乱、没人陪**：岗位散在十几个招聘站，简历不知道改哪，面试前不知道练什么，租在哪、通勤多久也得自己算。
 
-说明：
+AI求职助手把这些问题拆成 18 个板块，按求职先后顺序组织成一条流程：
 
-- 微调**不是本竞赛的评分项**，当前无明确应用场景，暂不做；RAG、Agent、MCP、多模态和安全才是得分点。
-- 本地可用 HTTP；需要摄像头/麦克风或远程访问时必须 HTTPS。HTTPS 证书放在 `app/private/https/`，服务启动时自动启用；配置私有的 `app/private/ai-config.json`。
-- 原始音视频不落盘；RAG 不索引个人资料、简历、聊天记录或用户上传文件。
+| 阶段 | 板块 |
+|---|---|
+| **前置工作** | 求职工作台 · 项目介绍 · 个人信息 · 简历工作室 · 数据空间 |
+| **投递岗位** | 发现岗位 · 企业观察 · 租房生活 · 数据大屏 · 通勤地图 · 投递方案 |
+| **准备面试** | 上传题库 · 面经八股 · 学习刷题 · 模拟面试 |
+| **工具栏** | AI协作 · 心愿池 · 设置 |
 
-## 查看
+左下角「展开求职导航」按流程进入任意板块。
 
-- 本地验收：有 `app/private/https/` 证书时 `https://127.0.0.1:5173/`（HTTP 兜底 5174）；无证书时 `http://127.0.0.1:5173/`。
-- 岗位 / 投递方案：`#jobs` / `#plan`
-- 学习：`#knowledge` / `#practice`
-- RAG / Tool RAG 说明：[RAG.md](docs/RAG.md) / [TOOL_RAG.md](docs/TOOL_RAG.md)
-- 生产审查记录：[REVIEW_2026-10-26.md](docs/REVIEW_2026-10-26.md)
-- 竞赛要求核对：[COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)
-- 国奖对比/扣分加分：[COMPETITION_GAP_ANALYSIS.md](docs/COMPETITION_GAP_ANALYSIS.md)
-- 功能清单：[FEATURES.md](docs/FEATURES.md)
-- 完整测试报告：[TEST_REPORT.md](docs/TEST_REPORT.md)
-- 手动测试流程/素材：[MANUAL_TESTING.md](docs/MANUAL_TESTING.md) / [fixtures](app/tests/fixtures/README.md)
-- 全站点击审计：[CLICK_AUDIT.md](docs/CLICK_AUDIT.md)
-- 产品价值：[PRODUCT_VALUE.md](docs/PRODUCT_VALUE.md)
-- 第三方与原创说明：[THIRD_PARTY.md](docs/THIRD_PARTY.md)
-- 保留旧外观：`/preview/index.html`
-- 注册自己的测试账号。本地/测试环境请勿输入真实敏感资料或常用密码；未实现邮件验证/密码找回。
+**核心差异**：不是「给招聘网站加一个聊天框」，而是把 AI 放进每一步的具体决策——
+职位推荐解释为什么匹配、简历审阅给出可核对证据、面试复盘指出原话问题、通勤地图算清住哪上班多久。
 
-## 在其他电脑上首次运行
+## 2. 功能总览
 
-### 1. 环境要求
+**求职与简历**：结构化个人信息（最多 3 张照片）；多版本简历、AI 排版、AI 审阅（P0–P4 / STAR / 量化 / 技能证据校验）、导出 PDF 与 Word；投递方案生成与事实校验；数据空间支持 CSV/XLSX/MD 导入与去重。
 
-推荐 **Ubuntu/Debian Linux**：
+**岗位与市场**：平台岗位库（667 条 / 40 城）多维筛选；企业档案与风评；数据大屏（省份分布、薪资、学历、词云、数据浏览）；通勤地图（岗位 / 租房 / 地铁 / 酒店图层与路线耗时）；租房库（3340 条）。
 
-- Node.js **22.13+**（项目使用 `node:sqlite`），npm
-- Python 3
-- Chromium 或 Google Chrome（服务端生成 PDF 用；也可设置 `CHROME_PATH`）
-- OCR/PDF 导入需要：`bwrap`、`prlimit`、`nice`、`pdfinfo`、`pdftotext`、`pdftoppm`、`apt-get`、`dpkg-deb`
-- HTTPS 证书需要 `openssl`
-- 不需要 Docker；不需要全局安装 Playwright 浏览器，但服务端必须能找到 Chromium
-- `npm ci` 不会自动下载 Chromium；可安装系统 Chromium/Chrome，或用 `CHROME_PATH=/path/to/chrome` 指定。Ubuntu 可用 `sudo apt install chromium-browser`（包名随发行版可能不同）
+**学习与面试**：面经八股（1761 题 + 我上传的题库，上传即同步）；学习刷题（收藏 / 错题 / 进度 / AI 简化答案 / AI 讲题含 3D 模型）；模拟面试（文字与语音全双工、逐轮追问、端侧 MediaPipe + 关键帧视觉分析、结构化复盘）。
 
-macOS/Windows 可以运行页面和普通接口，但本项目 OCR 的 `bwrap` 沙箱和资源限制按 Linux 设计；Windows/macOS 上简历 OCR/部分 PDF 导入可能不可用。
+**AI 协作**：四位 Agent（星野 · 知微 · 砚舟 · 栖迟）独立会话与独立音色；多 Agent 协作（计划 → 分派 → 回传 → 汇总）；工具调用（岗位检索、方案生成、报告页）；一句话生成可保存的报告页。
 
-### 2. 安装、构建、启动
+## 3. 技术架构
 
-```sh
-cd app
-npm ci
-npm run typecheck          # 可选，先检查 TypeScript
-npm run build
-npm run setup:ocr          # 可选；需要 PDF/OCR 时执行，Linux 无 sudo
-HOST=0.0.0.0 PORT=5173 npm start
+### 3.1 技术栈
+
+| 层 | 选型 | 说明 |
+|---|---|---|
+| 前端 | **Vue 3.5 + TypeScript** | 组合式 API，页面级异步分包 |
+| 构建 | **esbuild** | 秒级构建，输出 `dist/` |
+| 图表 / 3D | ECharts 6 / three.js | 数据大屏、讲题 3D 模型 |
+| 端侧视觉 | **MediaPipe Tasks Vision** | 面试姿态与手势，本地推理 |
+| 服务端 | **Node.js 22 + node:sqlite** | 单进程 HTTP(S) 服务，WAL |
+| 大模型 | **DeepSeek 官方 API** | 文本 `deepseek-v4-pro`，视觉 `deepseek-flash` |
+| 语音 | 阿里云 DashScope | TTS `qwen3-tts-flash` 与 ASR |
+| 地图 | 高德 JS API | Key 只在服务端下发 |
+| 测试 | Node test + Playwright | 接口与浏览器端到端 |
+
+### 3.2 AI 技术方案
+
+| 能力 | 实现 |
+|---|---|
+| **RAG 知识问答** | 混合检索（BM25 + embedding）→ RRF → rerank → 生成，带引用与拒答；只索引公开题库/岗位/企业/房源 |
+| **Tool RAG** | 工具注册表按问题检索 Top-K 工具，避免全量工具塞入上下文 |
+| **多 Agent 编排** | 计划拆解 → 角色分派 → 并行执行 → 汇总，步骤带工具数据兜底 |
+| **结构化输出** | 简历审阅 / 投递方案 / 面试反馈走 JSON schema + 校验 + 重试 |
+| **多模态** | 文档内嵌图片抽取、面试关键帧视觉分析、图片问答 |
+| **端云协同** | MediaPipe 本地推理，只把关键结论上传 |
+| **稳定性** | 单通道并发队列 + 超时 + 降级；AI 不可用时显式报错而非静默失败 |
+
+### 3.3 结构
+
+```
+浏览器（Vue 3 SPA）
+  ├─ 主壳：页头 / 求职导航 / 四个 Agent / 路由
+  ├─ 18 个页面模块（按需分包）
+  └─ 学习页 iframe（独立小应用，登录后常驻）
+        │ HTTPS + Cookie 会话 + CSRF
+        ▼
+Node 服务端
+  ├─ 认证 / 会话 / CSRF / 限流
+  ├─ 业务：resume · application-plan · datasets · study · interview · geo · dashboard
+  ├─ ai-gateway：对话 / 结构化 / 视觉 / 语音
+  └─ RAG · Tool RAG · Agent 编排
+        │
+        ▼
+SQLite + 平台数据（data/*.json）+ 私有密钥（private/，不进仓库）
 ```
 
-只启动产品主壳不需要先构建 `prototype`。`prototype` 只是旧版 `/preview` 布局和兼容静态资源，可选：
+## 4. 目录结构
 
-```sh
-cd prototype
-npm ci
-npm run build
+```
+.
+├── app-redesign/          # 当前版本（提交与演示以此为准）
+│   ├── src/               # 前端：18 个页面模块、导航、Agent、样式
+│   ├── server/            # 服务端：路由、AI 网关、RAG、业务模块
+│   ├── data/              # 平台数据（岗位 / 租房 / 题库 / 企业）
+│   ├── tests/             # 接口与浏览器测试
+│   ├── scripts/           # 工具脚本（含模拟数据生成）
+│   └── build.mjs
+├── app/                   # 早期版本（保留开发历史，不建议据此部署）
+├── docs/                  # 技术文档（RAG、Tool RAG、测试报告、第三方声明）
+└── README.md
 ```
 
-### 3. 配置 AI
+## 5. 快速开始
 
-AI 功能需要私有配置，不要把密钥提交到 Git：
+**环境**：Node.js 22.13+（`node:sqlite`）、Python 3（文档解析）、Chromium/Chrome（导出 PDF，可用 `CHROME_PATH` 指定）、可选 openssl（自签证书）。Linux 上 OCR 另需 `bwrap`、`prlimit`、`pdfinfo`、`pdftotext`、`pdftoppm`。
 
-```sh
-cd app
-mkdir -p private
-cp ai-config.example.json private/ai-config.json
-chmod 600 private/ai-config.json
+```bash
+cd app-redesign
+npm ci                 # 或 pnpm install
+node build.mjs         # 构建前端到 dist/
+
+PORT=5173 HOST=0.0.0.0 node server/index.mjs                        # 仅 HTTP
+HTTPS_PORT=5175 HTTP_PORT=5176 HOST=0.0.0.0 node server/index.mjs   # HTTPS（摄像头/麦克风需要）
 ```
 
-编辑 `private/ai-config.json`，至少填：
+打开 `http://127.0.0.1:5173/`，首次登录会引导新手教程。
 
-- `baseUrl`、`apiKey`、`model`：文本/规划/面试等 AI 功能
-- `visionModel`：图片理解（若使用视觉能力）
-- `imageBaseUrl`、`imageApiKey`、`imageModel`：AI 生图/装饰（可选）
-- `aliyunKey`、`aliyunTtsModel`、`aliyunTtsVoice`：阿里云 TTS/ASR（可选，但语音功能需要）
+## 6. 配置说明
 
-未配置时应用仍能启动，但相关 AI 接口会明确报“AI 未配置/上游不可用”，不会把离线结果伪装成 AI 结果。
+### 6.1 环境变量（完整见 `app-redesign/.env.example`）
 
-高德地图是可选配置：
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `PORT` | 5173 | HTTP 端口（未启用 HTTPS 时） |
+| `HTTPS_PORT` / `HTTP_PORT` | — | 同时监听 HTTPS 与 HTTP 兜底 |
+| `HOST` | 127.0.0.1 | 监听地址 |
+| `CAREER_DATA_DIR` | `./private` | 私有数据目录（数据库、证书、密钥） |
+| `CAREER_STATIC_DIR` | `./dist` | 前端构建产物目录 |
+| `CAREER_SECURE_COOKIE` | false | 仅在 HTTPS 反代后开启 |
+| `CAREER_MAX_LOAD` | 1.8 | 负载超限时拒绝 OCR/视觉任务 |
+| `CHROME_PATH` | — | Chromium 路径（PDF 导出） |
+| `AMAP_KEY` | — | 高德 REST Key（也可写入 `private/geo-config.json`） |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | 初始化管理员 |
+| `INTERVIEW_MAX_ACTIVE` | — | 面试并发上限 |
 
-```sh
-mkdir -p private
-cp geo-config.example.json private/geo-config.json
-chmod 600 private/geo-config.json
-```
+### 6.2 私有文件（**不要提交**）
 
-填入 `amapKey`、`amapJsKey`、`amapJsSecurity`；未配置时地图功能不可用或退回占位。
+| 文件 | 作用 | 模板 |
+|---|---|---|
+| `app-redesign/private/ai-config.json` | 大模型 / 语音 / 生图密钥 | `ai-config.example.json` |
+| `app-redesign/private/geo-config.json` | 高德 Key | `geo-config.example.json` |
+| `app-redesign/private/https/` | HTTPS 证书 | 自行生成 |
 
-### 4. HTTPS 与端口
+> 仓库中**不含任何真实密钥**，`private/` 已被 `.gitignore` 排除。
 
-需要摄像头/麦克风、或从另一台电脑通过局域网 IP 访问时，必须使用 HTTPS。生成自签名证书：
+## 7. 团队信息
 
-```sh
-cd app
-mkdir -p private/https
-openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
-  -keyout private/https/key.pem \
-  -out private/https/cert.pem \
-  -subj "/CN=localhost" \
-  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
-chmod 600 private/https/key.pem private/https/cert.pem
-```
+| 成员 | 角色 | 主要负责 |
+|---|---|---|
+| [@ray1296](https://github.com/ray1296) | 项目负责人 / 架构 | 产品方向、前端架构与导航、简历与投递链路、仓库与发布 |
+| [@Hxixi111](https://github.com/Hxixi111) | 视觉与交互 | 设计规范、页面视觉、AI 伙伴与动效、地图交互 |
+| [@YIN-YU-CJENG](https://github.com/YIN-YU-CJENG) | 数据与 AI | 数据空间与数据大屏、模拟数据、模型接入与效果验证 |
 
-如果从另一台电脑访问，把证书的 `subjectAltName` 改成实际域名/局域网 IP，并在浏览器信任该证书。重启服务后：
+> 为保护隐私，公开仓库只展示 GitHub 账号与分工；真实姓名与院校以大赛报名信息为准。
+> 三名成员共用 AI 编程助手协作开发，按「谁提出需求/提示词」归属提交，AI 生成内容均经评审与测试后合入。
 
-- 有证书：主站 `https://<host>:5173`，HTTP 兜底 `http://<host>:5174`
-- 无证书：`http://<host>:5173`
+## 8. 开发与提交约定
 
-不要把自签名证书用于公网正式服务；正式部署应使用受信任证书和反向代理。服务端在 HTTPS 连接上会自动写 Secure Cookie，反向代理后用 `CAREER_SECURE_COOKIE=true`。
+- 提交信息格式：`类型(范围): 说明`，如 `feat(ai): ...`、`fix(map): ...`
+- 前端改动执行 `node build.mjs` 后刷新；服务端改动需重启
+- 测试：`cd app-redesign && node tests/<name>.mjs`；关键回归 `nav-map`、`uploaded-bank`、`pets-and-trail`、`ai-provider-live`
 
-### 5. 数据、管理员和备份
+## 9. 数据与隐私说明
 
-- 数据默认在 `app/private/career.sqlite`，不进入 Git；第一次启动自动建表。
-- 首次启动自动创建管理员，随机密码在 `app/private/admin-initial.txt`；可用 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 指定。
-- 迁移电脑时复制整个 `app/private/`（数据库、配置、证书）并保持权限 600；不要只复制数据库而漏掉 WAL 文件。
-- 没有数据库备份/恢复演练前，不要把它当作高可用生产集群；这是小规模验收实现。
+- **模拟数据**：为演示数据密度，部分岗位/房源为合成数据，记录带 `provenance.synthetic = true`、来源标注「模拟数据（演示用）」，由 `app-redesign/scripts/gen-mock-data.mjs` 生成，可一键清理。
+- **平台数据**：题库/岗位/企业/房源来自公开渠道整理，保留来源字段供核对。
+- **不收集**：原始音视频不落盘；简历与个人资料不进入 RAG 索引；不向模型发送与任务无关的个人信息。
+- **密钥**：只存在于服务端 `private/`，前端不接触。
 
-### 6. 可选环境变量
+## 10. 第三方与原创声明
 
-```sh
-HOST=0.0.0.0
-PORT=5173
-HTTP_PORT=5174          # 有 HTTPS 时的 HTTP 兜底端口
-HTTPS_PORT=5173         # HTTPS 端口
-CAREER_DATA_DIR=./private
-CHROME_PATH=/usr/bin/chromium
-CAREER_SECURE_COOKIE=false
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=至少10位密码
-```
+- 依赖清单见 `app-redesign/package.json`，许可与来源见 [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md)
+- 地图由高德提供，模型能力由 DeepSeek 与阿里云 DashScope 提供
+- 本项目代码由团队原创，AI 辅助生成部分均经成员评审与测试
 
-`.env` 不会自动加载；请在 shell 中 export，或使用进程管理器注入。
+## 11. 免责声明
 
-### 7. 构建与运行原理
-
-Vue3+TypeScript 组件由 esbuild 路由分包；Node22 原生 SQLite，持久层使用 WAL 与索引。`npm run build` 清理并重建 `app/dist`，服务默认从 `dist` 静态提供；`CAREER_STATIC_DIR` 可覆盖。密码 scrypt 散列，服务端会话、CSRF/Origin 校验、账号所有权检查、乐观版本冲突校验。
-
-## AI审阅配置与保护
-- 服务端支持OpenAI兼容的`/chat/completions`端点，配置参考 `app/ai-config.example.json`（复制到 `app/private/ai-config.json`，权限 600，真实密钥不提交）；用户已提供项目凭据，具体可用性以私有运行时配置及请求结果为准；未配置会明确提示，不能把离线测试或模型列表响应当真实AI效果。
-- 简历审阅限制为1个上游请求、队列最多2个、每账号每分钟3次、单请求45秒；投递话术另有独立1个上游槽，二者合计可达2，并非全应用全局1个；输入约50KB；返回必须是结构化前后建议，服务端校验后才展示。未来视觉模型另设更严的图片/费用预算。
-
-## 简历识别运行条件与保护
-- 需要Linux、Python3、prlimit、nice、bwrap（namespace可用）、pdfinfo、pdftotext、pdftoppm；OCR工具和中文/英文模型通过setup:ocr私有展开到app/.tools/ocr，缺能力会报错，不回退裸进程。二进制/模型不提交Git。
-- 原件仅临时私有保存，完成/失败/取消后删除；识别结果仅内存、15分钟有效（最迟约16分钟清理）、重启即丢；只有显式确认资料/版本持久保存。
-- 默认全站1个任务、≤5MiB、PDF≤4页、图片≤1200万像素且长边≤6000；时间/进程资源有上限，繁忙拒绝重任务而不排无限队列。详见[资源预算](docs/CAPACITY_BUDGET.md)。
-
-## 验证
-
-先按上面的方式启动服务；有 HTTPS 时把 `TEST_BASE_URL` 改成 `https://127.0.0.1:5173`。测试脚本默认使用本机 Chromium 路径，只用于开发验收，不是运行时必需。
-
-```sh
-cd app
-npm run typecheck
-npm run test:smoke
-npm run test:browser
-npm run test:review
-node tests/rag-eval.mjs
-TEST_BASE_URL=http://127.0.0.1:5173 npm run test:studio
-TEST_BASE_URL=http://127.0.0.1:5173 npm run test:intake
-TEST_BASE_URL=http://127.0.0.1:5173 npm run test:extraction
-node tests/worker-isolation.mjs
-```
-- 23项API/安全/持久化/小规模并发正确性冒烟：两账号越权读写删除拒绝、CSRF、版本冲突、进程重启后数据/会话保留等。测试用临时目录，结束自动清理。
-- 基础10项 + 文档工作室17项真实Chromium浏览器冒烟：注册/资料与多段教育/意向chip/刷新还原/简历版本切换/安全文本渲染/退出/移动端/外观页。浏览器脚本目前使用本机地址与本机Chromium路径。
-- 本批新增12项上传/确认/拖动真实浏览器检查，10项提取安全检查，2项原生worker隔离/退出清理探针；检查仅使用合成测试简历。
-- 2026-10-26 已做一轮生产级安全/性能审查：CSP、iframe sandbox、会话撤销、RAG/Tool RAG、路径穿越、限流、双击并发；记录与残余风险见 [REVIEW_2026-10-26.md](docs/REVIEW_2026-10-26.md)。尚无全量自动化、长稳压测和第三方渗透测试，不能以自检替代正式验收。
-- 竞赛评分与“微调不是必需项”的核对见 [COMPETITION_REQUIREMENTS.md](docs/COMPETITION_REQUIREMENTS.md)；RAG 评测见 [RAG_EVAL.md](docs/RAG_EVAL.md)。
-
-## 团队信息
-
-- **ray1296**：项目负责人，架构、AI、全栈主要开发。
-- **Hxixi111**：团队成员，协作方向：测试与前端体验。
-- **YIN-YU-CJENG**：团队成员，协作方向：文档与演示材料。
-- 具体贡献以 GitHub 提交/PR 记录为准；不把未发生的贡献写成已发生。
-- 公开仓库不要写手机号、邮箱、身份证等个人敏感信息；评审如需登录，用单独测试账号。
-
-## 计划与约束
-- [完整功能计划](docs/FEATURE_PLAN.md)
-- [分批验收与结果](docs/DELIVERY_BATCHES.md)
-
-每批完成即停止等待用户检查。比赛正式视频、PDF、商业材料待全部功能审核通过后制作。保留真实Git贡献，不保证奖项。
-
-外观原型参考用户已有项目；legacy仅用于布局预览，正式产品需原创实现及复用许可核对。参考项目原件、国奖资料、附件原件和密钥均不提交。
+本项目为竞赛作品，岗位、企业、房源、题库等数据用于演示与研究，**不构成任何招聘、投资或租赁建议**。请勿在演示环境输入真实身份证号、银行卡号或常用密码。
