@@ -711,8 +711,9 @@ export default defineComponent({
 
         const r = await api<any>("/geo/layers");
         layers.value = r;
-        const first = (r.jobs || []).find((j: any) => j.pos);
-        if (first) map.setZoomAndCenter(13, [first.pos.lng, first.pos.lat]);
+        // 初始视野放在城市级别（12 级），能一次看到该城市的大部分岗位与房源
+        const first = (r.jobs || []).find((j: any) => j.pos) || (r.housing || []).find((h: any) => h.pos);
+        if (first) map.setZoomAndCenter(12, [first.pos.lng, first.pos.lat]);
         await loadSubway();
         renderMarkers();
         ready.value = true;

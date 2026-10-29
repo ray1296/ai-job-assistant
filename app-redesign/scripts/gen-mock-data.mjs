@@ -8,8 +8,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const ROOT = new URL("../data/", import.meta.url);
 const argv = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")));
-const JOBS_PER_CITY = Number(argv["jobs-per-city"] || 14);
-const HOUSING_PER_CITY = Number(argv["housing-per-city"] || 45);
+const JOBS_PER_CITY = Number(argv["jobs-per-city"] || 30);
+const HOUSING_PER_CITY = Number(argv["housing-per-city"] || 70);
 const TODAY = new Date().toISOString().slice(0, 10);
 
 const CITIES = ["北京","上海","广州","深圳","杭州","成都","南京","武汉","西安","苏州","天津","重庆","长沙","郑州","合肥","厦门","福州","济南","青岛","宁波","无锡","东莞","佛山","珠海","昆明","南昌","贵阳","太原","石家庄","沈阳","大连","长春","哈尔滨","南宁","海口","兰州","乌鲁木齐","呼和浩特","银川","西宁"];

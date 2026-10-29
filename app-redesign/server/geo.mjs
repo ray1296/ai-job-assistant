@@ -220,8 +220,12 @@ function centerPos(city, seed) {
   let h = 0;
   const s = String(seed || key);
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000;
-  const dx = ((h % 97) / 97 - 0.5) * 0.06;
-  const dy = ((Math.floor(h / 97) % 89) / 89 - 0.5) * 0.05;
+  // 偏移范围放宽到城市级别（约 ±0.12° 经度 / ±0.10° 纬度），避免模拟数据全叠在市中心
+  // 均匀撒在城市半径内（圆盘分布），避免所有点挤在市中心一个角落
+  const angle = ((h % 360) * Math.PI) / 180;
+  const radius = Math.sqrt(((Math.floor(h / 360) % 1000) / 1000)) * 0.085;
+  const dx = Math.cos(angle) * radius;
+  const dy = Math.sin(angle) * radius * 0.8;
   return { lng: +(c[0] + dx).toFixed(6), lat: +(c[1] + dy).toFixed(6) };
 }
 
@@ -233,7 +237,9 @@ function centerPos(city, seed) {
       const job = deps.getJob(id);
       if (!job) continue;
       const address = job.address || [job.city, job.title].filter(Boolean).join(" ");
-      const pos = (await geocode(address, job.city, signal).catch(() => null)) || centerPos(job.city, job.id);
+      // 模拟数据不做地理编码（地址是编的，编不出去还占 QPS），直接用城市中心 + 稳定偏移
+      const synthetic = /模拟数据/.test(String(job.platform || ""));
+      const pos = synthetic ? centerPos(job.city, job.id) : (await geocode(address, job.city, signal).catch(() => null)) || centerPos(job.city, job.id);
       if (!pos) continue;
       jobs.push({
         id: job.id,
@@ -245,9 +251,11 @@ function centerPos(city, seed) {
         pos,
       });
     }
+    // 重点城市：显式传入 > 投递意向所在城市 > 上海（地图默认视野）
+    const focusCity = String(city || jobs.find((j) => j.city)?.city || "上海").replace(/市$/, "").trim() || "上海";
     // 还没有投递意向时，用当前城市的平台岗位兜底，避免地图上"岗位 0"空空一片
     if (!jobs.length && typeof deps.platformJobs === "function") {
-      for (const job of deps.platformJobs(city, 14)) {
+      for (const job of deps.platformJobs(focusCity, 30)) {
         const cpos = centerPos(city || job.city, job.id) || centerPos(job.city, job.id);
         if (!cpos) continue;
         jobs.push({
@@ -266,15 +274,17 @@ function centerPos(city, seed) {
     // 平台内置租房（所有账号可见）：只取当前城市附近的前 N 条，避免一次地理编码上百条
     // 按城市抽样，保证不同城市都能看到一些平台房源（否则前 40 条全是北京）
     const byCity = new Map();
-    for (const h of loadPlatformHousing(city || "")) {
+    for (const h of loadPlatformHousing(focusCity)) {
       if (!h.rent || !Number(h.rent)) continue;
       const arr = byCity.get(h.city) || [];
-      if (arr.length < 6) arr.push(h);
+      // 重点城市优先铺满，其它城市各留少量作为"周边城市"参考
+      if (arr.length < (String(h.city).includes(focusCity) ? 60 : 4)) arr.push(h);
       byCity.set(h.city, arr);
     }
-    const platform = [...byCity.values()].flat().slice(0, 60);
+    const platform = [...byCity.values()].flat().slice(0, 260);
     for (const h of platform) {
-      const pos = (await geocode(h.address, h.city, signal).catch(() => null)) || centerPos(h.city, h.id);
+      const hSynthetic = /模拟数据/.test(String(h.platform || ""));
+      const pos = hSynthetic ? centerPos(h.city, h.id) : (await geocode(h.address, h.city, signal).catch(() => null)) || centerPos(h.city, h.id);
       if (!pos) continue;
       housing.push({
         id: h.id,
