@@ -8,7 +8,7 @@
       </div>
       <video ref="videoRef" class="gc-video" autoplay playsinline muted></video>
       <div class="gc-status" :class="{ ready: modelReady }">
-        {{ modelReady ? '🟢 识别中：' + lastGesture : '⏳ 正在加载手势模型…' }}
+        {{ modelReady ? '🟢 识别中：' + lastGesture : '⏳ 正在加载手势模型（首次约 20–60 秒）…' }}
       </div>
       <p class="gc-note">摄像头画面只在本机处理，不上传任何数据（模型运行在浏览器本地）</p>
     </div>
@@ -49,6 +49,12 @@ async function openCam() {
   lastGesture.value = '—'
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, frameRate: { ideal: 15 } } })
+  } catch (e) {
+    close()
+    alert('无法打开摄像头：' + (e?.message || '权限被拒绝'))
+    return
+  }
+  try {
     await nextTick()
     if (videoRef.value) {
       videoRef.value.srcObject = stream
@@ -58,15 +64,15 @@ async function openCam() {
         new Promise(r => setTimeout(r, 3000)),
       ])
     }
-    // 防御：模型加载 20s 超时兜底
+    // 首次加载要下载 wasm + 手势模型（约 22MB），慢网络下 20s 不够；放宽到 90s
     await Promise.race([
       initModel(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('模型加载超时')), 20000)),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('模型加载超时')), 90000)),
     ])
     loop()
   } catch (e) {
     close()
-    alert('无法打开摄像头：' + (e?.message || '权限被拒绝'))
+    alert('手势模型加载失败：' + (e?.message || '未知错误') + '\n首次加载需下载约 22MB，请保持页面打开后重试。')
   }
 }
 

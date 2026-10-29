@@ -1,0 +1,18 @@
+import { chromium } from "playwright-core";
+const base="http://127.0.0.1:5173";
+const b=await chromium.launch({executablePath:"/home/ubuntu/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",headless:true,args:["--no-sandbox"]});
+const c=await b.newContext({viewport:{width:1500,height:1200}});
+await c.request.post(base+"/api/auth/register",{data:{email:"ms-"+Date.now()+"@example.invalid",password:"Map-Test-12345!"}});
+const ses=await (await c.request.get(base+"/api/auth/session")).json();
+const csrf=ses.csrf||ses.session?.csrf;
+const jobs=await (await c.request.get(base+"/api/jobs?limit=6")).json();
+const list=(jobs.jobs||jobs.items||[]).slice(0,2);
+for(const j of list) await c.request.put(base+"/api/job-intents/"+j.id,{headers:{"X-CSRF-Token":csrf}});
+const p=await c.newPage();
+await p.goto(base+"/#map");
+await p.locator(".map-pin").first().waitFor({timeout:20000});
+await p.getByRole("checkbox").nth(3).check();
+await p.waitForTimeout(3000);
+await p.screenshot({path:"/tmp/map.png", fullPage:true});
+console.log("screenshot ok");
+await b.close();

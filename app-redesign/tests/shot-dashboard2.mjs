@@ -1,0 +1,18 @@
+import { chromium } from "playwright-core";
+const base="http://127.0.0.1:5173";
+const b=await chromium.launch({executablePath:"/home/ubuntu/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",headless:true,args:["--no-sandbox"]});
+const c=await b.newContext({viewport:{width:1600,height:1250}});
+await c.request.post(base+"/api/auth/register",{data:{email:"dash2-"+Date.now()+"@example.invalid",password:"Dash-Test-123!"}});
+const p=await c.newPage();
+const errs=[]; p.on("pageerror",e=>errs.push(e.message.slice(0,150)));
+await p.goto(base+"/#dashboard");
+await p.locator(".dash-dark").waitFor({timeout:25000});
+await p.waitForTimeout(6000);
+console.log("canvas:", await p.locator(".dash-dark canvas").count());
+console.log("map:", await p.locator('[data-dash="map"] canvas').count());
+console.log("rows:", await p.locator(".dash-dark-row").count());
+console.log("word anchors:", await p.locator("#word-tags a").count());
+console.log("city chips:", await p.locator(".city-choice").count());
+await p.screenshot({path:"/tmp/dash-big.png", fullPage:true});
+console.log("errors:", errs.slice(0,5));
+await b.close();

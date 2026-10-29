@@ -1,0 +1,26 @@
+import { chromium } from "playwright-core";
+const base="http://127.0.0.1:5173";
+const b=await chromium.launch({executablePath:"/home/ubuntu/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",headless:true,args:["--no-sandbox"]});
+const c=await b.newContext({viewport:{width:1500,height:1100}});
+// 用 API 注册，避免 UI 抖动
+const reg=await c.request.post(base+"/api/auth/register",{data:{email:"map-"+Date.now()+"@example.invalid",password:"Map-Test-12345!"}});
+console.log("register", reg.status());
+const ses=await (await c.request.get(base+"/api/auth/session")).json();
+const csrf=ses.csrf||ses.session?.csrf;
+const jobs=await (await c.request.get(base+"/api/jobs?limit=4")).json();
+const list=(jobs.jobs||jobs.items||[]).slice(0,2);
+for(const j of list) await c.request.put(base+"/api/job-intents/"+j.id,{headers:{"X-CSRF-Token":csrf}});
+console.log("intents", list.length);
+const p=await c.newPage();
+const errs=[]; p.on("pageerror",e=>errs.push(e.message.slice(0,160)));
+p.on("console",m=>{ if(m.type()==="error") errs.push("C:"+m.text().slice(0,140)); });
+await p.goto(base+"/#map");
+await p.locator(".map-canvas").waitFor({timeout:30000});
+await p.waitForTimeout(7000);
+console.log("AMap:", await p.evaluate(()=>typeof window.AMap));
+console.log("pins:", await p.locator(".map-pin").count());
+console.log("overlay:", await p.locator(".map-loading").count());
+console.log("layer text:", (await p.locator(".map-layers").innerText()).replace(/\n/g," | "));
+await p.screenshot({path:"/tmp/map.png"});
+console.log("errors:", errs.slice(0,5));
+await b.close();

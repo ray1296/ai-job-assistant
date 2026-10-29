@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "q-nacos",
+      "query": "Nacos 在微服务架构中主要起到什么作用？",
+      "expect": [
+        "Nacos"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-mybatis-plus",
+      "query": "MyBatis-Plus 跟 MyBatis 有什么区别？",
+      "expect": [
+        "MyBatis-Plus"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-thread-process",
+      "query": "进程和线程的区别",
+      "expect": [
+        "进程",
+        "线程"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-mysql-index",
+      "query": "MySQL 索引为什么会失效？",
+      "expect": [
+        "索引"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-vue-proxy",
+      "query": "Vue3 为什么用 Proxy 替代 Object.defineProperty？",
+      "expect": [
+        "Vue3",
+        "Proxy"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-first-screen",
+      "query": "前端项目怎么优化首屏性能？",
+      "expect": [
+        "首屏"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-selenium",
+      "query": "Selenium 自动化测试怎么定位元素？",
+      "expect": [
+        "Selenium"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-k8s",
+      "query": "Kubernetes Pod 一直 CrashLoopBackOff 怎么排查？",
+      "expect": [
+        "K8s",
+        "Kubernetes",
+        "Pod"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-redis",
+      "query": "Redis 为什么快？",
+      "expect": [
+        "Redis"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-jvm",
+      "query": "JVM 运行时数据区有哪些？",
+      "expect": [
+        "JVM"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-rag",
+      "query": "RAG 检索增强生成怎么减少幻觉？",
+      "expect": [
+        "RAG",
+        "检索"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-java-agent",
+      "query": "Agent 开发怎么做工具调用？",
+      "expect": [
+        "Agent",
+        "工具"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-beijing-job",
+      "query": "北京有哪些 Java 后端岗位？",
+      "expect": [
+        "岗位",
+        "Java"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-company",
+      "query": "字节跳动公司风评怎么样？",
+      "expect": [
+        "字节"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-housing",
+      "query": "杭州 3000 元以内能租到什么房子？",
+      "expect": [
+        "杭州",
+        "租房",
+        "房租"
+      ],
+      "positive": true
+    },
+    {
+      "id": "q-negative-mars",
+      "query": "火星上怎么做饭？",
+      "positive": false
+    },
+    {
+      "id": "q-negative-quantum",
+      "query": "量子纠缠对红烧肉口感有什么影响？",
+      "positive": false
+    },
+    {
+      "id": "q-negative-private",
+      "query": "我简历里写了什么？",
+      "positive": false
+    }
+  ]
+}

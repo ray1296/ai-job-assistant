@@ -23,6 +23,16 @@
 - 这意味着：如果公开仓库/分发包含这些模型，需遵守 GPL-2.0 的相应义务；如未来闭源商业化，应替换为有明确商业授权的模型或购买授权。
 - 模型仅用于看板娘展示，不参与核心业务逻辑。
 
+## 借鉴的界面/交互参考
+
+| 项目/素材 | 用途 | 使用方式与改动 | 来源 |
+|---|---|---|---|
+| Live2D 看板娘模型 | 看板娘展示 | 仅加载模型，不参与业务；模型包标注 GPL-2.0 | https://github.com/xiazeyu/live2d-widget-models |
+| Tendril 鼠标拖尾（Lights & Motion: Ultraviolet） | 首页鼠标跟随特效 | 原作者 Nik Rowell；参考 20 条 × 50 节点弹簧拖尾思路，重写为 Vue 组件；透明 canvas、不拦截点击、支持 reduced-motion | http://labs.nikrowell.com/lightsandmotion/ultraviolet/；收集仓库 https://gitee.com/susuhhhhhh/css_demos |
+| DSH 桌宠气泡 | 四 agent 工作气泡/对话入口 | 参考气泡队列、工作气泡与持久汇报的交互形态，按本项目组件与状态重写；未引入其业务页面 | https://github.com/yanzwzz/dsh-whale-girl-pet |
+
+以上为当前代码中可核对的来源；如果后续替换实现或素材，请同步更新本表与技术文档附录 A。
+
 ## 题库与公开数据
 
 - 面经/八股来自公开 Gitee/GitHub/牛客/CodeFather 等页面，catalog 中保留 source 与 sourceUrl。

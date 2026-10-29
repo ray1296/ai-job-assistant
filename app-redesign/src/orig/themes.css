@@ -1,0 +1,1172 @@
+/* ============================================================
+   备考帮 · 多主题设计系统
+   每套主题是一个完整的设计语言：色彩 / 字体 / 圆角 / 阴影 /
+   头部形态 / 页面装饰 / 壁纸玻璃态 / Vant 组件映射。
+   切换由 <html data-theme="..."> 驱动，壁纸模式由
+   <html data-wallpaper="on"> 驱动（App.vue 设置）。
+   ============================================================ */
+
+/* ---------- 公共：Vant 组件变量映射到主题 token（全部主题共用） ---------- */
+html[data-theme] {
+  --van-primary-color: var(--primary);
+  --van-success-color: var(--success);
+  --van-danger-color: var(--danger);
+  --van-warning-color: var(--warning);
+  --van-text-color: var(--text);
+  --van-text-color-2: var(--text-secondary);
+  --van-text-color-3: var(--text-light);
+  --van-border-color: var(--border);
+  --van-background: var(--bg);
+  --van-background-2: var(--card);
+  --van-button-default-background: var(--card);
+  --van-button-default-border-color: var(--border-strong);
+  --van-button-default-color: var(--text);
+  --van-popup-background: var(--card);
+  --van-dialog-background: var(--card);
+  --van-cell-background: transparent;
+  --van-field-input-text-color: var(--text);
+  --van-cell-group-inset-background-color: var(--card);
+  --van-tabs-nav-background-color: transparent;
+  --van-tab-text-color: var(--text-secondary);
+  --van-tab-active-text-color: var(--primary);
+  --van-picker-background: var(--card);
+  --van-picker-option-selected-color: var(--primary);
+  --van-action-sheet-background: var(--card);
+  --van-number-keyboard-background: var(--bg);
+  --van-stepper-background-color: var(--bg-alt);
+  --van-tag-border-radius: var(--chip-radius);
+  --van-search-content-background: var(--bg-alt);
+  --van-search-background: transparent;
+  --van-nav-bar-background: var(--bg);
+  --van-nav-bar-title-text-color: var(--text);
+  --van-nav-bar-text-color: var(--text);
+  --van-nav-bar-icon-color: var(--text);
+  --van-nav-bar-height: 46px;
+  --van-checkbox-checked-icon-color: var(--primary);
+  --van-radio-checked-icon-color: var(--primary);
+  --van-switch-on-background: var(--primary);
+  --van-loading-icon-color: var(--primary);
+  --van-empty-description-color: var(--text-light);
+}
+
+/* ============================================================
+   主题一 · paper 纸质笔记（默认）
+   暖纸底 + 深靛蓝墨水 + 琥珀重点，楷体标题，克制的圆角与细边框
+   ============================================================ */
+html[data-theme='paper'] {
+  --primary: #2c3e6b;
+  --primary-light: #3d5285;
+  --primary-dark: #1e2d50;
+  --primary-bg: #eef1f8;
+  --on-primary: #ffffff;
+
+  --accent: #d97706;
+  --accent-light: #f59e0b;
+  --accent-bg: #fdf0dd;
+  --on-accent: #ffffff;
+
+  --success: #4d7c5f;
+  --success-bg: #eaf3ed;
+  --warning: #b45309;
+  --warning-bg: #fdf0dd;
+  --danger: #b91c1c;
+  --danger-bg: #fdecec;
+  --info: #5b6fa8;
+  --info-bg: #eef1f8;
+
+  --bg: #f7f4ec;
+  --bg-alt: #efeae0;
+  --card: #ffffff;
+  --card-alt: #f5f1e8;
+  --glass-card: rgba(255, 252, 246, 0.88);
+  --glass-header: rgba(44, 62, 107, 0.88);
+  --app-bg-color: #f7f4ec;
+
+  --text: #2d2a26;
+  --text-secondary: #6b6560;
+  --text-light: #9a948c;
+  --text-inverse: #ffffff;
+
+  --border: #e5e0d3;
+  --border-light: #eee9de;
+  --border-strong: #d5cfbf;
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --btn-radius: 8px;
+  --chip-radius: 4px;
+
+  --shadow: 0 1px 3px rgba(45, 42, 38, 0.06);
+  --shadow-md: 0 2px 10px rgba(45, 42, 38, 0.08);
+  --shadow-lg: 0 6px 20px rgba(45, 42, 38, 0.12);
+
+  --header-bg: #2c3e6b;
+  --header-fg: #ffffff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: repeating-linear-gradient(90deg,
+      rgba(255, 255, 255, 0.16) 0px, rgba(255, 255, 255, 0.16) 20px,
+      transparent 20px, transparent 28px);
+  --header-grad-a: #2c3e6b;
+  --header-grad-b: #1e2d50;
+
+  --page-deco: none;
+
+  --font-display: 'STKaiti', 'KaiTi', 'Kaiti SC', 'FZKai-Z03S', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, 'JetBrains Mono', monospace;
+
+  --mask: rgba(45, 42, 38, 0.5);
+  --scrollbar: #d5cfbf;
+  --selection: #f3e2c2;
+
+  /* 快捷入口五色 */
+  --qc-1-bg: #eef1f8; --qc-1-fg: #2c3e6b;
+  --qc-2-bg: #fdf0dd; --qc-2-fg: #b45309;
+  --qc-3-bg: #eaf3ed; --qc-3-fg: #4d7c5f;
+  --qc-4-bg: #f3eefc; --qc-4-fg: #7c5cbf;
+  --qc-5-bg: #efeae0; --qc-5-fg: #6b6560;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(247, 244, 236, 0.22) 0%,
+      rgba(247, 244, 236, 0.12) 50%,
+      rgba(247, 244, 236, 0.28) 100%);
+}
+
+/* ============================================================
+   主题二 · midnight 深夜自习（暗色）
+   深蓝夜幕 + 青色荧光 + 等宽数字，顶部青光晕染
+   ============================================================ */
+html[data-theme='midnight'] {
+  --primary: #5cc8f5;
+  --primary-light: #7dd6fa;
+  --primary-dark: #3fa8d8;
+  --primary-bg: rgba(92, 200, 245, 0.13);
+  --on-primary: #06202f;
+
+  --accent: #ffc94d;
+  --accent-light: #ffd97a;
+  --accent-bg: rgba(255, 201, 77, 0.14);
+  --on-accent: #3a2a05;
+
+  --success: #4ade80;
+  --success-bg: rgba(74, 222, 128, 0.13);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.14);
+  --danger: #fb7185;
+  --danger-bg: rgba(251, 113, 133, 0.13);
+  --info: #a5b4fc;
+  --info-bg: rgba(165, 180, 252, 0.13);
+
+  --bg: #0d1526;
+  --bg-alt: #16213a;
+  --card: #182742;
+  --card-alt: #1e3050;
+  --glass-card: rgba(20, 32, 56, 0.86);
+  --glass-header: rgba(13, 24, 45, 0.88);
+  --app-bg-color: #0d1526;
+
+  --text: #e8eefb;
+  --text-secondary: #a9b7d0;
+  --text-light: #5d6f92;
+  --text-inverse: #eaf3ff;
+
+  --border: rgba(122, 146, 188, 0.22);
+  --border-light: rgba(122, 146, 188, 0.14);
+  --border-strong: rgba(122, 146, 188, 0.42);
+
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --btn-radius: 10px;
+  --chip-radius: 6px;
+
+  --shadow: 0 2px 8px rgba(2, 8, 20, 0.4);
+  --shadow-md: 0 6px 18px rgba(2, 8, 20, 0.45);
+  --shadow-lg: 0 12px 32px rgba(2, 8, 20, 0.5);
+
+  --header-bg: linear-gradient(160deg, #1a2a4a 0%, #0f1c36 55%, #122544 100%);
+  --header-fg: #eaf3ff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: radial-gradient(420px 180px at 82% -40%, rgba(92, 200, 245, 0.22), transparent 70%);
+  --header-grad-a: #1a2a4a;
+  --header-grad-b: #122544;
+
+  --page-deco: radial-gradient(1100px 480px at 75% -8%, rgba(92, 200, 245, 0.07), transparent 65%);
+
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'SF Mono', monospace;
+
+  --mask: rgba(4, 10, 22, 0.68);
+  --scrollbar: #2a3a5c;
+  --selection: rgba(92, 200, 245, 0.28);
+
+  --qc-1-bg: rgba(92, 200, 245, 0.13); --qc-1-fg: #5cc8f5;
+  --qc-2-bg: rgba(255, 201, 77, 0.14); --qc-2-fg: #ffc94d;
+  --qc-3-bg: rgba(74, 222, 128, 0.13); --qc-3-fg: #4ade80;
+  --qc-4-bg: rgba(165, 180, 252, 0.14); --qc-4-fg: #a5b4fc;
+  --qc-5-bg: rgba(122, 146, 188, 0.15); --qc-5-fg: #a9b7d0;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(13, 21, 38, 0.35) 0%,
+      rgba(13, 21, 38, 0.22) 50%,
+      rgba(13, 21, 38, 0.45) 100%);
+}
+
+/* ============================================================
+   主题三 · mint 清新薄荷
+   薄荷绿主色 + 白色浮起头部 + 大圆角 + 彩色柔影
+   ============================================================ */
+html[data-theme='mint'] {
+  --primary: #0ca678;
+  --primary-light: #12b886;
+  --primary-dark: #087f5b;
+  --primary-bg: #e3f5ee;
+  --on-primary: #ffffff;
+
+  --accent: #f76707;
+  --accent-light: #ff8a4c;
+  --accent-bg: #fff0e5;
+  --on-accent: #ffffff;
+
+  --success: #0ca678;
+  --success-bg: #e3f5ee;
+  --warning: #e8590c;
+  --warning-bg: #fff0e5;
+  --danger: #e03131;
+  --danger-bg: #fdecec;
+  --info: #3b7dd8;
+  --info-bg: #e7f0fb;
+
+  --bg: #f2f7f4;
+  --bg-alt: #e8f1ec;
+  --card: #ffffff;
+  --card-alt: #f0f6f3;
+  --glass-card: rgba(255, 255, 255, 0.86);
+  --glass-header: rgba(255, 255, 255, 0.88);
+  --app-bg-color: #f2f7f4;
+
+  --text: #1b2b26;
+  --text-secondary: #5c6f68;
+  --text-light: #93a5a0;
+  --text-inverse: #ffffff;
+
+  --border: #d9e6df;
+  --border-light: #e6efe9;
+  --border-strong: #bfd6cb;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+  --btn-radius: 999px;
+  --chip-radius: 999px;
+
+  --shadow: 0 2px 6px rgba(12, 166, 120, 0.07);
+  --shadow-md: 0 8px 24px rgba(12, 166, 120, 0.10);
+  --shadow-lg: 0 14px 40px rgba(12, 166, 120, 0.14);
+
+  --header-bg: #ffffff;
+  --header-fg: #17342b;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: none;
+  --header-grad-a: #ffffff;
+  --header-grad-b: #eef6f2;
+
+  --page-deco: none;
+
+  --font-display: ui-rounded, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-body: ui-rounded, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(27, 43, 38, 0.4);
+  --scrollbar: #c3d8ce;
+  --selection: #d3f0e5;
+
+  --qc-1-bg: #e3f5ee; --qc-1-fg: #0ca678;
+  --qc-2-bg: #fff0e5; --qc-2-fg: #f76707;
+  --qc-3-bg: #e7f0fb; --qc-3-fg: #3b7dd8;
+  --qc-4-bg: #f3eefc; --qc-4-fg: #7c5cbf;
+  --qc-5-bg: #e8f1ec; --qc-5-fg: #5c6f68;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(242, 247, 244, 0.22) 0%,
+      rgba(242, 247, 244, 0.12) 50%,
+      rgba(242, 247, 244, 0.28) 100%);
+}
+
+/* mint 的头部是白卡浮起形态，需要结构差异化：顶部色条 + 描边 */
+html[data-theme='mint'] .page-header {
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--primary);
+  box-shadow: var(--shadow-md);
+}
+html[data-theme='mint'] .page-header .sub,
+html[data-theme='mint'] .page-header p {
+  color: var(--text-secondary);
+}
+/* mint 头部内的白字元素转为深色 */
+html[data-theme='mint'] .page-header .stat-chip,
+html[data-theme='mint'] .page-header .avatar,
+html[data-theme='mint'] .page-header .back-btn {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+/* ============================================================
+   主题四 · sunset 活力日落
+   珊瑚→落日橙渐变头部，暖白底，元气冲刺感
+   ============================================================ */
+html[data-theme='sunset'] {
+  --primary: #e64550;
+  --primary-light: #f0636e;
+  --primary-dark: #c93142;
+  --primary-bg: #ffe9ea;
+  --on-primary: #ffffff;
+
+  --accent: #ff9f43;
+  --accent-light: #ffb347;
+  --accent-bg: #fff3e3;
+  --on-accent: #6b3a00;
+
+  --success: #26a69a;
+  --success-bg: #e2f4f2;
+  --warning: #e8862e;
+  --warning-bg: #fff3e3;
+  --danger: #d93848;
+  --danger-bg: #ffe7e9;
+  --info: #7e6bf2;
+  --info-bg: #efeafd;
+
+  --bg: #fff8f3;
+  --bg-alt: #ffefe6;
+  --card: #ffffff;
+  --card-alt: #fff3ec;
+  --glass-card: rgba(255, 255, 255, 0.86);
+  --glass-header: rgba(224, 84, 100, 0.88);
+  --app-bg-color: #fff8f3;
+
+  --text: #3d2320;
+  --text-secondary: #7d5c55;
+  --text-light: #b09a92;
+  --text-inverse: #ffffff;
+
+  --border: #f2dfd5;
+  --border-light: #f8ece5;
+  --border-strong: #e3c5b5;
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --btn-radius: 999px;
+  --chip-radius: 999px;
+
+  --shadow: 0 2px 6px rgba(226, 90, 110, 0.08);
+  --shadow-md: 0 8px 24px rgba(226, 90, 110, 0.12);
+  --shadow-lg: 0 14px 40px rgba(226, 90, 110, 0.16);
+
+  --header-bg: linear-gradient(135deg, #ff9a62 0%, #f0576b 100%);
+  --header-fg: #ffffff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: radial-gradient(300px 140px at 85% -30%, rgba(255, 255, 255, 0.28), transparent 70%);
+  --header-grad-a: #ff9a62;
+  --header-grad-b: #f0576b;
+
+  --page-deco: linear-gradient(180deg, rgba(255, 154, 98, 0.10) 0%, rgba(255, 154, 98, 0) 280px);
+
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(61, 35, 32, 0.45);
+  --scrollbar: #e3c5b5;
+  --selection: #ffd9c9;
+
+  --qc-1-bg: #ffe9ea; --qc-1-fg: #e64550;
+  --qc-2-bg: #fff3e3; --qc-2-fg: #e8862e;
+  --qc-3-bg: #e2f4f2; --qc-3-fg: #26a69a;
+  --qc-4-bg: #efeafd; --qc-4-fg: #7e6bf2;
+  --qc-5-bg: #ffefe6; --qc-5-fg: #7d5c55;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(255, 248, 243, 0.22) 0%,
+      rgba(255, 248, 243, 0.12) 50%,
+      rgba(255, 248, 243, 0.28) 100%);
+}
+
+/* ============================================================
+   主题五 · mono 极简黑白
+   纯黑白 + 衬线标题 + 直角硬边 + 边框代替阴影（编辑部风）
+   ============================================================ */
+html[data-theme='mono'] {
+  --primary: #0a0a0a;
+  --primary-light: #2f2f2f;
+  --primary-dark: #000000;
+  --primary-bg: #f0f0ef;
+  --on-primary: #ffffff;
+
+  --accent: #0a0a0a;
+  --accent-light: #2f2f2f;
+  --accent-bg: #f0f0ef;
+  --on-accent: #ffffff;
+
+  --success: #15803d;
+  --success-bg: #e8f2ec;
+  --warning: #b45309;
+  --warning-bg: #f7efe3;
+  --danger: #b91c1c;
+  --danger-bg: #fbeaea;
+  --info: #3f3f46;
+  --info-bg: #f0f0ef;
+
+  --bg: #ffffff;
+  --bg-alt: #f5f5f4;
+  --card: #ffffff;
+  --card-alt: #f5f5f4;
+  --glass-card: rgba(255, 255, 255, 0.92);
+  --glass-header: rgba(10, 10, 10, 0.9);
+  --app-bg-color: #ffffff;
+
+  --text: #0a0a0a;
+  --text-secondary: #525252;
+  --text-light: #a3a3a3;
+  --text-inverse: #ffffff;
+
+  --border: #e5e5e5;
+  --border-light: #f0f0f0;
+  --border-strong: #0a0a0a;
+
+  --radius-sm: 0px;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-pill: 0px;
+  --btn-radius: 0px;
+  --chip-radius: 0px;
+
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: 0 0 0 0 transparent;
+
+  --header-bg: #0a0a0a;
+  --header-fg: #ffffff;
+  --header-radius: 0;
+  --header-deco: none;
+  --header-grad-a: #0a0a0a;
+  --header-grad-b: #262626;
+
+  --page-deco: none;
+
+  --font-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(10, 10, 10, 0.55);
+  --scrollbar: #c9c9c9;
+  --selection: #d9d9d9;
+
+  --qc-1-bg: #f0f0ef; --qc-1-fg: #0a0a0a;
+  --qc-2-bg: #f0f0ef; --qc-2-fg: #0a0a0a;
+  --qc-3-bg: #f0f0ef; --qc-3-fg: #0a0a0a;
+  --qc-4-bg: #f0f0ef; --qc-4-fg: #0a0a0a;
+  --qc-5-bg: #f0f0ef; --qc-5-fg: #0a0a0a;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.16) 50%,
+      rgba(255, 255, 255, 0.34) 100%);
+}
+
+/* mono 专属结构：卡片用 1.5px 实线边框，标题加大字距 */
+html[data-theme='mono'] .section,
+html[data-theme='mono'] .content-card {
+  border: 1.5px solid var(--border-strong);
+  box-shadow: none;
+}
+html[data-theme='mono'] .section-title {
+  letter-spacing: 0.08em;
+}
+html[data-theme='mono'] .page-header h1,
+html[data-theme='mono'] .page-header h2 {
+  letter-spacing: 0.06em;
+}
+/* mono 的头部统计胶囊改为白描边方块 */
+html[data-theme='mono'] .page-header .stat-chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+/* ============================================================
+   主题六 · sakura 樱花初雪
+   樱粉渐变 + 薰衣草辅助 + 超大圆角，柔和光斑装饰
+   ============================================================ */
+html[data-theme='sakura'] {
+  --primary: #d9536f;
+  --primary-light: #e86a86;
+  --primary-dark: #b83e58;
+  --primary-bg: #fde7ee;
+  --on-primary: #ffffff;
+
+  --accent: #8a7fd6;
+  --accent-light: #a89ef0;
+  --accent-bg: #f0edfb;
+  --on-accent: #ffffff;
+
+  --success: #52a683;
+  --success-bg: #e6f4ee;
+  --warning: #d98a2b;
+  --warning-bg: #fdf0dd;
+  --danger: #d9536f;
+  --danger-bg: #fde7ee;
+  --info: #8a7fd6;
+  --info-bg: #f0edfb;
+
+  --bg: #fdf3f6;
+  --bg-alt: #fbeaf0;
+  --card: #ffffff;
+  --card-alt: #fdf0f4;
+  --glass-card: rgba(255, 255, 255, 0.88);
+  --glass-header: rgba(239, 124, 162, 0.9);
+  --app-bg-color: #fdf3f6;
+
+  --text: #3d2b33;
+  --text-secondary: #8a707c;
+  --text-light: #bcaab3;
+  --text-inverse: #ffffff;
+
+  --border: #f3dfe6;
+  --border-light: #f9eef2;
+  --border-strong: #e8c6d2;
+
+  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+  --radius-pill: 999px;
+  --btn-radius: 999px;
+  --chip-radius: 999px;
+
+  --shadow: 0 2px 8px rgba(217, 83, 111, 0.07);
+  --shadow-md: 0 8px 26px rgba(217, 83, 111, 0.10);
+  --shadow-lg: 0 16px 44px rgba(217, 83, 111, 0.14);
+
+  --header-bg: linear-gradient(135deg, #ffa6bd 0%, #ef7ca2 100%);
+  --header-fg: #ffffff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: radial-gradient(260px 130px at 80% -30%, rgba(255, 255, 255, 0.35), transparent 70%);
+  --header-grad-a: #ffa6bd;
+  --header-grad-b: #ef7ca2;
+
+  --page-deco:
+    radial-gradient(430px 330px at 88% 6%, rgba(242, 120, 159, 0.10), transparent 70%),
+    radial-gradient(400px 320px at 6% 32%, rgba(138, 127, 214, 0.08), transparent 70%);
+
+  --font-display: ui-rounded, 'Yuanti SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(61, 43, 51, 0.4);
+  --scrollbar: #e8c6d2;
+  --selection: #fcdde7;
+
+  --qc-1-bg: #fde7ee; --qc-1-fg: #d9536f;
+  --qc-2-bg: #f0edfb; --qc-2-fg: #8a7fd6;
+  --qc-3-bg: #e6f4ee; --qc-3-fg: #52a683;
+  --qc-4-bg: #fdf0dd; --qc-4-fg: #d98a2b;
+  --qc-5-bg: #fbeaf0; --qc-5-fg: #8a707c;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(253, 243, 246, 0.22) 0%,
+      rgba(253, 243, 246, 0.12) 50%,
+      rgba(253, 243, 246, 0.28) 100%);
+}
+
+/* ============================================================
+   壁纸模式（任一主题 + 用户设置了壁纸）
+   卡片与头部切换为玻璃态，页面装饰关闭
+   ============================================================ */
+html[data-wallpaper='on'] {
+  --card: var(--glass-card);
+  --header-bg: var(--glass-header);
+  --page-deco: none;
+}
+/* 玻璃态头部没有渐变可继承时兜底纯色（mint 白卡玻璃态保留白底） */
+html[data-theme='mint'][data-wallpaper='on'] .page-header {
+  border-top: 4px solid var(--primary);
+  backdrop-filter: blur(14px);
+}
+html[data-wallpaper='on'] .section,
+html[data-wallpaper='on'] .content-card {
+  backdrop-filter: blur(12px);
+}
+
+/* 无壁纸时遮罩不参与渲染：mask 的职责是给壁纸图片调色，
+   常驻会把主题动态背景（网格/极光/软糖色块）压暗一层 */
+html[data-wallpaper='off'] .app-bg-mask {
+  display: none;
+}
+
+/* 壁纸模式：主题动态背景层整体让位（用户壁纸优先）。
+   ::after 在层序上排在 img/mask 之后，不关会浮到壁纸上闪烁 */
+html[data-theme][data-wallpaper='on'] .app-bg::before,
+html[data-theme][data-wallpaper='on'] .app-bg::after {
+  content: none;
+}
+
+/* ============================================================
+   主题过渡动画：切换时给关键表面加一个短暂的颜色过渡
+   ============================================================ */
+html.theme-anim body,
+html.theme-anim .section,
+html.theme-anim .page-header,
+html.theme-anim .content-card,
+html.theme-anim .van-tabbar,
+html.theme-anim .van-nav-bar {
+  transition: background-color 0.35s ease, background 0.35s ease,
+    border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease;
+}
+
+/* ============================================================
+   原创主题系列 · 动态背景 + 互动
+   动态层挂在 .app-bg 的伪元素上（transform 动画走 GPU 合成），
+   页面容器（body / .page / .app-layout 等）保持透明让底层透出。
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   主题七 · stellar 星穹终端（科技风 · 暗色）
+   深空黑 + 霓虹青/紫 + 流动网格线 + 扫描线头部
+   ------------------------------------------------------------ */
+html[data-theme='stellar'] {
+  --primary: #22d3ee;
+  --primary-light: #67e8f9;
+  --primary-dark: #06b6d4;
+  --primary-bg: rgba(34, 211, 238, 0.10);
+  --on-primary: #05242c;
+
+  --accent: #a78bfa;
+  --accent-light: #c4b5fd;
+  --accent-bg: rgba(167, 139, 250, 0.12);
+  --on-accent: #1a1030;
+
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.10);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.12);
+  --danger: #fb7185;
+  --danger-bg: rgba(251, 113, 133, 0.10);
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.12);
+
+  --bg: #05070f;
+  --bg-alt: #0a0f1e;
+  --card: #0b1322;
+  --card-alt: #0f1a2e;
+  --glass-card: rgba(11, 19, 34, 0.84);
+  --glass-header: rgba(6, 10, 20, 0.88);
+  --app-bg-color: #05070f;
+
+  --text: #e2eaf8;
+  --text-secondary: #8fa3c4;
+  --text-light: #4f6084;
+  --text-inverse: #e2eaf8;
+
+  --border: rgba(56, 189, 248, 0.15);
+  --border-light: rgba(56, 189, 248, 0.09);
+  --border-strong: rgba(34, 211, 238, 0.40);
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --btn-radius: 8px;
+  --chip-radius: 6px;
+
+  --shadow: 0 2px 10px rgba(2, 6, 16, 0.6);
+  --shadow-md: 0 6px 20px rgba(2, 6, 16, 0.6), 0 0 18px rgba(34, 211, 238, 0.07);
+  --shadow-lg: 0 16px 40px rgba(2, 6, 16, 0.65), 0 0 34px rgba(34, 211, 238, 0.10);
+
+  --header-bg: linear-gradient(180deg, #0c1626 0%, #070d18 100%);
+  --header-fg: #d7ecff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: none;
+  --header-grad-a: #0e2a3d;
+  --header-grad-b: #0a1830;
+
+  --page-deco: none;
+
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'SF Mono', monospace;
+
+  --mask: rgba(2, 5, 12, 0.72);
+  --scrollbar: #1d2d4a;
+  --selection: rgba(34, 211, 238, 0.25);
+
+  --qc-1-bg: rgba(34, 211, 238, 0.10); --qc-1-fg: #22d3ee;
+  --qc-2-bg: rgba(167, 139, 250, 0.12); --qc-2-fg: #a78bfa;
+  --qc-3-bg: rgba(52, 211, 153, 0.10); --qc-3-fg: #34d399;
+  --qc-4-bg: rgba(251, 191, 36, 0.10); --qc-4-fg: #fbbf24;
+  --qc-5-bg: rgba(96, 165, 250, 0.10); --qc-5-fg: #60a5fa;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(5, 7, 15, 0.38) 0%,
+      rgba(5, 7, 15, 0.24) 50%,
+      rgba(5, 7, 15, 0.48) 100%);
+}
+
+/* stellar 头部：底部霓虹扫描线（青→紫） */
+html[data-theme='stellar'] .page-header::after {
+  background: linear-gradient(90deg,
+      rgba(34, 211, 238, 0) 0%,
+      rgba(34, 211, 238, 0.7) 28%,
+      rgba(167, 139, 250, 0.55) 72%,
+      rgba(167, 139, 250, 0) 100%);
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+
+/* stellar 互动：卡片悬停辉光 + 主按钮霓虹光晕 */
+html[data-theme='stellar'] .section {
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+html[data-theme='stellar'] .section:hover {
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow: var(--shadow-md);
+}
+html[data-theme='stellar'] .van-button--primary:not(.van-button--plain) {
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
+}
+html[data-theme='stellar'] .van-button--primary:not(.van-button--plain):active {
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+/* stellar 动态背景：流动网格 + 双色光晕 */
+html[data-theme='stellar'] .app-bg::before {
+  content: '';
+  position: absolute;
+  inset: -80px;
+  background-image:
+    radial-gradient(900px 460px at 82% -12%, rgba(34, 211, 238, 0.10), transparent 62%),
+    radial-gradient(760px 420px at -6% 108%, rgba(167, 139, 250, 0.09), transparent 62%),
+    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+  animation: kb-grid-scroll 12s linear infinite;
+  pointer-events: none;
+}
+@keyframes kb-grid-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(44px, 44px, 0); }
+}
+
+/* ------------------------------------------------------------
+   主题八 · candy 奶油糖霜（可爱风 · 亮色）
+   奶油底 + 糖果粉/天蓝/黄油色 + 波点头部 + 果冻按钮
+   ------------------------------------------------------------ */
+html[data-theme='candy'] {
+  --primary: #e2648f;
+  --primary-light: #ef85a8;
+  --primary-dark: #c94f77;
+  --primary-bg: #fde9ef;
+  --on-primary: #ffffff;
+
+  --accent: #4aa3e8;
+  --accent-light: #74bcf0;
+  --accent-bg: #e3f2fc;
+  --on-accent: #ffffff;
+
+  --success: #52b788;
+  --success-bg: #e7f5ee;
+  --warning: #f2a54a;
+  --warning-bg: #fdf1de;
+  --danger: #e86a6a;
+  --danger-bg: #fdeaea;
+  --info: #9d8bd6;
+  --info-bg: #f1edfa;
+
+  --bg: #fff8ef;
+  --bg-alt: #ffeeda;
+  --card: #ffffff;
+  --card-alt: #fff4e6;
+  --glass-card: rgba(255, 251, 244, 0.9);
+  --glass-header: rgba(239, 133, 168, 0.88);
+  --app-bg-color: #fff8ef;
+
+  --text: #5b4640;
+  --text-secondary: #947c74;
+  --text-light: #c7b1a7;
+  --text-inverse: #ffffff;
+
+  --border: #f6dccb;
+  --border-light: #fae8dc;
+  --border-strong: #eec9a8;
+
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+  --btn-radius: 999px;
+  --chip-radius: 999px;
+
+  --shadow: 0 3px 10px rgba(226, 100, 143, 0.08);
+  --shadow-md: 0 8px 22px rgba(226, 100, 143, 0.12);
+  --shadow-lg: 0 16px 40px rgba(226, 100, 143, 0.16);
+
+  --header-bg: linear-gradient(135deg, #ef85a8 0%, #f7b26c 100%);
+  --header-fg: #ffffff;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: none;
+  --header-grad-a: #ef85a8;
+  --header-grad-b: #f7b26c;
+
+  --page-deco: none;
+
+  --font-display: ui-rounded, 'Yuanti SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-body: ui-rounded, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(91, 70, 64, 0.4);
+  --scrollbar: #eec9a8;
+  --selection: #fcdde7;
+
+  --qc-1-bg: #fde9ef; --qc-1-fg: #d5578a;
+  --qc-2-bg: #e3f2fc; --qc-2-fg: #3d8fc9;
+  --qc-3-bg: #fdf1de; --qc-3-fg: #d18a3d;
+  --qc-4-bg: #e7f8ef; --qc-4-fg: #46a06e;
+  --qc-5-bg: #f1edfa; --qc-5-fg: #8a76c4;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(255, 248, 239, 0.22) 0%,
+      rgba(255, 248, 239, 0.12) 50%,
+      rgba(255, 248, 239, 0.28) 100%);
+}
+
+/* candy 头部：波点图案 */
+html[data-theme='candy'] .page-header::after {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.28) 2px, transparent 2.8px);
+  background-size: 22px 22px;
+  background-repeat: repeat;
+}
+
+/* candy 互动：果冻按钮（按压下沉）+ 卡片悬停上浮 */
+html[data-theme='candy'] .van-button--primary:not(.van-button--plain),
+html[data-theme='candy'] .van-button--danger:not(.van-button--plain) {
+  box-shadow: 0 4px 0 rgba(196, 74, 112, 0.32);
+}
+html[data-theme='candy'] .van-button--primary:not(.van-button--plain):active,
+html[data-theme='candy'] .van-button--danger:not(.van-button--plain):active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 1px 0 rgba(196, 74, 112, 0.32);
+}
+html[data-theme='candy'] .section {
+  transition: transform 0.2s;
+}
+html[data-theme='candy'] .section:hover {
+  transform: translateY(-2px);
+}
+
+/* candy 动态背景：漂浮的奶油软糖色块 */
+html[data-theme='candy'] .app-bg::before {
+  content: '';
+  position: absolute;
+  inset: -60px;
+  background-image:
+    radial-gradient(300px 300px at 16% 22%, rgba(255, 143, 171, 0.20), transparent 70%),
+    radial-gradient(340px 340px at 84% 14%, rgba(125, 200, 248, 0.18), transparent 70%),
+    radial-gradient(380px 380px at 72% 84%, rgba(255, 209, 102, 0.18), transparent 70%),
+    radial-gradient(280px 280px at 10% 78%, rgba(169, 240, 199, 0.22), transparent 70%);
+  background-repeat: no-repeat;
+  animation: kb-blob-drift 26s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes kb-blob-drift {
+  from { transform: translate3d(-18px, -12px, 0) scale(1.02); }
+  to { transform: translate3d(22px, 16px, 0) scale(1.08); }
+}
+
+/* ------------------------------------------------------------
+   主题九 · ink 墨韵书窗（国风 · 亮色）
+   宣纸白 + 墨色 + 朱砂印章 + 楷体标题（用户最喜欢的字体）
+   ------------------------------------------------------------ */
+html[data-theme='ink'] {
+  --primary: #26333d;
+  --primary-light: #3a4a55;
+  --primary-dark: #1a242c;
+  --primary-bg: #e9edea;
+  --on-primary: #f5f1e6;
+
+  --accent: #b8452e;
+  --accent-light: #c95540;
+  --accent-bg: #f7e5e0;
+  --on-accent: #ffffff;
+
+  --success: #4d7c5f;
+  --success-bg: #e9f1eb;
+  --warning: #b45309;
+  --warning-bg: #f5ecdf;
+  --danger: #b8452e;
+  --danger-bg: #f7e5e0;
+  --info: #4a6b8a;
+  --info-bg: #e7edf2;
+
+  --bg: #f7f3e9;
+  --bg-alt: #efe9da;
+  --card: #fcfaf2;
+  --card-alt: #f4efe0;
+  --glass-card: rgba(252, 250, 242, 0.9);
+  --glass-header: rgba(38, 51, 61, 0.9);
+  --app-bg-color: #f7f3e9;
+
+  --text: #2b2822;
+  --text-secondary: #6d675a;
+  --text-light: #a49c8a;
+  --text-inverse: #f5f1e6;
+
+  --border: #ddd5c0;
+  --border-light: #e8e1cd;
+  --border-strong: #b9af95;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-pill: 999px;
+  --btn-radius: 6px;
+  --chip-radius: 4px;
+
+  --shadow: 0 1px 4px rgba(43, 40, 34, 0.05);
+  --shadow-md: 0 4px 14px rgba(43, 40, 34, 0.08);
+  --shadow-lg: 0 10px 30px rgba(43, 40, 34, 0.12);
+
+  --header-bg: linear-gradient(165deg, #39464f 0%, #22303a 100%);
+  --header-fg: #f2eee1;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: none;
+  --header-grad-a: #39464f;
+  --header-grad-b: #22303a;
+
+  --page-deco: none;
+
+  --font-display: 'STKaiti', 'KaiTi', 'Kaiti SC', 'FZKai-Z03S', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(43, 40, 34, 0.5);
+  --scrollbar: #c9c0a8;
+  --selection: #f0e3c0;
+
+  --qc-1-bg: #e9edea; --qc-1-fg: #3a4a55;
+  --qc-2-bg: #f7e5e0; --qc-2-fg: #b8452e;
+  --qc-3-bg: #e9f1eb; --qc-3-fg: #4d7c5f;
+  --qc-4-bg: #e7edf2; --qc-4-fg: #4a6b8a;
+  --qc-5-bg: #efe9da; --qc-5-fg: #6d675a;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(247, 243, 233, 0.24) 0%,
+      rgba(247, 243, 233, 0.14) 50%,
+      rgba(247, 243, 233, 0.30) 100%);
+}
+
+/* ink 头部：底部朱砂线 */
+html[data-theme='ink'] .page-header::after {
+  background: linear-gradient(90deg,
+      rgba(184, 69, 46, 0) 0%,
+      rgba(184, 69, 46, 0.65) 50%,
+      rgba(184, 69, 46, 0) 100%);
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+
+/* ink 结构：区块标题前缀改为朱砂印章方块 */
+html[data-theme='ink'] .section-title > span:first-child::before {
+  background: var(--accent);
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+/* ink 结构：卡片双线描边（传统书框） */
+html[data-theme='ink'] .section {
+  box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--border-light), var(--shadow);
+}
+
+/* ink 动态背景：缓缓洇开的淡墨 */
+html[data-theme='ink'] .app-bg::before {
+  content: '';
+  position: absolute;
+  inset: -60px;
+  background-image:
+    radial-gradient(460px 320px at 86% 6%, rgba(38, 51, 61, 0.055), transparent 70%),
+    radial-gradient(400px 280px at 6% 44%, rgba(184, 69, 46, 0.045), transparent 70%),
+    radial-gradient(440px 320px at 62% 92%, rgba(38, 51, 61, 0.05), transparent 70%);
+  background-repeat: no-repeat;
+  animation: kb-ink-drift 38s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes kb-ink-drift {
+  from { transform: translate3d(-14px, -10px, 0) scale(1.02); }
+  to { transform: translate3d(16px, 12px, 0) scale(1.06); }
+}
+
+/* ------------------------------------------------------------
+   主题十 · aurora 极光之夜（动态夜色 · 暗色）
+   深夜蓝底 + 极光带流动 + 星空闪烁 + 玻璃卡片
+   ------------------------------------------------------------ */
+html[data-theme='aurora'] {
+  --primary: #6ee7b7;
+  --primary-light: #98f0cf;
+  --primary-dark: #4ccf9e;
+  --primary-bg: rgba(110, 231, 183, 0.12);
+  --on-primary: #06301f;
+
+  --accent: #93c5fd;
+  --accent-light: #b3d7fe;
+  --accent-bg: rgba(147, 197, 253, 0.12);
+  --on-accent: #0a1c38;
+
+  --success: #86efac;
+  --success-bg: rgba(134, 239, 172, 0.10);
+  --warning: #fcd34d;
+  --warning-bg: rgba(252, 211, 77, 0.12);
+  --danger: #fda4af;
+  --danger-bg: rgba(253, 164, 175, 0.10);
+  --info: #c4b5fd;
+  --info-bg: rgba(196, 181, 253, 0.12);
+
+  --bg: #070d1a;
+  --bg-alt: #0d1526;
+  --card: #101a2e;
+  --card-alt: #141f38;
+  --glass-card: rgba(14, 22, 40, 0.72);
+  --glass-header: rgba(9, 14, 26, 0.78);
+  --app-bg-color: #070d1a;
+
+  --text: #e8eefb;
+  --text-secondary: #a3b4d4;
+  --text-light: #5c6e94;
+  --text-inverse: #e8eefb;
+
+  --border: rgba(147, 197, 253, 0.16);
+  --border-light: rgba(147, 197, 253, 0.09);
+  --border-strong: rgba(110, 231, 183, 0.38);
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --btn-radius: 999px;
+  --chip-radius: 999px;
+
+  --shadow: 0 2px 12px rgba(3, 8, 20, 0.5);
+  --shadow-md: 0 8px 26px rgba(3, 8, 20, 0.55), 0 0 22px rgba(110, 231, 183, 0.08);
+  --shadow-lg: 0 16px 44px rgba(3, 8, 20, 0.6), 0 0 36px rgba(110, 231, 183, 0.12);
+
+  --header-bg: linear-gradient(135deg, #0f3d36 0%, #173a63 55%, #2d2a55 100%);
+  --header-fg: #e8fbf3;
+  --header-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  --header-deco: radial-gradient(300px 140px at 80% -30%, rgba(110, 231, 183, 0.22), transparent 70%);
+  --header-grad-a: #0f3d36;
+  --header-grad-b: #2d2a55;
+
+  --page-deco: none;
+
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+
+  --mask: rgba(3, 7, 16, 0.7);
+  --scrollbar: #1e3252;
+  --selection: rgba(110, 231, 183, 0.25);
+
+  --qc-1-bg: rgba(110, 231, 183, 0.12); --qc-1-fg: #6ee7b7;
+  --qc-2-bg: rgba(147, 197, 253, 0.12); --qc-2-fg: #93c5fd;
+  --qc-3-bg: rgba(196, 181, 253, 0.12); --qc-3-fg: #c4b5fd;
+  --qc-4-bg: rgba(252, 211, 77, 0.12); --qc-4-fg: #fcd34d;
+  --qc-5-bg: rgba(163, 180, 212, 0.12); --qc-5-fg: #a3b4d4;
+
+  --wp-mask: linear-gradient(180deg,
+      rgba(7, 13, 26, 0.38) 0%,
+      rgba(7, 13, 26, 0.24) 50%,
+      rgba(7, 13, 26, 0.48) 100%);
+}
+
+/* aurora 结构：常驻玻璃卡片 + 主按钮极光辉光 */
+html[data-theme='aurora'] .section,
+html[data-theme='aurora'] .content-card {
+  background: rgba(14, 22, 40, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+html[data-theme='aurora'] .van-button--primary:not(.van-button--plain) {
+  box-shadow: 0 0 20px rgba(110, 231, 183, 0.25);
+}
+html[data-theme='aurora'] .van-button--primary:not(.van-button--plain):active {
+  box-shadow: 0 0 10px rgba(110, 231, 183, 0.35);
+}
+
+/* aurora 动态背景：流动极光带 + 闪烁星空 */
+html[data-theme='aurora'] .app-bg::before {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  background-image:
+    radial-gradient(58% 42% at 30% 24%, rgba(110, 231, 183, 0.17), transparent 64%),
+    radial-gradient(50% 38% at 72% 14%, rgba(147, 197, 253, 0.15), transparent 64%),
+    radial-gradient(55% 44% at 56% 46%, rgba(196, 181, 253, 0.13), transparent 64%),
+    radial-gradient(45% 34% at 24% 62%, rgba(94, 234, 212, 0.11), transparent 64%);
+  background-repeat: no-repeat;
+  animation: kb-aurora-drift 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+html[data-theme='aurora'] .app-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle 1.5px at 12% 16%, rgba(255, 255, 255, 0.75) 99%, transparent),
+    radial-gradient(circle 1px at 28% 9%, rgba(255, 255, 255, 0.55) 99%, transparent),
+    radial-gradient(circle 1.5px at 44% 20%, rgba(255, 255, 255, 0.6) 99%, transparent),
+    radial-gradient(circle 1px at 61% 7%, rgba(255, 255, 255, 0.5) 99%, transparent),
+    radial-gradient(circle 1.5px at 76% 18%, rgba(255, 255, 255, 0.7) 99%, transparent),
+    radial-gradient(circle 1px at 88% 12%, rgba(255, 255, 255, 0.55) 99%, transparent),
+    radial-gradient(circle 1.5px at 8% 38%, rgba(255, 255, 255, 0.45) 99%, transparent),
+    radial-gradient(circle 1px at 36% 34%, rgba(255, 255, 255, 0.35) 99%, transparent),
+    radial-gradient(circle 1px at 68% 42%, rgba(255, 255, 255, 0.4) 99%, transparent),
+    radial-gradient(circle 1.5px at 93% 36%, rgba(255, 255, 255, 0.5) 99%, transparent);
+  background-repeat: no-repeat;
+  animation: kb-twinkle 5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes kb-aurora-drift {
+  from { transform: translate3d(-3%, -2%, 0) rotate(-3deg) scale(1.05); }
+  to { transform: translate3d(3%, 2%, 0) rotate(2deg) scale(1.12); }
+}
+@keyframes kb-twinkle {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+/* ---------- 无障碍：用户偏好减少动态时关闭所有背景动画 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='stellar'] .app-bg::before,
+  html[data-theme='candy'] .app-bg::before,
+  html[data-theme='ink'] .app-bg::before,
+  html[data-theme='aurora'] .app-bg::before,
+  html[data-theme='aurora'] .app-bg::after {
+    animation: none;
+  }
+}

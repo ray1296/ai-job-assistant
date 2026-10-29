@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>题库</title>
+    <script>
+      try {
+        if (localStorage.getItem("zg.theme") === "night") {
+          document.documentElement.dataset.theme = "midnight";
+          document.documentElement.style.colorScheme = "dark";
+        }
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="/orig/assets/main.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/orig/assets/main.js"></script>
+  </body>
+</html>
