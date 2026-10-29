@@ -144,6 +144,12 @@ const app = defineComponent({
     const accountInitial = computed(() => Array.from(accountName.value)[0] || "我");
     const hidePets = computed(() => active.value === "chat" || active.value === "wish");
     watch(orbit, (v) => { try { document.body.classList.toggle("star-map-open", !!v); } catch {} }, { immediate: true });
+    let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+    watch(notice, (v) => {
+      if (noticeTimer) clearTimeout(noticeTimer);
+      if (!v) return;
+      noticeTimer = setTimeout(() => { if (notice.value === v) notice.value = ""; }, 6000);
+    });
     onMounted(async () => {
       preloadRpgStarAssets();
       preloadClassicStarAssets();

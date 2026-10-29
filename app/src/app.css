@@ -3130,3 +3130,19 @@ body:not(.star-map-open):not(.map-mode) .mouse-trail-canvas { display: block !im
 
 /* 题库 iframe 内部已有自己的拖尾，父层不要叠一份冻结的 */
 body:has(.orig-frame) .immersive-main > .mouse-trail-canvas { display: none !important; }
+
+/* 登录/注册弹窗与右上角提示：夜间与白天都要保证可读 */
+.toast { color: #3f3353; }
+html[data-theme="night"] .toast { background: #132238 !important; border-color: #304966 !important; color: #e8effb !important; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+html[data-theme="night"] .toast button { background: transparent !important; border: 0 !important; color: #cfdcf2 !important; }
+html[data-theme="night"] .modal-backdrop { background: rgba(4,10,22,.72) !important; }
+html[data-theme="night"] .auth-modal { background: #132238 !important; border-color: #304966 !important; color: #e8effb !important; }
+html[data-theme="night"] .auth-modal h2 { color: #f3f2ff !important; }
+html[data-theme="night"] .auth-modal p,
+html[data-theme="night"] .auth-modal small { color: #9fb0cf !important; }
+html[data-theme="night"] .auth-modal .eyebrow { color: #b9a8ef !important; }
+html[data-theme="night"] .auth-modal .field > span { color: #b8c8e2 !important; }
+html[data-theme="night"] .auth-role { background: #0b1628 !important; }
+html[data-theme="night"] .auth-role button { color: #9fb0cf !important; }
+html[data-theme="night"] .auth-role button.on { background: #1b2e4b !important; color: #eef4ff !important; }
+html[data-theme="night"] .auth-modal .modal-close { background: transparent !important; color: #cfdcf2 !important; }
