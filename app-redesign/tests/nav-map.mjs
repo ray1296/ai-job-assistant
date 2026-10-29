@@ -37,7 +37,11 @@ assert.equal(await page.locator(".star-map, .rpg-map").count(), 0, "旧星盘组
 
 // 字号放大
 const size = await page.locator(".nav-item-name").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-assert.ok(size >= 19, "板块名字号不小于 19px，实际 " + size);
+assert.ok(size >= 17, "板块名字号不小于 17px，实际 " + size);
+
+// 一屏放得下：18 个板块不允许出现纵向滚动
+const fit = await page.locator(".nav-map").evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
+assert.ok(fit.scroll <= fit.client + 1, "导航不应需要滚动：scrollHeight " + fit.scroll + " > clientHeight " + fit.client);
 
 // 点击跳转
 await page.locator('[data-page="resume"]').click();
