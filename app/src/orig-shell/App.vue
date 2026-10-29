@@ -1,9 +1,11 @@
 <template>
   <div class="app-bg"><div class="app-bg-mask"></div></div>
   <router-view />
+  <MouseTrail />
 </template>
 <script setup>
 import { onMounted } from "vue";
+import MouseTrail from "../mouse-trail";
 onMounted(() => {
   const a = document.createElement("a");
   a.className = "zg-upload-entry";

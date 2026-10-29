@@ -3127,3 +3127,6 @@ html[data-theme="night"] .pet-tool-btn:hover { background: #1b2e4b !important; }
 body.star-map-open .mouse-trail-canvas { display: none !important; }
 .star-map-slot { display: none; }
 body:not(.star-map-open):not(.map-mode) .mouse-trail-canvas { display: block !important; }
+
+/* 题库 iframe 内部已有自己的拖尾，父层不要叠一份冻结的 */
+body:has(.orig-frame) .immersive-main > .mouse-trail-canvas { display: none !important; }

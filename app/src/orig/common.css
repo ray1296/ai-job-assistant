@@ -397,3 +397,45 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   .page-header,
   .gradient-header { padding: 34px 32px 36px; }
 }
+
+/* 题库 iframe 自己也要有鼠标拖尾：iframe 会截断父页面的 pointermove */
+.mouse-trail-canvas {
+  position: fixed !important;
+  inset: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+}
+
+/* ===== 夜间：题库外壳硬编码浅色面板的补漏 ===== */
+html[data-theme="midnight"] .ai-history-view { background: var(--bg); color: var(--text); }
+html[data-theme="midnight"] .ai-history-header { background: rgba(13,21,38,.92); border-bottom-color: var(--border); }
+html[data-theme="midnight"] .ai-history-header p,
+html[data-theme="midnight"] .ai-history-body span { color: var(--text-secondary); }
+html[data-theme="midnight"] .ai-history-card,
+html[data-theme="midnight"] .ai-history-empty { background: var(--card); border-color: var(--border); color: var(--text); }
+html[data-theme="midnight"] .ai-history-icon { background: rgba(92,200,245,.12); }
+html[data-theme="midnight"] .ai-history-delete { background: rgba(251,113,133,.10); border-color: rgba(251,113,133,.28); color: #fb7185; }
+html[data-theme="midnight"] .ai-history-arrow { color: var(--text-light); }
+html[data-theme="midnight"] .ai-history-empty strong { color: var(--text); }
+html[data-theme="midnight"] .ai-page-view { background: var(--bg); color: var(--text); }
+html[data-theme="midnight"] .ai-page-header { background: rgba(13,21,38,.92); border-bottom-color: var(--border); }
+html[data-theme="midnight"] .ai-page-title { color: var(--text); }
+html[data-theme="midnight"] .ai-page-list-btn { background: var(--card); border-color: var(--border); color: var(--primary); }
+html[data-theme="midnight"] .ai-page-history { background: var(--card); border-color: var(--border); }
+html[data-theme="midnight"] .history-head-row,
+html[data-theme="midnight"] .history-empty,
+html[data-theme="midnight"] .history-time { color: var(--text-secondary); }
+html[data-theme="midnight"] .history-item:hover { background: var(--bg-alt); }
+html[data-theme="midnight"] .history-name { color: var(--text); }
+html[data-theme="midnight"] .history-del { color: var(--text-light); }
+html[data-theme="midnight"] .ai-page-frame-wrap { background: var(--card); border-color: var(--border); }
+html[data-theme="midnight"] .ai-page-empty { color: var(--text-secondary); }
+html[data-theme="midnight"] .ai-result-card { background: var(--card); }
+html[data-theme="midnight"] .ai-result-head { background: linear-gradient(135deg,#1a2a4a,#122544); border-bottom-color: var(--border); color: var(--text); }
+html[data-theme="midnight"] .ai-result-close { background: var(--bg-alt); color: var(--text); }
+html[data-theme="midnight"] .ai-result-loading,
+html[data-theme="midnight"] .ai-result-text { color: var(--text); }
+html[data-theme="midnight"] .ai-result-frame { background: #0d1526; }
+html[data-theme="midnight"] .ai-result-foot { border-top-color: var(--border); }
