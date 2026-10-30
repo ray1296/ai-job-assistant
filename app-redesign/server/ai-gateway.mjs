@@ -306,7 +306,8 @@ export function createAiGateway(privateDir) {
   };
   async function decorate(userId, input, signal) {
     const cfg = await configFrom(privateDir);
-    const key = cfg?.imageApiKey || cfg?.apiKey;
+    // dashscope 走阿里云 key，其余走 imageApiKey（两者互不覆盖）
+    const key = (cfg?.imageProvider === "dashscope" ? (cfg?.aliyunKey || cfg?.imageApiKey) : (cfg?.imageApiKey || cfg?.apiKey));
     const base = cfg?.imageBaseUrl || cfg?.baseUrl;
     const model = cfg?.imageModel || "";
     if (!base || !key || !model)
