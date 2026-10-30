@@ -1627,7 +1627,9 @@ async function handleRequest(req, res) {
         const payload = await body(req);
         const agentId = AGENT_NAME_BY_ID[String(payload.agentId || "")] ? String(payload.agentId) : "yanzhou";
         // 提词器换一个人：面试官是知微就用星野，其余用知微，避免同一个 agent 又出题又提示
-        const coachId = agentId === "zhiwei" ? "xingye" : "zhiwei";
+        // 用户可能挑任意 agent 当面试官/求职者，提词人必须换一个，避免同一个 agent 又出题又提示
+        const COACH_ORDER = ["zhiwei", "xingye", "yanzhou", "qichi"];
+        const coachId = COACH_ORDER.find((id) => id !== agentId) || "zhiwei";
         const mode = payload.mode === "candidate" ? "candidate" : "interviewer";
         const job = payload.jobId ? getJob(String(payload.jobId)) : null;
         const resume = resumeById(s.user_id, payload.resumeId) || latestResume(s.user_id);
