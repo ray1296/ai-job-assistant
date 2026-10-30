@@ -113,7 +113,7 @@ db.exec("CREATE TABLE IF NOT EXISTS interview_sessions(id TEXT PRIMARY KEY, user
 db.exec("CREATE INDEX IF NOT EXISTS interview_sessions_owner ON interview_sessions(user_id, created_at);");
 try { db.exec("ALTER TABLE interview_sessions ADD COLUMN difficulty TEXT"); } catch {}
 const applicationPlan = createApplicationPlan(db, getJob);
-const agentActions = createAgentActions({ db, plan: applicationPlan, listJobs });
+const agentActions = createAgentActions({ db, plan: applicationPlan, listJobs, getDatasets: () => datasets });
 const learning = createLearning(db);
 const resumeImports = createResumeImports(db, dataDir, profileData);
 const applicationCopy = createApplicationCopy(dataDir);
@@ -307,6 +307,78 @@ function agentSystem(agentId, extra = "") {
   const ctx = agents.context(agentId);
   return ctx.system + "\n" + TONE_RULE + "\n" + AGENT_SAFETY + (extra ? "\n" + extra : "");
 }
+/** 聊天里用户说"把附件导入我的账号"时，解析附件并生成待确认的导入动作。 */
+function parseAttachment(message) {
+  const m = String(message || "").match(/【附件：([^】]+)】\n([\s\S]*)$/);
+  if (!m) return null;
+  return { name: m[1].trim(), text: m[2] };
+}
+function parseCsvRows(text) {
+  const lines = String(text || "").split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const split = (line) => {
+    const out = [];
+    let cur = "";
+    let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { q = !q; continue; }
+      if (ch === "," && !q) { out.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out.map((x) => x.trim());
+  };
+  const header = split(lines[0]);
+  return lines.slice(1).map((l) => {
+    const cells = split(l);
+    const row = {};
+    header.forEach((h, i) => (row[h] = cells[i] || ""));
+    return row;
+  });
+}
+function maybeImportProposal(message) {
+  if (!/导入|导进|存到我的账号|存进我的账号/.test(String(message || ""))) return null;
+  const att = parseAttachment(message);
+  if (!att) return null;
+  let rows = [];
+  const trimmed = att.text.trim();
+  if (/^\[|^\{/.test(trimmed)) {
+    try {
+      const j = JSON.parse(trimmed);
+      rows = Array.isArray(j) ? j : Array.isArray(j.rows) ? j.rows : [];
+    } catch {}
+  }
+  if (!rows.length) rows = parseCsvRows(att.text);
+  if (rows.length < 2) return null;
+  const pick = (obj, keys) => {
+    for (const k of keys) if (obj[k] != null && obj[k] !== "") return String(obj[k]);
+    return "";
+  };
+  const seen = new Map();
+  for (const r of rows) {
+    const company = pick(r, ["公司", "公司名称", "company"]);
+    const title = pick(r, ["岗位", "职位", "岗位名称", "title", "jobTitle"]);
+    const city = pick(r, ["城市", "地点", "city"]);
+    seen.set((company + "|" + title + "|" + city).toLowerCase(), r);
+  }
+  const deduped = Array.from(seen.values());
+  const header = Object.keys(rows[0]);
+  const csv = [header.join(",")]
+    .concat(deduped.map((r) => header.map((h) => String(r[h] ?? "").replace(/[",\n]/g, " ")).join(",")))
+    .join("\n");
+  return {
+    args: {
+      text: csv,
+      ext: "csv",
+      name: (att.name.replace(/\.[a-z0-9]+$/i, "") || "导入的岗位数据").slice(0, 60),
+      category: "jobs",
+    },
+    summary:
+      "把附件「" + att.name + "」导入到你的数据空间：原始 " + rows.length + " 行，按 公司+岗位+城市 去重后 " + deduped.length + " 行。",
+  };
+}
+
 function proposalFor(userId, result) {
   if (!result?.requiresConfirmation) return null;
   return agentActions.propose(userId, result.tool, result.args || {}, result.summary || result.tool);
@@ -460,6 +532,19 @@ function augmentPlan(message, steps, memoryText) {
   const out = Array.isArray(steps) ? steps.slice(0, PLAN_MAX_STEPS) : [];
   const text = String(message || "");
   const mem = String(memoryText || "");
+  // 用户明确点名「让某某…」时强制路由：模型漏派也要补上，否则等于没执行用户指令
+  const NAMED_ROUTES = [
+    ["知微", "zhiwei", "my_progress"],
+    ["砚舟", "yanzhou", "search_jobs"],
+    ["栖迟", "qichi", "find_housing"],
+  ];
+  for (const [name, id, tool] of NAMED_ROUTES) {
+    const m = text.match(new RegExp("让\\s*" + name + "\\s*(?:帮(?:我)?|去|来)?\\s*([\\s\\S]{2,160})"));
+    if (!m) continue;
+    if (out.some((s) => s.agent === id)) continue;
+    const task = String(m[1] || "").split(/[；;。\n]|\d\.\s/)[0].trim().slice(0, 120) || "执行用户点名的任务";
+    out.unshift({ agent: id, task, tool, args: id === "yanzhou" ? jobArgsFromMessage(text + " " + mem) : {} });
+  }
   const hasJobs = out.some((s) => s.tool === "search_jobs");
   const hasLearn = out.some((s) => s.tool === "my_progress" || s.agent === "zhiwei");
   if (/岗位|求职|投什么|简历|面试/.test(text) && !hasJobs) {
@@ -1657,6 +1742,18 @@ async function handleRequest(req, res) {
         if (ragCtx.text) system += "\n\n平台公开资料检索（只作参考，引用片段用 [n]；不足就说不足，不要编造）：\n" + ragCtx.text;
         const history = Array.isArray(payload.history) ? payload.history.slice(-6) : [];
         saveCompanion(s.user_id, agentId, "user", message || "[图片]");
+        // 附件导入：用户要求把附件导入账号时，先解析并生成待确认动作，不直接写库
+        const importProposal = maybeImportProposal(message);
+        if (importProposal) {
+          const proposal = agentActions.propose(s.user_id, "import_dataset", importProposal.args, importProposal.summary);
+          saveCompanion(s.user_id, agentId, "ai", importProposal.summary);
+          return send(res, 200, {
+            reply: "我把附件整理好了：\n\n" + importProposal.summary + "\n\n确认后我再写入你的数据空间。",
+            pendingAction: proposal,
+            tools: [],
+            plan: null,
+          });
+        }
         // 提示词驱动的工具路由（不依赖模型原生 function calling）
         const toolTable = toolPromptFor(message, 3);
         let reply = "";
@@ -2290,7 +2387,8 @@ async function handleRequest(req, res) {
       {
         const mm = p.match(/^\/api\/agents\/actions\/([a-f0-9]{32})\/(confirm|cancel)$/);
         if (mm && m === "POST") {
-          return send(res, 200, mm[2] === "confirm" ? agentActions.confirm(s.user_id, mm[1]) : agentActions.cancel(s.user_id, mm[1]));
+          const out = mm[2] === "confirm" ? await agentActions.confirm(s.user_id, mm[1]) : agentActions.cancel(s.user_id, mm[1]);
+          return send(res, 200, out);
         }
       }
       if (p === "/api/agents/tool-call" && m === "POST") {

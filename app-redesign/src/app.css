@@ -3508,3 +3508,14 @@ html[data-theme="night"] .orbit-trigger:hover { background: #241d3d !important; 
 .agent-chat .agent-mem-warn,
 .agent-chat .agent-composer { flex: 0 0 auto; }
 .agent-chat .companion-log { flex: 1 1 auto; min-height: 0; padding-bottom: 4px; }
+
+/* 对话框内的写操作确认卡片 */
+.agent-chat .agent-confirm { flex: 0 0 auto; margin: 0 10px 8px; padding: 10px 12px; border: 1px solid #e3d5f2; border-radius: 10px; background: #fbf8ff; }
+.agent-chat .agent-confirm strong { display: block; font-size: 12px; color: #4b3b63; margin-bottom: 4px; }
+.agent-chat .agent-confirm p { margin: 0 0 8px; font-size: 12px; color: #5f5480; line-height: 1.6; }
+.agent-chat .agent-confirm-actions { display: flex; gap: 8px; }
+.agent-chat .agent-confirm-actions button { flex: 1; padding: 7px 10px; border-radius: 8px; border: 1px solid #ddd3ee; background: #fff; color: #5b4a80; font-size: 12px; cursor: pointer; }
+.agent-chat .agent-confirm-actions button.primary { background: #7c6ae0; border-color: #7c6ae0; color: #fff; }
+.agent-chat .agent-confirm-actions button:disabled { opacity: .6; cursor: default; }
+html[data-theme="night"] .agent-chat .agent-confirm { background: #1a1430; border-color: #3a2f57; }
+html[data-theme="night"] .agent-chat .agent-confirm strong, html[data-theme="night"] .agent-chat .agent-confirm p { color: #d8cff0; }

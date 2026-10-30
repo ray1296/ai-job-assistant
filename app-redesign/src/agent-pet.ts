@@ -50,6 +50,9 @@ export default defineComponent({
     ]);
     const loaded = ref(false);
     const busy = ref(false);
+    // 待用户确认的写操作：在对话框里显示确认卡片，不用浏览器原生弹窗
+    const pendingAction = ref<any>(null);
+    const pendingBusy = ref(false);
     const err = ref("");
     const msg = ref("");
     const pendingImage = ref("");
@@ -516,6 +519,25 @@ export default defineComponent({
       scrollLog();
     }
 
+    async function resolvePending(ok: boolean) {
+      const act = pendingAction.value;
+      if (!act?.token || pendingBusy.value) return;
+      pendingBusy.value = true;
+      try {
+        // 走统一的 api()，它会带上正确的 CSRF 与错误处理
+        const data: any = await api("/agents/actions/" + encodeURIComponent(act.token) + "/" + (ok ? "confirm" : "cancel"), "POST", undefined, { timeoutMs: 120000 });
+        pendingAction.value = null;
+        if (!ok) log.value.push({ role: "ai", text: "已取消，没有写入任何数据。" });
+        else if (data?.rows != null) log.value.push({ role: "ai", text: "已导入 " + data.rows + " 行到数据空间，可在「数据空间」里查看。" });
+        else log.value.push({ role: "ai", text: "已写入：" + JSON.stringify(data || {}).slice(0, 200) });
+      } catch (e) {
+        log.value.push({ role: "ai", text: "操作失败：" + errorText(e) });
+      } finally {
+        pendingBusy.value = false;
+        scrollLog();
+      }
+    }
+
     async function send() {
       const typed = (inputEl.value?.innerText || msg.value || "").replaceAll("\u00a0", " ").trim();
       const draftText = drafts.value.map((d) => d.content).join("\n");
@@ -554,8 +576,8 @@ export default defineComponent({
         }, { timeoutMs: 120000 });
         const reply = String(r?.reply || "……我再想想。");
         if (r?.pendingAction) {
-          const done = await confirmPendingAction(r.pendingAction);
-          log.value.push({ role: "ai", text: done.cancelled ? "已取消写入。" : done.ok ? "已执行写入：" + JSON.stringify(done.result || {}).slice(0, 300) : "写入失败：" + (done.error || "未知错误") });
+          pendingAction.value = r.pendingAction;
+          scrollLog();
           return;
         }
         if (Array.isArray(r?.plan) && r.plan.length) {
@@ -821,6 +843,16 @@ export default defineComponent({
                   class: "agent-page-entry",
                   onClick: () => (pageOpen.value = true),
                 }, "AI 页面 · " + pageTitle.value + " · 打开")
+              : null,
+            pendingAction.value
+              ? h("div", { class: "agent-confirm" }, [
+                  h("strong", null, "需要你确认"),
+                  h("p", null, String(pendingAction.value.summary || pendingAction.value.tool || "写入数据")),
+                  h("div", { class: "agent-confirm-actions" }, [
+                    h("button", { class: "primary", disabled: pendingBusy.value, onClick: () => void resolvePending(true) }, pendingBusy.value ? "处理中…" : "确认写入"),
+                    h("button", { disabled: pendingBusy.value, onClick: () => void resolvePending(false) }, "取消"),
+                  ]),
+                ])
               : null,
             err.value ? h("p", { class: "companion-error" }, err.value) : null,
             memPct.value >= 0.8 && !memDismissed.value

@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
  * 1. 模型/路由只提出 proposal，绝不直接改库；
  * 2. 用户在 UI 点确认后，才用一次性 token 执行。
  */
-export function createAgentActions({ db, plan, listJobs }) {
+export function createAgentActions({ db, plan, listJobs, getDatasets }) {
   const pending = new Map(); // token -> {userId,tool,args,summary,expires}
   const TTL = 5 * 60 * 1000;
   const clean = () => {
@@ -22,7 +22,20 @@ export function createAgentActions({ db, plan, listJobs }) {
     if (!hit) throw Object.assign(new Error("没有找到匹配岗位"), { status: 404 });
     return hit;
   }
-  function execute(userId, tool, args) {
+  async function execute(userId, tool, args) {
+    if (tool === "import_dataset") {
+      const datasets = getDatasets?.();
+      if (!datasets?.create) throw Object.assign(new Error("导入服务不可用"), { status: 503 });
+      const text = String(args.text || "");
+      if (!text.trim()) throw Object.assign(new Error("导入内容为空"), { status: 400 });
+      const out = await datasets.create(userId, {
+        category: String(args.category || "jobs"),
+        name: String(args.name || "导入的岗位数据").slice(0, 80),
+        buffer: Buffer.from(text, "utf8"),
+        ext: String(args.ext || "csv"),
+      });
+      return { ok: true, tool, datasetId: out.id, rows: out.rowCount, deduped: out.deduped || 0, name: out.name };
+    }
     if (tool === "add_job_intent") {
       const job = resolveJob(args);
       plan.mutateIntent(userId, job.id, true);
@@ -47,12 +60,12 @@ export function createAgentActions({ db, plan, listJobs }) {
     pending.set(token, item);
     return { token, tool, args: item.args, summary: item.summary, expiresAt: item.expires };
   }
-  function confirm(userId, token) {
+  async function confirm(userId, token) {
     clean();
     const item = pending.get(token);
     if (!item || item.userId !== userId) throw Object.assign(new Error("确认已过期，请重新发起"), { status: 410 });
     pending.delete(token);
-    return execute(userId, item.tool, item.args);
+    return await execute(userId, item.tool, item.args);
   }
   function cancel(userId, token) {
     const item = pending.get(token);
