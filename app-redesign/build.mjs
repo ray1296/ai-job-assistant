@@ -104,9 +104,11 @@ await fs.copyFile("src/orig/common.css", `${output}/assets/orig-common.css`);
 await fs.copyFile("src/index.html", `${output}/index.html`);
 // 看板娘立绘
 await fs.mkdir(`${output}/assets/companions`, { recursive: true });
-await fs.mkdir(`${output}/assets/journey`, { recursive: true });
-for (const f of await fs.readdir("public/assets/journey"))
-  if (f.endsWith(".webp")) await fs.copyFile("public/assets/journey/" + f, `${output}/assets/journey/` + f);
+for (const sub of ["journey", "blocks"]) {
+  await fs.mkdir(`${output}/assets/${sub}`, { recursive: true });
+  for (const f of await fs.readdir("public/assets/" + sub))
+    if (f.endsWith(".webp")) await fs.copyFile(`public/assets/${sub}/` + f, `${output}/assets/${sub}/` + f);
+}
 for (const f of await fs.readdir("public/assets/companions"))
   await fs.copyFile("public/assets/companions/" + f, `${output}/assets/companions/` + f);
 // 逐光星盘生成图

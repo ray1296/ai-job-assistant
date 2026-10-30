@@ -3226,9 +3226,9 @@ html[data-theme="night"] .guide-tutorial-btn { background: #14233a !important; b
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   min-height: 0;
-  padding: 6px 11px;
+  padding: 5px 8px;
   border: 1px solid #e7eaf2;
   border-radius: 11px;
   background: linear-gradient(180deg, #ffffff, #fdfdfe);
@@ -3271,7 +3271,22 @@ html[data-theme="night"] .guide-tutorial-btn { background: #14233a !important; b
 }
 .nav-map .nav-item.is-current .nav-item-no { background: var(--grp); color: #ffffff; }
 .nav-item-name { font-size: 17px; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item-art {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border-radius: 8px;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--grp) 6%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--grp) 12%, #ffffff);
+  opacity: .96;
+  transition: transform .16s ease, opacity .16s ease;
+}
+.nav-map .nav-item:hover .nav-item-art, .nav-map .nav-item:focus-visible .nav-item-art { transform: scale(1.06); opacity: 1; }
+html[data-theme="night"] .nav-item-art { filter: brightness(.86); border-color: #2b3a55; }
 .nav-item-go { margin-left: auto; font-size: 13px; color: var(--grp); opacity: 0; transform: translateX(-4px); transition: opacity .16s ease, transform .16s ease; }
+.nav-item-art + .nav-item-go { margin-left: 6px; }
 .nav-map .nav-item:hover .nav-item-go, .nav-map .nav-item:focus-visible .nav-item-go { opacity: 1; transform: none; }
 /* 矮屏：只压缩间距和字号，流程介绍始终保留 */
 @media (max-height: 700px) {

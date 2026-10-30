@@ -16,6 +16,14 @@ const GROUPS: { title: string; hint: string; accent: string; art: string; ids: s
   { title: "工具栏", hint: "协作、心愿与设置，随时可用。", accent: "#5b6478", art: "tools", ids: ["chat", "wish", "settings"] },
 ];
 
+/** 每个板块卡内右下角的小人物插画（与分区插画同一套画风） */
+const ART: Record<string, string> = {
+  home: "home", guide: "guide", profile: "profile", resume: "resume", data: "data",
+  jobs: "jobs", companies: "companies", housing: "housing", dashboard: "dashboard", map: "map", plan: "plan",
+  "study-upload": "study-upload", knowledge: "knowledge", practice: "practice", interview: "interview",
+  chat: "chat", wish: "wish", settings: "settings",
+};
+
 /** 每个板块一句话介绍，鼠标悬停时浮在小卡片上方显示 */
 const DESC: Record<string, string> = {
   home: "今天该做什么：进度、提醒、下一步，都从这里进。",
@@ -108,6 +116,16 @@ export default defineComponent({
                     [
                       h("span", { class: "nav-item-no" }, String(steps.value.get(id) || 0).padStart(2, "0")),
                       h("span", { class: "nav-item-name" }, label(id)),
+                      ART[id]
+                        ? h("img", {
+                            class: "nav-item-art",
+                            src: "/assets/blocks/" + ART[id] + ".webp",
+                            alt: "",
+                            "aria-hidden": "true",
+                            decoding: "async",
+                            loading: "lazy",
+                          })
+                        : null,
                       h("span", { class: "nav-item-go", "aria-hidden": "true" }, "→"),
                     ],
                   ),
