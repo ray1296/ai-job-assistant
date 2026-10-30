@@ -19,7 +19,7 @@ await page.waitForTimeout(2000);
 await page.getByRole("button", { name: "登录 / 注册", exact: true }).click();
 await page.getByRole("button", { name: "没有账号？注册一个" }).click();
 await page.getByLabel("邮箱", { exact: true }).fill(email);
-await page.getByLabel(/密码（10—128位/).fill("Qa-Look-Test-123");
+await page.getByLabel("密码", { exact: true }).fill("Qa-Look-Test-123");
 await page.getByRole("button", { name: "创建账号", exact: true }).click();
 await page.getByRole("button", { name: "退出登录" }).waitFor({ timeout: 20000 });
 await page.waitForTimeout(1200);

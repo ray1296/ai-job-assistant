@@ -745,12 +745,14 @@ const app = defineComponent({
                         h(
                           "label",
                           { for: "auth-password" },
-                          authMode.value === "register" ? "密码（10—128位，至少含字母和数字）" : "密码（10—128位）",
+                          "密码",
                         ),
                         h("div", { class: "password-field" }, [
                           h("input", {
                             id: "auth-password",
                             type: showPassword.value ? "text" : "password",
+                            placeholder:
+                              authMode.value === "register" ? "10—128 位，需含字母和数字" : "请输入密码",
                             value: password.value,
                             required: true,
                             minlength: 10,
