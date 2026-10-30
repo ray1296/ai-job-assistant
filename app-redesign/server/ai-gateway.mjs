@@ -364,17 +364,19 @@ export function createAiGateway(privateDir) {
       if (String(cfg?.imageProvider || "").toLowerCase() === "dashscope") {
         const dsBase = "https://dashscope.aliyuncs.com";
         const size = isBackground ? "720*1280" : "1280*720";
-        // 万相会把 prompt 里的简历正文直接画成乱码文字，所以官方分支只用风格描述，
-        // 不带任何正文内容；负向提示词再兜一层。
-        const dsPrompt = [
-          "这是一张纯装饰性的纸张底纹，不是简历页面：绝对不要画出任何文字、字母、符号、段落、标题、表格或卡片布局。",
-          "艺术指导：" + style + "。",
-          accent ? "点缀色：" + accent + "，与纸张白协调。" : "",
-          isBackground
-            ? "竖版整页背景：四角与边缘有低对比的几何装饰，中间 80% 面积保持干净留白，方便放置正文。"
-            : "横向装饰条：主视觉集中在画面上三分之一，向下逐渐淡出到纯纸张白。",
-          "整体低饱和、低对比、可打印。",
-        ].filter(Boolean).join("");
+        // 万相对「简历背景」的描述会画满图案并生成乱码文字，实测下来唯一稳定的做法是
+        // 明确要求"一张几乎全白的纸 + 一点边角装饰"，并用负向提示词压掉图案与文字。
+        const accentHint = accent ? "颜色用 " + accent + " 的极淡版本。" : "颜色用极淡的灰蓝色。";
+        const DECOR_DS = {
+          minimal: "整张画面 92% 以上是纯白色，只在页面最下方的一条窄边里有一段极浅的横向装饰带，" + accentHint,
+          tech: "整张画面 92% 以上是纯白色，只在四个角落各有一个很小、很淡的细线几何图形（直线与点阵），" + accentHint,
+          warm: "整张画面 92% 以上是纯白色，只在页面最下方有一条极淡的柔和色带，像水彩轻轻扫过，" + accentHint,
+          maximal: "整张画面 88% 是纯白色，四角各有一小块很淡的几何色块，" + accentHint,
+        };
+        const styleKey = ["minimal", "tech", "warm", "maximal"].includes(input.style) ? input.style : "minimal";
+        const dsPrompt = isBackground
+          ? DECOR_DS[styleKey] + "画面其余部分必须保持纯白干净，方便放正文；不要图案、不要纹理、不要重复纹样、不要边框、不要任何文字。"
+          : "横向装饰条：左右两端各有一小段极浅的装饰，" + accentHint + "中间大段保持纯白；不要图案、不要纹理、不要边框、不要任何文字。";
         const submit = await fetch(dsBase + "/api/v1/services/aigc/text2image/image-synthesis", {
           method: "POST",
           signal: controller.signal,
