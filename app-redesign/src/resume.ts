@@ -936,10 +936,8 @@ export default defineComponent({
             }
           },
           onClearDecor: () => clearDecoration(),
-          // 勾选了装饰时，点"AI 审阅优化"顺带生成，未勾选就只做内容审阅
-          onBefore: async () => {
-            if (decorEnabled.value && !decoration.value) await generateDecoration();
-          },
+          // 生图装饰是独立按钮：只生图，不影响内容审阅
+          onDecorGenerate: () => void generateDecoration(),
           disabled: busy.value || editing.value,
           onApply: (items: any[]) => {
             const targets: { object: any; key: string; suggestion: any }[] = [];

@@ -23,6 +23,8 @@ export default defineComponent({
     decorStyle: { type: String, default: "auto" },
     decorError: { type: String, default: "" },
     onDecorChange: { type: Function, required: false },
+    /** 单独触发生图装饰（与文本审阅解耦） */
+    onDecorGenerate: { type: Function, required: false },
     onDecorStyle: { type: Function, required: false },
     onClearDecor: { type: Function, required: false },
     disabled: Boolean,
@@ -39,8 +41,6 @@ export default defineComponent({
       if (busy.value || props.disabled) return;
       busy.value = true; error.value = ""; notice.value = "";
       try {
-        // 先执行可选的前置动作（生图装饰），再做内容审阅
-        if (props.onBefore) await props.onBefore();
         // AI 审阅耗时远超 api() 的 12s 默认超时，必须显式放宽。
         const r = await api("/ai/resume-review", "POST", { document: withoutPhotos(props.document as any), prompt: prompt.value }, { timeoutMs: 150000 });
         suggestions.value = r.suggestions;
@@ -78,15 +78,14 @@ export default defineComponent({
           onInput: (e: Event) => prompt.value = (e.target as HTMLTextAreaElement).value,
         }),
       ]),
-      h("label", { class: "ai-decor-option" }, [
-        h("input", {
-          type: "checkbox",
-          checked: props.decorEnabled,
+      h("div", { class: "ai-decor-row" }, [
+        h("button", {
+          type: "button",
+          class: "ai-decor-btn",
           disabled: busy.value || props.decorBusy || props.disabled,
-          onChange: (e: Event) => props.onDecorChange?.((e.target as HTMLInputElement).checked),
-        }),
-        h("span", "同时生成 AI 生图装饰"),
-        h("small", props.decorBusy ? "正在按简历内容生成整页背景…" : "生成一张整页背景，AI会避开文字/照片区域；可自定义风格"),
+          title: "只生成整页装饰背景，不改动简历文字内容",
+          onClick: () => props.onDecorGenerate?.(),
+        }, props.decorBusy ? "正在生成装饰…" : "AI 生图装饰"),
         h("span", { class: "ai-decor-style" }, [
           "风格",
           h("select", {

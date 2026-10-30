@@ -2200,23 +2200,6 @@ html[data-theme="night"] .section-continued-title { color: #9fb0d0; }
 .resume-zoom-reset { color: #8a7aa6; }
 @media (max-width: 900px) { .resume-zoom-fit { display: none; } }
 
-/* AI 生成背景用低透明度图层渲染：图案再复杂也不会压住正文 */
-.resume-document.has-background { background-image: none !important; position: relative; isolation: isolate; }
-.resume-document.has-background::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: var(--resume-bg);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: .34;
-  pointer-events: none;
-  border-radius: inherit;
-}
-.resume-document.has-background > * { position: relative; z-index: 1; }
-@media print { .resume-document.has-background::before { opacity: .34 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 
 
 /* 整页 AI 背景：图片本身是「中间留白、四周装饰」，直接铺满即可 */
