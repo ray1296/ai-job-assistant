@@ -379,7 +379,8 @@ export default defineComponent({
       const cv = tutorBoard.value;
       if (!cv) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = cv.clientWidth || 260, hh = 150;
+      // 用画布真实可见高度，不要写死 150，否则内容被截在半截
+      const w = cv.clientWidth || 260, hh = cv.clientHeight || 360;
       cv.width = w * dpr; cv.height = hh * dpr;
       const ctx = cv.getContext("2d");
       if (!ctx) return;
@@ -388,14 +389,29 @@ export default defineComponent({
       ctx.fillStyle = "#3f3353";
       ctx.font = "500 12px system-ui, -apple-system, sans-serif";
       let y = 22;
-      for (const st of visibleTutorSteps.value) {
-        const text = String(st?.text || "");
+      const wrap = (text: string, indent: number, color: string, bold = false) => {
+        ctx.fillStyle = color;
+        ctx.font = (bold ? "600 " : "500 ") + "12px system-ui, -apple-system, sans-serif";
         let line = "";
         for (const ch of text) {
-          if (ctx.measureText(line + ch).width > w - 28) { ctx.fillText(line, 14, y); y += 18; line = ch; }
+          if (ctx.measureText(line + ch).width > w - 28 - indent) { ctx.fillText(line, 14 + indent, y); y += 18; line = ch; }
           else line += ch;
         }
-        if (line) { ctx.fillText(line, 14, y); y += 18; }
+        if (line) { ctx.fillText(line, 14 + indent, y); y += 18; }
+        ctx.font = "500 12px system-ui, -apple-system, sans-serif";
+      };
+      for (const st of visibleTutorSteps.value) {
+        if (st?.qa) {
+          // 追问卡片直接画在画布上：先一行提问，再答，两端留出缩进
+          ctx.fillStyle = "rgba(124,106,224,.07)";
+          ctx.fillRect(8, y - 14, w - 16, Math.max(26, 18 * Math.ceil((String(st.question || "").length + String(st.text || "").length) / 34)));
+          wrap("问：" + String(st.question || ""), 6, "#6b4fa8", true);
+          wrap(String(st.text || ""), 6, "#3f3353");
+          y += 8;
+          if (y > hh - 12) break;
+          continue;
+        }
+        wrap(String(st?.text || ""), 0, "#3f3353");
         y += 4;
         if (y > hh - 12) break;
       }

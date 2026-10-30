@@ -3602,3 +3602,6 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .agent-tutor-steps .agent-tutor-qa { list-style: none; margin-left: -18px; padding: 10px 12px; border: 1px dashed #d9c9e9; border-radius: 10px; background: #fbf8ff; }
 .agent-tutor-steps .agent-tutor-qa strong { display: block; font-size: 12px; color: #7a5fa8; margin-bottom: 4px; }
 .agent-tutor-steps .agent-tutor-qa span { font-size: 12.5px; line-height: 1.75; color: #3f3353; }
+
+/* 讲题画布：白板区域用真实高度，内容不再被截断 */
+.agent-tutor-board { width: 100% !important; height: 340px !important; display: block; }
