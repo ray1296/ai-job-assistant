@@ -2,7 +2,7 @@ import { defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick
 import { api, errorText, session, loadSession } from "./api";
 
 type AdminUser = { id: string; email: string; role: "user" | "admin"; displayName?: string; createdAt: number; resumes: number; interviews: number };
-type Wish = { id: string; text: string; done: boolean; status: "pending" | "approved" | "rejected"; reviewNote: string; sortOrder: number; createdAt: number; mine: boolean };
+type Wish = { id: string; text: string; done: boolean; status: "pending" | "approved" | "rejected"; reviewNote: string; sortOrder: number; createdAt: number; mine: boolean; authorName?: string; authorEmail?: string };
 type Notice = { id: string; title: string; body: string; active: boolean; createdAt: number };
 type Stats = any;
 
@@ -405,7 +405,13 @@ export default defineComponent({
           h("span", { class: "admin-wish-status" }, w.status === "pending" ? "待审" : w.status === "approved" ? "已采纳" : "已退回"),
           editingWish.value === w.id
             ? h("input", { class: "admin-wish-edit", value: editingText.value, onInput: (e: Event) => (editingText.value = (e.target as HTMLInputElement).value), onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") void saveWishEdit(w); } })
-            : h("span", { class: "admin-wish-text" }, w.text),
+            : h("span", { class: "admin-wish-text" }, [
+                w.text,
+                w.authorEmail || w.authorName
+                  ? h("em", { class: "admin-wish-meta" }, 
+                      "来自 " + (w.authorName || w.authorEmail) + (w.authorEmail && w.authorName ? " · " + w.authorEmail : "") + " · " + fmtTime(w.createdAt))
+                  : null,
+              ]),
           h("div", { class: "admin-wish-actions" }, [
             w.status === "pending" ? h("button", { class: "ok", onClick: () => void saveWish(w, { status: "approved", done: true }) }, "采纳") : null,
             w.status === "pending" ? h("button", { class: "danger", onClick: () => void saveWish(w, { status: "rejected", done: false, reviewNote: prompt("退回原因（可留空）") || "" }) }, "退回") : null,

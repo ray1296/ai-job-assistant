@@ -694,12 +694,14 @@ function requireAdmin(s) {
 function tableCount(name) {
   try { return db.prepare("SELECT count(*) AS n FROM " + name).get().n; } catch { return 0; }
 }
-function wishOut(r, me) {
+function wishOut(r, me, author) {
   const status = ["pending", "approved", "rejected"].includes(r.status) ? r.status : (r.done ? "approved" : "pending");
   return {
     id: r.id, text: r.text, done: !!r.done, status, reviewNote: r.review_note || "",
     sortOrder: r.sort_order, createdAt: r.created_at, updatedAt: r.updated_at,
     mine: r.user_id === me, canWithdraw: r.user_id === me && status === "pending",
+    // 管理员视角额外带提交人信息（普通用户拿不到别人的）
+    ...(author ? { authorName: author.name || "", authorEmail: author.email || "" } : {}),
   };
 }
 function normalizeDisplayName(v, email) {
@@ -1048,7 +1050,15 @@ async function handleRequest(req, res) {
         const rows = s.role === "admin"
           ? db.prepare("SELECT * FROM wishes ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, sort_order ASC, created_at ASC").all()
           : db.prepare("SELECT * FROM wishes WHERE status='approved' OR user_id=? ORDER BY sort_order ASC, created_at ASC").all(s.user_id);
-        return send(res, 200, { items: rows.map((r) => wishOut(r, s.user_id)), canManage: s.role === "admin" });
+        const authors = {};
+        if (s.role === "admin") {
+          for (const row of rows) {
+            if (authors[row.user_id] !== undefined) continue;
+            const u = db.prepare("SELECT email, display_name FROM users WHERE id=?").get(row.user_id);
+            authors[row.user_id] = u ? { email: u.email, name: u.display_name || "" } : { email: "", name: "" };
+          }
+        }
+        return send(res, 200, { items: rows.map((r) => wishOut(r, s.user_id, s.role === "admin" ? authors[r.user_id] : undefined)), canManage: s.role === "admin" });
       }
       if (p === "/api/wishes" && m === "POST") {
         const x = await body(req);
