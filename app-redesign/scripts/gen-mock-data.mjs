@@ -24,7 +24,7 @@ const DIRECTIONS = [
   { name: "产品经理", category: "产品", jd: "负责产品需求分析与方案设计，输出 PRD，跟进项目落地与数据复盘，协调设计与研发资源。" },
   { name: "增长运营", category: "运营", jd: "负责用户增长与活动运营，制定运营策略，分析转化漏斗，推动内容与社区生态建设。" },
 ];
-const COMPANIES = ["星澜科技","云杉数据","合流智能","青禾信息","北辰云图","null 点科技","拾光网络","南栀软件","九州算力","澄明数据","拾贝科技","木石互联","澈水信息","同途数字","灰鲸科技","长川软件","浮云智算","墨白网络","律动信息","第七城科技"];
+const COMPANIES = ["星澜科技","云杉数据","合流智能","青禾信息","北辰云图","零点科技","拾光网络","南栀软件","九州算力","澄明数据","拾贝科技","木石互联","澈水信息","同途数字","灰鲸科技","长川软件","浮云智算","墨白网络","律动信息","第七城科技"];
 const SCALES = ["100-499人", "500-999人", "1000-9999人", "10000人以上（大厂）"];
 const EDUS = ["本科", "硕士", "不限"];
 const LAYOUTS = ["1室1厅1卫", "2室1厅1卫", "2室2厅1卫", "3室1厅1卫", "开间"];
@@ -45,10 +45,14 @@ const before = jobsDoc.jobs.length;
 jobsDoc.jobs = jobsDoc.jobs.filter((j) => !(j.provenance && j.provenance.synthetic));
 let added = 0;
 let globalIdx = 0;
-for (const city of CITIES) {
-  for (let i = 0; i < JOBS_PER_CITY; i++) {
+// 每个城市的岗位量按城市序号浮动（0.6~1.4 倍），避免每城一个数字看起来很假
+const cityJobCount = (ci) => Math.max(6, Math.round(JOBS_PER_CITY * (0.6 + ((ci * 37) % 9) / 10)));
+CITIES.forEach((city, ci) => {
+  const perCity = cityJobCount(ci);
+  for (let i = 0; i < perCity; i++) {
     const dir = pick(DIRECTIONS, i + city.length);
-    const company = pick(COMPANIES, i * 3 + city.length);
+    // 公司分布也不均匀：不同城市的岗位会自然偏向不同的几家公司
+    const company = COMPANIES[(ci * 7 + i * 13 + ((ci * ci + i * i) % 11)) % COMPANIES.length];
     const raw = {
       "方向": dir.name,
       "公司": company,
@@ -74,7 +78,7 @@ for (const city of CITIES) {
     jobsDoc.jobs.push({ id, raw, url: "", provenance: { synthetic: true, generator: "scripts/gen-mock-data.mjs", note: "演示用模拟岗位，不是真实招聘信息" } });
     added++;
   }
-}
+});
 jobsDoc.generatedAt = TODAY;
 writeFileSync(jobsFile, JSON.stringify(jobsDoc, null, 2) + "\n");
 
