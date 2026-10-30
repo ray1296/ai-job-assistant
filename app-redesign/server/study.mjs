@@ -85,7 +85,7 @@ export function createStudy(db, options = {}) {
       if (hidden && !exists) continue;
       if (exists) {
         if (!needsRefresh) continue;
-        const rows = questionsFromCatalog(d.name, 200);
+        const rows = questionsFromCatalog(d.name, 400);
         const current = db.prepare("SELECT id,seq FROM study_questions WHERE version_id=? ORDER BY seq").all(exists.id);
         const upd = db.prepare("UPDATE study_questions SET stem=?,answer=?,analysis=?,simple_answer=?,source=?,tags=?,answer_source=? WHERE id=?");
         const ins = insertQ();
@@ -101,7 +101,7 @@ export function createStudy(db, options = {}) {
       const vid = "sys" + uid().slice(0, 21);
       db.prepare("INSERT INTO study_versions(id,subject_id,user_id,name,source,is_system,created_at) VALUES(?,?,?,?,?,1,?)")
         .run(vid, sid, userId, "平台题库", "平台面经题库", now);
-      const rows = questionsFromCatalog(d.name, 200);
+      const rows = questionsFromCatalog(d.name, 400);
       const stmt = insertQ();
       rows.forEach((q, i) => {
         stmt.run(uid(), vid, userId, i + 1, q.type, q.stem,
