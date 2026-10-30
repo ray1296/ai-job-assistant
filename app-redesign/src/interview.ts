@@ -402,12 +402,12 @@ export default defineComponent({
         const src = rtPlayCtx.createBufferSource();
         src.buffer = buf;
         src.connect(rtPlayCtx.destination);
-        // 全双工是流式 PCM：原来只预留 30ms，网络一抖就断音。给 250ms 抖动缓冲，
-        // 并把积压上限压到 1.2 秒，避免延迟越滚越大。
+        // 严格顺序播放：新片段永远排在上一片段之后，绝不提前，避免两句话重叠。
+        // 只在前一段已经播完（或首次播放）时垫 80ms 缓冲，吸收网络抖动。
         const now = rtPlayCtx.currentTime;
-        const LEAD = 0.25;
-        if (rtNextPlay > now + 1.2) rtNextPlay = now + LEAD;
-        const at = Math.max(now + LEAD, rtNextPlay);
+        const lead = 0.08;
+        if (rtNextPlay <= now + 0.01) rtNextPlay = now + lead;
+        const at = rtNextPlay;
         src.start(at);
         rtNextPlay = at + buf.duration;
         rtSources.add(src);
@@ -415,6 +415,8 @@ export default defineComponent({
       } catch {}
     }
     function flushRealtimeAudio() {
+      // 上一轮可能还有没播完的片段：先停掉再播新的，避免"上一句没说完下一句就开口"
+      if (rtSources.size) clearRealtimePlayback();
       const chunks = rtPendingAudio;
       rtPendingAudio = [];
       for (const c of chunks) void playPcm(c);
@@ -823,7 +825,11 @@ export default defineComponent({
       hintDrag.on = false;
       if (hintPos.value) { try { localStorage.setItem("zg.interview.hintPos", JSON.stringify(hintPos.value)); } catch {} }
     }
-    watch(() => messages.value.length, () => { if (speaking.value) return; void refreshHint(); });
+    watch(() => messages.value.length, () => {
+      // AI 正在出声（TTS 或全双工流）时不发提词请求，避免和音频抢资源
+      if (speaking.value || rtSources.size > 0) return;
+      void refreshHint();
+    });
     async function ask(message: string) {
       if (busy.value) return;
       busy.value = true;
