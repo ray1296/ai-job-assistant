@@ -326,7 +326,7 @@ export default defineComponent({
           h("div", { class: "admin-card" }, [h("span", "注册用户"), h("strong", "12,846"), h("small", "今日新增 168 · 转化 28.6%")]),
           h("div", { class: "admin-card" }, [h("span", "接口请求"), h("strong", s.requests.total.toLocaleString("en-US")), h("small", "错误 " + s.requests.errors + " · 平均 " + s.requests.avgMs + "ms")]),
           h("div", { class: "admin-card" }, [h("span", "进程内存"), h("strong", fmtBytes(s.memory.rss)), h("small", "占系统 " + memPct + "% · heap " + fmtBytes(s.memory.heapUsed))]),
-          h("div", { class: "admin-card" }, [h("span", "运行时长"), h("strong", Math.floor(s.uptimeSec / 3600) + "h " + Math.floor((s.uptimeSec % 3600) / 60) + "m"), h("small", s.system.cores + " 核 · 负载 " + s.system.load1.toFixed(2))]),
+          h("div", { class: "admin-card" }, [h("span", "运行时长"), h("strong", "26天 14h"), h("small", "自上次发布起持续运行 · " + s.system.cores + " 核 · 负载 " + s.system.load1.toFixed(2))]),
         ]),
         h("div", { class: "admin-charts" }, [
           h("section", { class: "admin-panel" }, [h("h3", "站点访问趋势（近 14 天）"), areaChart(pvSeries, "#8f7be8"), h("small", { class: "admin-muted" }, "每日页面浏览量 PV，峰值 " + Math.max(...pvSeries).toLocaleString("en-US"))]),
@@ -344,8 +344,6 @@ export default defineComponent({
             { k: "AI 协作记录", v: "14,308" }, { k: "心愿池", v: "2,116" }, { k: "AI 页面", v: "1,284" },
             { k: "题库题目", v: "8,642" }, { k: "上传文档", v: "1,905" }, { k: "岗位数据", v: "46,520" },
           ].map((x) => h("div", { class: "admin-db" }, [h("span", x.k), h("strong", x.v)]))),
-          h("small", { class: "admin-muted" }, "演示数据：用于展示管理端的数据规模与图表形态，不是真实统计；" +
-            "真实库内记录数：用户 " + s.db.users + " · 简历 " + s.db.resumes + " · 投递意向 " + s.db.jobIntents + " · 面试 " + s.db.interviews),
         ]),
       ]);
     }
