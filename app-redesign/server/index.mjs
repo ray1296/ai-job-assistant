@@ -1655,13 +1655,18 @@ async function handleRequest(req, res) {
           transcript.length ? transcript.join("\n") : "（还没有对话）",
           "现在请只输出用户此刻该说的一段话。",
         ].join("\n");
-        const out = await aiGateway.chat(s.user_id, {
-          message: prompt,
-          persona: AGENT_NAME_BY_ID[coachId],
-          system,
-          model: (agents.read(coachId) || {}).config?.model,
-        }, undefined);
-        const say = String(out?.reply || "").replace(/^[「"']|[」"']$/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+        // 提词要快：优先走快模型，失败再回退到对话模型
+        let out = { reply: "" };
+        try { out = await aiGateway.hintText(system, prompt); } catch {}
+        if (!String(out?.reply || "").trim() && !String(out?.text || "").trim()) {
+          out = await aiGateway.chat(s.user_id, {
+            message: prompt,
+            persona: AGENT_NAME_BY_ID[coachId],
+            system,
+            model: (agents.read(coachId) || {}).config?.model,
+          }, undefined);
+        }
+        const say = String(out?.reply || out?.text || "").replace(/^[「"']|[」"']$/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
         return send(res, 200, { say, coach: AGENT_NAME_BY_ID[coachId], coachId });
       }
       if (p === "/api/interview/feedback" && m === "POST") {

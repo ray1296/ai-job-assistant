@@ -3545,3 +3545,13 @@ html[data-theme="night"] .interview-hint-card small { color: #a99ec6; }
 html[data-theme="night"] .guide-hero { background: linear-gradient(135deg, #1b1630, #241d3d); border-color: #3a2f57; }
 html[data-theme="night"] .guide-hero-text strong { color: #e6dcff; }
 html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
+
+/* 提词器：灯泡居中、可拖动、刷新按钮 */
+.interview-hint { touch-action: none; }
+.interview-hint-bulb { display: grid; place-items: center; padding: 0; line-height: 1; touch-action: none; cursor: grab; }
+.interview-hint-bulb:active { cursor: grabbing; }
+.interview-hint-card header { gap: 6px; }
+.interview-hint-card header .hint-refresh { border: 1px solid #ddd3ee; background: #f6f1ff; color: #5b4a80; border-radius: 8px; width: 28px; height: 26px; font-size: 14px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.interview-hint-card header .hint-refresh.spin { animation: hintSpin 0.9s linear infinite; }
+@keyframes hintSpin { to { transform: rotate(360deg); } }
+.interview-hint-card .hint-ctx { margin: 6px 0 0; font-size: 11px; color: #8b80a3; border-top: 1px dashed #ece5f7; padding-top: 6px; }

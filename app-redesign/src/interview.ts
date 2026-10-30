@@ -1,5 +1,5 @@
 import {
-  defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick,
+  defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick, watch,
 } from "vue";
 import { api, errorText } from "./api";
 import { speakAs, stopSpeech } from "./voice";
@@ -732,11 +732,17 @@ export default defineComponent({
       await ask(text);
     }
 
-    async function refreshHint() {
-      if (hintBusy.value) return;
+    // 提词器：实时跟随对话，可手动刷新，可拖动
+    let hintSeq = 0;
+    let hintTimer = 0;
+    const hintPos = ref<{ x: number; y: number } | null>(null);
+    const hintDrag = { on: false, dx: 0, dy: 0, moved: false };
+
+    async function refreshHint(force = true) {
+      const seq = ++hintSeq;
       hintBusy.value = true;
       try {
-        const transcript = messages.value.slice(-8).map((m) => ({ role: m.role === "me" ? "me" : "ai", text: m.text }));
+        const transcript = messages.value.slice(-10).map((m) => ({ role: m.role === "me" ? "me" : "ai", text: m.text }));
         const r = await api<any>("/interview/hint", "POST", {
           agentId: agentId.value,
           mode: mode.value,
@@ -744,19 +750,53 @@ export default defineComponent({
           resumeId: resumeId.value || undefined,
           transcript,
         }, { timeoutMs: 30000 });
-        hintText.value = String(r?.say || "").trim() || "（这次没想到合适的话术，点右侧换一条试试）";
+        if (seq !== hintSeq) return; // 只认最后一次请求
+        hintText.value = String(r?.say || "").trim() || "（这次没想到合适的话术，点右上角刷新试试）";
         hintCoach.value = String(r?.coach || "");
       } catch (e) {
+        if (seq !== hintSeq) return;
         hintText.value = "提词失败：" + errorText(e);
       } finally {
-        hintBusy.value = false;
+        if (seq === hintSeq) hintBusy.value = false;
       }
     }
+    const lastHintCtx = computed(() => {
+      const lastAi = [...messages.value].reverse().find((m) => m.role === "ai");
+      return lastAi ? String(lastAi.text || "").slice(0, 42) + (String(lastAi.text || "").length > 42 ? "…" : "") : "";
+    });
     function toggleHint() {
+      if (hintDrag.moved) { hintDrag.moved = false; return; }
       hintOpen.value = !hintOpen.value;
-      if (hintOpen.value && !hintText.value) void refreshHint();
+      if (hintOpen.value) {
+        void refreshHint();
+        if (!hintTimer) hintTimer = window.setInterval(() => { if (hintOpen.value) void refreshHint(); }, 8000);
+      } else if (hintTimer) {
+        window.clearInterval(hintTimer);
+        hintTimer = 0;
+      }
     }
-
+    function hintDown(e: PointerEvent) {
+      hintDrag.on = true;
+      hintDrag.moved = false;
+      const el = e.currentTarget as HTMLElement;
+      el.setPointerCapture?.(e.pointerId);
+      const box = (e.currentTarget as HTMLElement).closest(".interview-hint") as HTMLElement | null;
+      const rect = box?.getBoundingClientRect();
+      hintDrag.dx = e.clientX - (rect?.left || 0);
+      hintDrag.dy = e.clientY - (rect?.top || 0);
+    }
+    function hintMove(e: PointerEvent) {
+      if (!hintDrag.on) return;
+      hintDrag.moved = true;
+      const x = Math.max(8, Math.min(window.innerWidth - 60, e.clientX - hintDrag.dx));
+      const y = Math.max(8, Math.min(window.innerHeight - 60, e.clientY - hintDrag.dy));
+      hintPos.value = { x, y };
+    }
+    function hintUp() {
+      hintDrag.on = false;
+      if (hintPos.value) { try { localStorage.setItem("zg.interview.hintPos", JSON.stringify(hintPos.value)); } catch {} }
+    }
+    watch(() => messages.value.length, () => { void refreshHint(); });
     async function ask(message: string) {
       if (busy.value) return;
       busy.value = true;
@@ -1213,21 +1253,39 @@ export default defineComponent({
           h("button", { class: "interview-pause-btn", onClick: togglePause, disabled: feedbackBusy.value }, paused.value ? "继续" : "暂停"),
           h("button", { class: "interview-end-btn", onClick: () => void endInterview(), disabled: feedbackBusy.value }, feedbackBusy.value ? "整理反馈…" : "结束面试"),
         ]),
-        h("div", { class: "interview-hint" + (hintOpen.value ? " open" : "") }, [
+        h("div", {
+          class: "interview-hint" + (hintOpen.value ? " open" : ""),
+          style: hintPos.value
+            ? { left: hintPos.value.x + "px", top: hintPos.value.y + "px", right: "auto", bottom: "auto" }
+            : {},
+        }, [
           hintOpen.value
             ? h("div", { class: "interview-hint-card", role: "region", "aria-label": "面试提词" }, [
                 h("header", null, [
                   h("strong", null, "提词器" + (hintCoach.value ? " · " + hintCoach.value : "")),
-                  h("button", { title: "换一条", disabled: hintBusy.value, onClick: () => void refreshHint() }, "换一条"),
+                  h("button", {
+                    class: "hint-refresh" + (hintBusy.value ? " spin" : ""),
+                    title: "按当前对话重新生成话术",
+                    "aria-label": "刷新提词",
+                    onClick: () => void refreshHint(),
+                  }, "⟳"),
                 ]),
-                h("p", { class: "interview-hint-text" }, hintBusy.value ? "正在想这句该怎么说…" : hintText.value || "点下面的灯泡获取提示"),
-                h("small", null, mode.value === "candidate" ? "提示你接下来可以问什么" : "提示你此刻可以怎么答"),
+                // 加载时保留上一句，避免面板变成空白；刷新状态只看右上角转圈
+                h("p", { class: "interview-hint-text" }, hintText.value || (hintBusy.value ? "正在生成…" : "点灯泡获取提示")),
+                lastHintCtx.value
+                  ? h("p", { class: "hint-ctx" }, "依据：" + lastHintCtx.value)
+                  : null,
+                h("small", null, mode.value === "candidate" ? "提示你接下来可以问什么 · 会自动跟随对话更新" : "提示你此刻可以怎么答 · 会自动跟随对话更新"),
               ])
             : null,
           h("button", {
             class: "interview-hint-bulb",
-            title: hintOpen.value ? "收起提词器" : "打开提词器：告诉你此刻该说什么",
+            title: hintOpen.value ? "收起提词器（可拖动）" : "打开提词器：告诉你此刻该说什么（可拖动）",
             "aria-expanded": hintOpen.value,
+            onPointerdown: hintDown,
+            onPointermove: hintMove,
+            onPointerup: hintUp,
+            onPointercancel: hintUp,
             onClick: toggleHint,
           }, "💡"),
         ]),

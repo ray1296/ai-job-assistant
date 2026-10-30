@@ -772,6 +772,12 @@ export function createAiGateway(privateDir) {
     });
   }
   /** 模拟面试单轮：纯文本，保留口语与角色语气 */
+  /** 提词器：要快，优先 qwen-plus，失败回退主模型 */
+  async function hintText(system, prompt) {
+    const fast = await aliyunChat("qwen-plus", String(system || "").slice(0, 4000), String(prompt || "").slice(0, 8000), 400, 0.8);
+    if (fast) return { text: fast, fast: true };
+    return { text: await callText(system, prompt, 400), fast: false };
+  }
   async function interviewTurn(input) {
     const system = String(input?.system || "").slice(0, 6000);
     const prompt = String(input?.prompt || "").slice(0, 16000);
@@ -1080,6 +1086,7 @@ export function createAiGateway(privateDir) {
     learning,
     plan,
     interviewTurn,
+    hintText,
     embedTexts,
     rerankDocuments,
     ragAnswer,
