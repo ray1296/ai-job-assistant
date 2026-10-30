@@ -369,15 +369,18 @@ export function createAiGateway(privateDir) {
         const accentHint = accent ? "颜色用 " + accent + " 的极淡版本。" : "颜色用极淡的灰蓝色。";
         // 注意：提示词里不要出现任何数字与单位——万相会把它们直接画成文字（曾出现 "12% mm"）
         // 渲染时以 34% 透明度垫在正文下方，所以可以让画面丰满一些；仍然不能出现任何文字。
+        // 现在渲染成「每页右上 + 左下两处边角点缀」，所以生成的是方形小图案，不是整页背景。
+        // 万相实测：只画"底边一条"会显得空，画满整页又会压住正文。
+        // 最稳的是「整页纯白 + 四个角各一小簇装饰」，中间一大片保持干净。
         const DECOR_DS = {
-          minimal: "整页的浅色纸张质感背景：米白底上有极淡的灰色细线和不规则的纸纹，低对比、安静，适合垫在正文下面；" + accentHint,
-          tech: "整页的浅色科技感背景：淡蓝与淡青的细线网格、小圆点和柔和的光晕铺满整页，对比很低、有秩序感；" + accentHint,
-          warm: "整页的暖色水彩纸背景：米色底上有极淡的暖橙与浅紫晕染，边缘柔和，像高档信纸；" + accentHint,
-          maximal: "整页的浅色几何图案背景：由多个淡色几何块与细线组成的低对比图案铺满整页，层次丰富但不抢眼；" + accentHint,
+          minimal: "整页纯白背景，只在四个角各有一小簇极简细线装饰，线条很细很淡，中间与四周大面积留白；" + accentHint,
+          tech: "整页纯白背景，只在四个角各有一小簇由细直线和小圆点组成的浅色几何装饰，中间与四周大面积留白；" + accentHint,
+          warm: "整页纯白背景，只在四个角各有一小簇极淡的水彩晕染与细线，中间与四周大面积留白；" + accentHint,
+          maximal: "整页纯白背景，四个角各有一小组浅色几何形状组成的装饰，中间与四周大面积留白；" + accentHint,
         };
         const styleKey = ["minimal", "tech", "warm", "maximal"].includes(input.style) ? input.style : "minimal";
         const dsPrompt = isBackground
-          ? DECOR_DS[styleKey] + "整页铺满即可，但必须是很低的对比度，正文压上去仍然清晰；不要边框、不要任何文字。"
+          ? DECOR_DS[styleKey] + "画面其余部分必须保持纯白干净；不要图案、不要纹理、不要边框、不要任何文字。"
           : "横向装饰条：左右两端各有一小段极浅的装饰，" + accentHint + "中间大段保持纯白；不要图案、不要纹理、不要边框、不要任何文字。";
         // 提示词里不要写数字/单位，避免被画成文字
         const submit = await fetch(dsBase + "/api/v1/services/aigc/text2image/image-synthesis", {

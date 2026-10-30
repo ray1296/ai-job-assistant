@@ -1412,7 +1412,7 @@ export default defineComponent({
                         ],
                         style: {
                           "--resume-font": doc.value.layout.fontSize + "px",
-                          ...(backgroundSrc.value ? { "--resume-bg": "url(\"" + backgroundSrc.value + "\")" } : {}),
+                          ...(backgroundSrc.value ? { backgroundImage: "url(\"" + backgroundSrc.value + "\")" } : {}),
                         },
                         "data-page": pi + 1,
                         "aria-label": "简历文档 第" + (pi + 1) + "页",
