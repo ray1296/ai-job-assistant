@@ -71,6 +71,11 @@ export default defineComponent({
     const setupError = ref("");
     const started = ref(false);
     const busy = ref(false);
+    // 面试提词器（灯泡）：默认收起，展开后随对话实时刷新
+    const hintOpen = ref(false);
+    const hintText = ref("");
+    const hintBusy = ref(false);
+    const hintCoach = ref("");
     const starting = ref(false);
     const queueInfo = ref<any>(null);
     const queueToken = ref("");
@@ -727,6 +732,31 @@ export default defineComponent({
       await ask(text);
     }
 
+    async function refreshHint() {
+      if (hintBusy.value) return;
+      hintBusy.value = true;
+      try {
+        const transcript = messages.value.slice(-8).map((m) => ({ role: m.role === "me" ? "me" : "ai", text: m.text }));
+        const r = await api<any>("/interview/hint", "POST", {
+          agentId: agentId.value,
+          mode: mode.value,
+          jobId: jobId.value || undefined,
+          resumeId: resumeId.value || undefined,
+          transcript,
+        }, { timeoutMs: 30000 });
+        hintText.value = String(r?.say || "").trim() || "（这次没想到合适的话术，点右侧换一条试试）";
+        hintCoach.value = String(r?.coach || "");
+      } catch (e) {
+        hintText.value = "提词失败：" + errorText(e);
+      } finally {
+        hintBusy.value = false;
+      }
+    }
+    function toggleHint() {
+      hintOpen.value = !hintOpen.value;
+      if (hintOpen.value && !hintText.value) void refreshHint();
+    }
+
     async function ask(message: string) {
       if (busy.value) return;
       busy.value = true;
@@ -750,6 +780,7 @@ export default defineComponent({
         const aiMsg: Msg = { role: "ai", text: reply, tts: soundOn.value ? "pending" : "off" };
         messages.value.push(aiMsg);
         scrollTranscript();
+        if (hintOpen.value) void refreshHint();
         // 文字先出现，语音紧接着用这个 agent 配置的音色朗读；默认一定出声
         if (soundOn.value) {
           speaking.value = true;
@@ -1181,6 +1212,24 @@ export default defineComponent({
           h("span", { class: "interview-timer" }, fmt(elapsed.value)),
           h("button", { class: "interview-pause-btn", onClick: togglePause, disabled: feedbackBusy.value }, paused.value ? "继续" : "暂停"),
           h("button", { class: "interview-end-btn", onClick: () => void endInterview(), disabled: feedbackBusy.value }, feedbackBusy.value ? "整理反馈…" : "结束面试"),
+        ]),
+        h("div", { class: "interview-hint" + (hintOpen.value ? " open" : "") }, [
+          hintOpen.value
+            ? h("div", { class: "interview-hint-card", role: "region", "aria-label": "面试提词" }, [
+                h("header", null, [
+                  h("strong", null, "提词器" + (hintCoach.value ? " · " + hintCoach.value : "")),
+                  h("button", { title: "换一条", disabled: hintBusy.value, onClick: () => void refreshHint() }, "换一条"),
+                ]),
+                h("p", { class: "interview-hint-text" }, hintBusy.value ? "正在想这句该怎么说…" : hintText.value || "点下面的灯泡获取提示"),
+                h("small", null, mode.value === "candidate" ? "提示你接下来可以问什么" : "提示你此刻可以怎么答"),
+              ])
+            : null,
+          h("button", {
+            class: "interview-hint-bulb",
+            title: hintOpen.value ? "收起提词器" : "打开提词器：告诉你此刻该说什么",
+            "aria-expanded": hintOpen.value,
+            onClick: toggleHint,
+          }, "💡"),
         ]),
         h("div", { class: "interview-stage" }, [
           h("div", { class: "interview-ai-panel" }, [

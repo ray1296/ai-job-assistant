@@ -3519,3 +3519,18 @@ html[data-theme="night"] .orbit-trigger:hover { background: #241d3d !important; 
 .agent-chat .agent-confirm-actions button:disabled { opacity: .6; cursor: default; }
 html[data-theme="night"] .agent-chat .agent-confirm { background: #1a1430; border-color: #3a2f57; }
 html[data-theme="night"] .agent-chat .agent-confirm strong, html[data-theme="night"] .agent-chat .agent-confirm p { color: #d8cff0; }
+
+/* ===== 面试提词器（灯泡） ===== */
+.interview-hint { position: fixed; right: 22px; bottom: 176px; z-index: 95; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.interview-hint-card { width: min(320px, 78vw); padding: 12px 14px; border: 1px solid #e3d5f2; border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(60, 40, 90, .18); }
+.interview-hint-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.interview-hint-card header strong { font-size: 12px; color: #4b3b63; }
+.interview-hint-card header button { border: 1px solid #ddd3ee; background: #faf7ff; color: #5b4a80; border-radius: 7px; padding: 4px 9px; font-size: 11px; cursor: pointer; }
+.interview-hint-card header button:disabled { opacity: .55; cursor: default; }
+.interview-hint-text { margin: 0 0 8px; font-size: 13px; line-height: 1.7; color: #2f2647; white-space: pre-wrap; }
+.interview-hint-card small { color: #8b80a3; font-size: 11px; }
+.interview-hint-bulb { width: 46px; height: 46px; border-radius: 50%; border: 0; background: linear-gradient(135deg, #7c6ae0, #9a86e0); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; box-shadow: 0 8px 22px rgba(80, 60, 140, .28); }
+.interview-hint-bulb:hover { filter: brightness(1.06); }
+html[data-theme="night"] .interview-hint-card { background: #1b1630; border-color: #3a2f57; }
+html[data-theme="night"] .interview-hint-card header strong, html[data-theme="night"] .interview-hint-text { color: #e6dcff; }
+html[data-theme="night"] .interview-hint-card small { color: #a99ec6; }

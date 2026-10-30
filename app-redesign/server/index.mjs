@@ -1623,6 +1623,45 @@ async function handleRequest(req, res) {
           difficulty,
         });
       }
+      if (p === "/api/interview/hint" && m === "POST") {
+        const payload = await body(req);
+        const agentId = AGENT_NAME_BY_ID[String(payload.agentId || "")] ? String(payload.agentId) : "yanzhou";
+        // 提词器换一个人：面试官是知微就用星野，其余用知微，避免同一个 agent 又出题又提示
+        const coachId = agentId === "zhiwei" ? "xingye" : "zhiwei";
+        const mode = payload.mode === "candidate" ? "candidate" : "interviewer";
+        const job = payload.jobId ? getJob(String(payload.jobId)) : null;
+        const resume = resumeById(s.user_id, payload.resumeId) || latestResume(s.user_id);
+        const transcript = (Array.isArray(payload.transcript) ? payload.transcript : []).slice(-8)
+          .map((m) => (m?.role === "me" ? "我：" : "对方：") + String(m?.text || "").slice(0, 300));
+        const system = [
+          "你是面试现场的隐形提词器，只负责把「用户此刻可以直接照着念的话」递给他。",
+          "硬性要求：",
+          "1. 只输出话术本身，不要解释、不要加「你可以说」「建议回答」这类前缀，不要引号，不要分点标题；",
+          "2. 口语化，像真人开口说话，2~4 句，控制在 120 字以内；",
+          "3. 只能用简历里真实存在的项目、技术、数字，简历没有的经历就说没有、说会怎么补，绝对不编造；",
+          "4. 如果对面刚问了一个问题，就直接回答那个问题，不要复述问题；",
+          "5. 如果是面试刚开始（还没有对方发言），输出一段 30 秒左右的开场自我介绍话术。",
+          "角色方向：",
+          "- mode=interviewer：用户是求职者，你在帮他作答；",
+          "- mode=candidate：用户是面试官，你在提示他接下来该问哪 1~2 个问题（直接给出问句）。",
+        ].join("");
+        const prompt = [
+          "mode=" + mode,
+          job ? "岗位：" + job.title + " · " + job.company + "（" + job.city + "）" : "岗位：通用岗位",
+          resume ? "简历（仅事实来源）：" + documentText(resume.document).slice(0, 2500) : "用户没有简历：不要编造任何项目、技术栈或数字，只给通用结构，需要细节的地方用【填：xxx】占位",
+          "最近对话：",
+          transcript.length ? transcript.join("\n") : "（还没有对话）",
+          "现在请只输出用户此刻该说的一段话。",
+        ].join("\n");
+        const out = await aiGateway.chat(s.user_id, {
+          message: prompt,
+          persona: AGENT_NAME_BY_ID[coachId],
+          system,
+          model: (agents.read(coachId) || {}).config?.model,
+        }, undefined);
+        const say = String(out?.reply || "").replace(/^[「"']|[」"']$/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+        return send(res, 200, { say, coach: AGENT_NAME_BY_ID[coachId], coachId });
+      }
       if (p === "/api/interview/feedback" && m === "POST") {
         const payload = await bodyLarge(req, 512 * 1024);
         let agentId = String(payload.agentId || "yanzhou");
