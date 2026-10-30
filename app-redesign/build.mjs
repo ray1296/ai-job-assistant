@@ -104,7 +104,7 @@ await fs.copyFile("src/orig/common.css", `${output}/assets/orig-common.css`);
 await fs.copyFile("src/index.html", `${output}/index.html`);
 // 看板娘立绘
 await fs.mkdir(`${output}/assets/companions`, { recursive: true });
-for (const sub of ["journey", "blocks"]) {
+for (const sub of ["journey", "blocks", "guide"]) {
   await fs.mkdir(`${output}/assets/${sub}`, { recursive: true });
   for (const f of await fs.readdir("public/assets/" + sub))
     if (f.endsWith(".webp")) await fs.copyFile(`public/assets/${sub}/` + f, `${output}/assets/${sub}/` + f);

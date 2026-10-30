@@ -6,6 +6,7 @@ type Section = { id: string; title: string; summary: string; steps: string[] };
 export default defineComponent({
   props: { onStartTutorial: { type: Function, default: null } },
   setup(props) {
+    const SECTION_ART: Record<string, string> = { assistants: "/assets/guide/team.webp", resume: "/assets/guide/resume.webp", study: "/assets/guide/resume.webp", interview: "/assets/guide/team.webp" };
     const sections = ref<Section[]>([]);
     const loading = ref(true);
     const error = ref("");
@@ -25,10 +26,18 @@ export default defineComponent({
           ? h("button", { class: "guide-tutorial-btn", onClick: () => props.onStartTutorial?.() }, "🎓 重新开始新手教程")
           : null,
       ]),
+      h("div", { class: "guide-hero" }, [
+        h("img", { src: "/assets/guide/flow.webp", alt: "求职全流程示意", loading: "eager" }),
+        h("div", { class: "guide-hero-text" }, [
+          h("strong", null, "从第一次打开，到投出第一份简历"),
+          h("p", null, "18 个板块按真实求职顺序排布：认识自己 → 打磨简历 → 探索岗位 → 针对准备 → 面试练习 → 从容投递。左下角“展开求职导航”可以随时跳转。"),
+        ]),
+      ]),
       h("div", { class: "notice" }, "顶部“功能说明”随时可回到这里。项目说明是页面内容，不是 RAG 检索；功能变化时只需改一处说明。"),
       error.value ? h("p", { class: "error", role: "alert" }, error.value) : null,
       loading.value ? h("p", { role: "status" }, "正在读取项目说明…") : null,
       h("div", { class: "guide-grid" }, sections.value.map((s) => h("article", { class: "card guide-card", id: "guide-" + s.id }, [
+        SECTION_ART[s.id] ? h("img", { class: "guide-card-art", src: SECTION_ART[s.id], alt: "", loading: "lazy" }) : null,
         h("h2", s.title),
         h("p", s.summary),
         h("ol", s.steps.map((x) => h("li", x))),

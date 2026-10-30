@@ -3534,3 +3534,14 @@ html[data-theme="night"] .agent-chat .agent-confirm strong, html[data-theme="nig
 html[data-theme="night"] .interview-hint-card { background: #1b1630; border-color: #3a2f57; }
 html[data-theme="night"] .interview-hint-card header strong, html[data-theme="night"] .interview-hint-text { color: #e6dcff; }
 html[data-theme="night"] .interview-hint-card small { color: #a99ec6; }
+
+/* ===== 项目介绍：头图 + 板块配图 ===== */
+.guide-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: center; margin: 14px 0 6px; padding: 14px; border: 1px solid #ece5f7; border-radius: 16px; background: linear-gradient(135deg, #fbf9ff, #f4eefe); }
+.guide-hero img { width: 100%; height: auto; border-radius: 12px; display: block; }
+.guide-hero-text strong { display: block; font-size: 17px; color: #3f2f63; margin-bottom: 8px; }
+.guide-hero-text p { margin: 0; font-size: 13px; line-height: 1.8; color: #6b5c85; }
+.guide-card-art { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
+@media (max-width: 900px) { .guide-hero { grid-template-columns: 1fr; } .guide-card-art { height: 96px; } }
+html[data-theme="night"] .guide-hero { background: linear-gradient(135deg, #1b1630, #241d3d); border-color: #3a2f57; }
+html[data-theme="night"] .guide-hero-text strong { color: #e6dcff; }
+html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
