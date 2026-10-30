@@ -95,6 +95,8 @@ export default defineComponent({
     }
     const layers = ref<any>({ jobs: [], housing: [] });
     const showJobs = ref(true);
+    // 岗位图层：默认只看「投递意向」；勾上「全部岗位」才展示平台岗位
+    const showAllJobs = ref(false);
     const showHousing = ref(true);
     const showSubway = ref(false);
     const showSubwayLines = ref(false);
@@ -189,7 +191,7 @@ export default defineComponent({
     // 通用地点卡片：带关闭、设为岗位/住房、缺少电话时补查详情
     function cardDom(opts: {
       title: string; rows: [string, string][]; pos: { lng: number; lat: number };
-      url?: string; poiId?: string; onSet?: boolean;
+      url?: string; poiId?: string; jobId?: string; onSet?: boolean;
     }) {
       const box = document.createElement("div");
       box.className = "amap-card";
@@ -236,6 +238,27 @@ export default defineComponent({
         };
         actions.appendChild(b1);
         actions.appendChild(b2);
+        // 岗位图钉：可以直接加入投递意向，方便在地图上挑岗位
+        const jobId = opts.jobId;
+        if (jobId) {
+          const b3 = document.createElement("button");
+          b3.className = "amap-info-intent";
+          b3.textContent = "加入投递意向";
+          b3.onclick = async () => {
+            b3.disabled = true;
+            try {
+              await api("/job-intents/" + encodeURIComponent(jobId), "PUT");
+              b3.textContent = "已加入投递意向";
+              notice.value = "已加入投递意向，可到「投递方案」查看";
+              // 只看投递意向时，加入后立刻把它显示到地图上
+              if (!showAllJobs.value) void reloadLayers();
+            } catch (e) {
+              b3.disabled = false;
+              notice.value = errorText(e);
+            }
+          };
+          actions.appendChild(b3);
+        }
         box.appendChild(actions);
       }
       if (opts.url) {
@@ -274,8 +297,17 @@ export default defineComponent({
         pos: { lng: item.pos.lng, lat: item.pos.lat },
         url: item.url || "",
         poiId: item.id || "",
+        jobId: kind === "job" ? item.id || "" : "",
       }));
       infoWindow.open(map, [item.pos.lng, item.pos.lat]);
+    }
+
+    const layersUrl = () => "/geo/layers" + (showAllJobs.value ? "?allJobs=1" : "");
+    async function reloadLayers() {
+      try {
+        layers.value = await api<any>(layersUrl());
+        renderMarkers();
+      } catch (e) { error.value = errorText(e); }
     }
 
     function renderMarkers() {
@@ -569,7 +601,7 @@ export default defineComponent({
             const r = el.getBoundingClientRect();
             fbSize.value = { w: r.width || 1200, h: r.height || 800 };
           }
-          const rr = await api<any>("/geo/layers");
+          const rr = await api<any>(layersUrl());
           layers.value = rr;
           const first = (rr.jobs || []).find((j: any) => j.pos);
           if (first) fb.value = { ...fb.value, lng: first.pos.lng, lat: first.pos.lat, zoom: 13 };
@@ -709,7 +741,7 @@ export default defineComponent({
           } catch (err) { console.warn("poi click failed", err); }
         });
 
-        const r = await api<any>("/geo/layers");
+        const r = await api<any>(layersUrl());
         layers.value = r;
         // 初始视野放在城市级别（12 级），能一次看到该城市的大部分岗位与房源
         const first = (r.jobs || []).find((j: any) => j.pos) || (r.housing || []).find((h: any) => h.pos);
@@ -904,13 +936,14 @@ export default defineComponent({
                 h("h3", "图层"),
                 h("div", { class: "map-layers" },
                   ([
-                    ["岗位 " + counts.value.jobs, showJobs],
+                    ["岗位 " + counts.value.jobs + (showAllJobs.value ? "" : "（投递意向）"), showJobs],
+                    ["全部岗位（平台）", showAllJobs],
                     ["租房 " + counts.value.housing, showHousing],
                     ["地铁站 " + counts.value.subway, showSubway],
                     ["酒店 " + counts.value.hotels, showHotels],
                     ["地铁线路", showSubwayLines],
                   ] as any[]).map(([label, flag]: any) =>
-                    h("label", { class: "map-check" }, [
+                    h("label", { class: "map-check" + (flag === showAllJobs ? " map-check-sub" : "") }, [
                       h("input", {
                         type: "checkbox",
                         checked: flag.value,
@@ -918,6 +951,7 @@ export default defineComponent({
                           const on = (e.target as HTMLInputElement).checked;
                           if (flag === showSubwayLines) { void toggleSubwayLines(on); return; }
                           flag.value = on;
+                          if (flag === showAllJobs) { void reloadLayers(); return; }
                           if (flag === showSubway && !subway.value.length) void loadSubway();
                           if (flag === showHotels && !hotels.value.length) void loadHotels();
                           renderMarkers();

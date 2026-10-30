@@ -230,7 +230,7 @@ function centerPos(city, seed) {
 }
 
   // 汇总该账号地图图层：投递意向岗位（没有则用平台岗位兜底）+ 租房数据（地址地理编码后缓存）
-  async function layers(userId, city, signal) {
+  async function layers(userId, city, signal, options = {}) {
     const jobs = [];
     const ids = deps.intentJobIds(userId);
     for (const id of ids.slice(0, 20)) {
@@ -253,9 +253,8 @@ function centerPos(city, seed) {
     }
     // 重点城市：显式传入 > 投递意向所在城市 > 上海（地图默认视野）
     const focusCity = String(city || jobs.find((j) => j.city)?.city || "上海").replace(/市$/, "").trim() || "上海";
-    // 岗位图层永远补足到 30 条：先放自己的投递意向，再用当前城市的平台岗位补齐，
-    // 只有几条意向时地图也不会显得空。
-    if (typeof deps.platformJobs === "function") {
+    // 岗位图层默认只放「投递意向」；勾选「全部岗位（平台）」时才补平台岗位到 30 条。
+    if (options.allJobs && typeof deps.platformJobs === "function") {
       const seen = new Set(jobs.map((j) => j.id));
       for (const job of deps.platformJobs(focusCity, 40)) {
         if (jobs.length >= 30) break;

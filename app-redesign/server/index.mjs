@@ -2352,7 +2352,13 @@ async function handleRequest(req, res) {
       if (p === "/api/geo/layers" && m === "GET") {
         const url = new URL(req.url, "http://x");
         limited("geo:" + s.user_id, 60, 60000);
-        return send(res, 200, await geo.layers(s.user_id, url.searchParams.get("city") || "", undefined));
+        return send(
+          res,
+          200,
+          await geo.layers(s.user_id, url.searchParams.get("city") || "", undefined, {
+            allJobs: url.searchParams.get("allJobs") === "1",
+          }),
+        );
       }
       if (p === "/api/geo/nearby" && m === "GET") {
         const url = new URL(req.url, "http://x");
