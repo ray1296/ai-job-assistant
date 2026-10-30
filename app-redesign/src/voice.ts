@@ -121,3 +121,64 @@ export async function speakAs(name: string, text: string, force = false, instruc
     if (mine === seq && (voiceOn.value || force)) fallbackSpeak(clean);
   }
 }
+
+/** 分句流水线朗读：第一句好了就播，播的同时合成下一句，首响快且句间不卡。 */
+export async function speakChunksAs(name: string, text: string, force = false, instruction = "", onStatus?: (ok: boolean) => void): Promise<void> {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return;
+  if (!voiceOn.value && !force) return;
+  const voice = voiceFor(name);
+  // 按标点切句，单句不超过 80 字
+  const parts: string[] = [];
+  let buf = "";
+  for (const ch of clean) {
+    buf += ch;
+    if (/[。！？!?；;]/.test(ch) || buf.length >= 80) { parts.push(buf.trim()); buf = ""; }
+  }
+  if (buf.trim()) parts.push(buf.trim());
+  if (!parts.length) return;
+
+  stopSpeech();
+  const mine = ++seq;
+  const synth = async (t: string): Promise<Blob | null> => {
+    try {
+      const res = await fetch("/api/ai/tts-aliyun", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": (window as any).__zgCsrf || "" },
+        body: JSON.stringify({ text: t.slice(0, 320), voice: voice.voice, instruction: instruction || voice.instruction || "" }),
+      });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return blob.size ? blob : null;
+    } catch { return null; }
+  };
+  const playBlob = (blob: Blob) => new Promise<void>((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const el = new Audio(url);
+    el.playbackRate = 1.08;
+    el.preservesPitch = false;
+    (el as any).__zgUrl = url;
+    audio = el;
+    const done = () => { URL.revokeObjectURL(url); if (audio === el) audio = null; resolve(); };
+    el.onended = done;
+    el.onerror = done;
+    el.play().catch(() => { done(); fallbackSpeak(clean); });
+  });
+
+  try {
+    let pending: Promise<Blob | null> | null = synth(parts[0]);
+    for (let i = 0; i < parts.length; i++) {
+      const blob = await pending;
+      if (mine !== seq) return;
+      pending = i + 1 < parts.length ? synth(parts[i + 1]) : null; // 边播边合成下一句
+      if (!blob) { onStatus?.(false); continue; }
+      onStatus?.(true);
+      await playBlob(blob);
+      if (mine !== seq) return;
+    }
+  } catch (e) {
+    onStatus?.(false);
+    if (mine === seq && (voiceOn.value || force)) fallbackSpeak(clean);
+  }
+}

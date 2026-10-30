@@ -2,7 +2,7 @@ import {
   defineComponent, h, ref, computed, onMounted, onBeforeUnmount, nextTick, watch,
 } from "vue";
 import { api, errorText } from "./api";
-import { speakAs, stopSpeech } from "./voice";
+import { speakAs, speakChunksAs, stopSpeech } from "./voice";
 import { VideoCoach, type CvMetrics, type CvEvent, type CvStatus } from "./video-coach";
 
 const AGENTS = [
@@ -459,7 +459,7 @@ export default defineComponent({
         if (streamAudio.value) flushRealtimeAudio();
         speaking.value = true;
         if (!streamAudio.value && text && soundOn.value) {
-          void speakAs(agent.value.name, text, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，像真人开口。", () => {}).finally(() => { speaking.value = false; });
+          void speakChunksAs(agent.value.name, text, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，像真人开口。", () => {}).finally(() => { speaking.value = false; });
         }
         return;
       }
@@ -863,7 +863,7 @@ export default defineComponent({
         if (soundOn.value) {
           speaking.value = true;
           // 面试专用语气：短句、自然停顿、重点词轻读，避免整段平铺直叙。
-          try { await speakAs(agent.value.name, reply, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，关键结论前稍作停顿，像真人在思考后开口，不要播音腔。", (ok) => { aiMsg.tts = ok ? "ok" : "fail"; }); } finally { speaking.value = false; }
+          try { await speakChunksAs(agent.value.name, reply, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，关键结论前稍作停顿，像真人在思考后开口，不要播音腔。", (ok) => { aiMsg.tts = ok ? "ok" : "fail"; }); } finally { speaking.value = false; }
         }
       } catch (e) {
         if (alive) error.value = errorText(e);
