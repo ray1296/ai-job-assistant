@@ -1285,6 +1285,12 @@ export default defineComponent({
                     "aria-label": "刷新提词",
                     onClick: () => void refreshHint(),
                   }, "⟳"),
+                  h("button", {
+                    class: "hint-close",
+                    title: "收起提词器",
+                    "aria-label": "收起提词器",
+                    onClick: () => { hintOpen.value = false; if (hintTimer) { window.clearInterval(hintTimer); hintTimer = 0; } },
+                  }, "×"),
                 ]),
                 // 加载时保留上一句，避免面板变成空白；刷新状态只看右上角转圈
                 h("p", { class: "interview-hint-text" }, hintText.value || (hintBusy.value ? "正在生成…" : "点灯泡获取提示")),

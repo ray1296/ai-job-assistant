@@ -3555,3 +3555,10 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .interview-hint-card header .hint-refresh.spin { animation: hintSpin 0.9s linear infinite; }
 @keyframes hintSpin { to { transform: rotate(360deg); } }
 .interview-hint-card .hint-ctx { margin: 6px 0 0; font-size: 11px; color: #8b80a3; border-top: 1px dashed #ece5f7; padding-top: 6px; }
+
+/* 提词面板不能挡住灯泡：容器不吃事件，只有卡片和灯泡本身可点 */
+.interview-hint { pointer-events: none; }
+.interview-hint-card, .interview-hint-bulb { pointer-events: auto; }
+.interview-hint-bulb { position: relative; z-index: 3; }
+.interview-hint-card { position: relative; z-index: 2; max-height: min(46vh, 340px); overflow: auto; }
+.interview-hint-card header .hint-close { border: 1px solid #ddd3ee; background: #fff; color: #7a6a96; border-radius: 8px; width: 26px; height: 26px; font-size: 15px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
