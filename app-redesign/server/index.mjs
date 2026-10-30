@@ -14,7 +14,7 @@ import { createStudy } from "./study.mjs";
 import { createAgents } from "./agents.mjs";
 import { TOOLS, callTool } from "./tools.mjs";
 import { toolPromptFor } from "./tool-rag.mjs";
-import { allGuide, guideText } from "./project-guide.mjs";
+import { allGuide, guideFor, guideText } from "./project-guide.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
@@ -1839,7 +1839,8 @@ async function handleRequest(req, res) {
             // 看图：直接走 visionModel 多模态，不做工具路由
             const answer = await aiGateway.chat(s.user_id, {
               message: (message || "请看看这张图，帮我讲解一下。") +
-                "\n\n【站点功能说明，用于识别截图里的入口】\n" + guideText("导航 板块 助手 学习 刷题 简历 岗位 面试 数据 心愿").slice(0, 1800),
+                "\n\n【站点功能说明（按用户问题检索），用于识别截图里的入口并说明它干什么】\n" +
+                (guideFor(message || "").slice(0, 4).map((s) => "【" + s.title + "】" + s.summary).join("\n") || "").slice(0, 1800),
               images, persona: personaName, system, model: agentCfg.model,
             }, undefined);
             reply = String(answer.reply || "").trim();

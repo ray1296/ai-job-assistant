@@ -1306,9 +1306,13 @@ export default defineComponent({
         ]),
         h("div", {
           class: "interview-hint" + (hintOpen.value ? " open" : ""),
-          style: hintPos.value
-            ? { left: hintPos.value.x + "px", top: hintPos.value.y + "px", right: "auto", bottom: "auto" }
-            : {},
+          style: (() => {
+        // 默认放在视频画面左上角；用户拖过就记住位置
+        const saved = hintPos.value;
+        const x = saved ? saved.x : Math.round(window.innerWidth * 0.03);
+        const y = saved ? saved.y : Math.round(window.innerHeight * 0.22);
+        return { left: x + "px", top: y + "px", right: "auto", bottom: "auto" };
+      })(),
         }, [
           hintOpen.value
             ? h("div", { class: "interview-hint-card", role: "region", "aria-label": "面试提词" }, [
