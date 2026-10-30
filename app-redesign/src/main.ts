@@ -357,6 +357,26 @@ const app = defineComponent({
           h("button", { onClick: () => go("guide") }, "看项目介绍"),
           h("span", "不知道某个按钮做什么，就点“功能说明”，或直接问 AI 伙伴。"),
         ]),
+        h("section", { class: "journey-path" }, [
+          h("h2", "你的求职旅程"),
+          h(
+            "div",
+            { class: "path-items" },
+            [
+              ["profile", "认识自己"],
+              ["resume", "打磨简历"],
+              ["jobs", "探索岗位"],
+              ["practice", "针对准备"],
+              ["interview", "面试练习"],
+              ["plan", "从容投递"],
+            ].map(([id, label], i) =>
+              h("button", { onClick: () => go(id) }, [
+                h("span", String(i + 1).padStart(2, "0")),
+                label,
+              ]),
+            ),
+          ),
+        ]),
         h("div", { class: "journey-choices" }, [
           h(
             "button",
@@ -394,26 +414,6 @@ const app = defineComponent({
             h("p", "不需要先有简历，从你的经历开始。"),
             h("b", "开始整理 ↗"),
           ]),
-        ]),
-        h("section", { class: "journey-path" }, [
-          h("h2", "你的求职旅程"),
-          h(
-            "div",
-            { class: "path-items" },
-            [
-              ["profile", "认识自己"],
-              ["resume", "打磨简历"],
-              ["jobs", "探索岗位"],
-              ["practice", "针对准备"],
-              ["interview", "面试练习"],
-              ["plan", "从容投递"],
-            ].map(([id, label], i) =>
-              h("button", { onClick: () => go(id) }, [
-                h("span", String(i + 1).padStart(2, "0")),
-                label,
-              ]),
-            ),
-          ),
         ]),
         h(
           "div",
