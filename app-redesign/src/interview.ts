@@ -402,7 +402,12 @@ export default defineComponent({
         const src = rtPlayCtx.createBufferSource();
         src.buffer = buf;
         src.connect(rtPlayCtx.destination);
-        const at = Math.max(rtPlayCtx.currentTime + 0.03, rtNextPlay);
+        // 全双工是流式 PCM：原来只预留 30ms，网络一抖就断音。给 250ms 抖动缓冲，
+        // 并把积压上限压到 1.2 秒，避免延迟越滚越大。
+        const now = rtPlayCtx.currentTime;
+        const LEAD = 0.25;
+        if (rtNextPlay > now + 1.2) rtNextPlay = now + LEAD;
+        const at = Math.max(now + LEAD, rtNextPlay);
         src.start(at);
         rtNextPlay = at + buf.duration;
         rtSources.add(src);
