@@ -1,14 +1,15 @@
 {
-  "_comment": "复制到 private/ai-config.json 后填入真实 Key；private/ 已被 .gitignore 排除，切勿提交。",
+  "_comment": "复制到 private/ai-config.json 后填入真实 Key；private/ 已被 .gitignore 排除，切勿提交。imageProvider=dashscope 走阿里云官方通义万相，留空则走 OpenAI 兼容的 /images/generations。",
   "provider": "deepseek",
   "baseUrl": "https://api.deepseek.com",
   "apiKey": "YOUR_DEEPSEEK_API_KEY",
   "model": "deepseek-v4-pro",
   "visionModel": "deepseek-flash",
-  "imageBaseUrl": "https://uuapi.cc/v1",
+  "imageBaseUrl": "https://dashscope.aliyuncs.com",
   "imageApiKey": "YOUR_IMAGE_API_KEY",
-  "imageModel": "gpt-image-2.5",
+  "imageModel": "wanx2.1-t2i-turbo",
   "aliyunKey": "YOUR_ALIYUN_DASHSCOPE_KEY",
   "aliyunTtsModel": "qwen3-tts-flash",
-  "aliyunTtsVoice": "Cherry"
+  "aliyunTtsVoice": "Cherry",
+  "imageProvider": "dashscope"
 }

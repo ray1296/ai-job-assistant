@@ -359,6 +359,77 @@ export function createAiGateway(privateDir) {
       const wantFormat = ["png", "jpeg", "webp"].includes(input.outputFormat)
         ? input.outputFormat
         : "png";
+      // 官方 DashScope（通义万相）走异步任务：提交 → 轮询 → 拿图片直链。
+      // 返回结构与 OpenAI 兼容格式一致，后面下载/落盘/去重逻辑可以完全复用。
+      if (String(cfg?.imageProvider || "").toLowerCase() === "dashscope") {
+        const dsBase = "https://dashscope.aliyuncs.com";
+        const size = isBackground ? "720*1280" : "1280*720";
+        // 万相会把 prompt 里的简历正文直接画成乱码文字，所以官方分支只用风格描述，
+        // 不带任何正文内容；负向提示词再兜一层。
+        const dsPrompt = [
+          "这是一张纯装饰性的纸张底纹，不是简历页面：绝对不要画出任何文字、字母、符号、段落、标题、表格或卡片布局。",
+          "艺术指导：" + style + "。",
+          accent ? "点缀色：" + accent + "，与纸张白协调。" : "",
+          isBackground
+            ? "竖版整页背景：四角与边缘有低对比的几何装饰，中间 80% 面积保持干净留白，方便放置正文。"
+            : "横向装饰条：主视觉集中在画面上三分之一，向下逐渐淡出到纯纸张白。",
+          "整体低饱和、低对比、可打印。",
+        ].filter(Boolean).join("");
+        const submit = await fetch(dsBase + "/api/v1/services/aigc/text2image/image-synthesis", {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + key,
+            "X-DashScope-Async": "enable",
+          },
+          body: JSON.stringify({
+            model,
+            // 万相看到"简历"会直接画出一页带乱码的简历版式，这里补一段强约束：
+            input: { prompt: dsPrompt },
+            parameters: {
+              size,
+              n: 1,
+              // 通义万相会把"文字"画成乱码，必须用负向提示词压掉
+              negative_prompt: "文字、汉字、字母、数字、符号、标点、logo、水印、签名、人脸、人物、照片、二维码、边框、页码",
+              prompt_extend: false,
+            },
+          }),
+        });
+        if (!submit.ok) {
+          const d = await submit.text().catch(() => "");
+          throw fail(submit.status === 429 ? 429 : 502, "生图上游暂时不可用" + (d ? "：" + d.slice(0, 120) : ""));
+        }
+        const sj = await submit.json();
+        const taskId = sj?.output?.task_id;
+        if (!taskId) throw fail(502, "生图任务提交失败");
+        let url = "";
+        for (let i = 0; i < 60; i++) {
+          await new Promise((r2) => setTimeout(r2, 2000));
+          if (signal?.aborted) throw fail(499, "生图请求已取消");
+          const pr = await fetch(dsBase + "/api/v1/tasks/" + taskId, {
+            signal: controller.signal,
+            headers: { Authorization: "Bearer " + key },
+          });
+          if (!pr.ok) continue;
+          const pj = await pr.json();
+          const st = pj?.output?.task_status;
+          if (st === "SUCCEEDED") { url = pj?.output?.results?.[0]?.url || ""; break; }
+          if (st === "FAILED" || st === "CANCELED") throw fail(502, "生图任务失败");
+        }
+        if (!url) throw fail(504, "生图超时，请稍后重试");
+        const raw = { data: [{ url }] };
+        const img = await fetch(url, { signal: controller.signal });
+        if (!img.ok) throw fail(502, "生图图片下载失败");
+        const buf = Buffer.from(await img.arrayBuffer());
+        if (buf.length < 1024 || buf.length > 8 * 1024 * 1024) throw fail(502, "生图文件异常");
+        const sha = createHash("sha256").update(buf).digest("hex").slice(0, 24);
+        const assetDir = path.join(privateDir, "decoration-assets");
+        await fs.mkdir(assetDir, { recursive: true, mode: 0o700 });
+        await fs.writeFile(path.join(assetDir, sha + ".png"), buf, { mode: 0o600 });
+        await pruneAssets(assetDir).catch(() => {});
+        return { id: sha, format: "png", bytes: buf.length, model, provider: "dashscope" };
+      }
       // 不同上游对 output_format 的取值不同；先按请求格式，被拒则退回 b64_json 再试一次。
       const attempt = async (format) => {
         const r = await fetch(effectiveImageUrl(base), {
