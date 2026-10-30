@@ -8,11 +8,12 @@ type Page = string[];
  * 顺序即求职流程：前置工作 → 投递岗位 → 准备面试 → 工具栏。
  */
 // 每个分区一个克制的主题色：只用在圆点、序号与悬停描边上，不铺底色
-const GROUPS: { title: string; hint: string; accent: string; ids: string[] }[] = [
-  { title: "前置工作", hint: "先把材料备齐：认识自己、写好简历、建好数据空间。", accent: "#3b6fd4", ids: ["home", "guide", "profile", "resume", "data"] },
-  { title: "投递岗位", hint: "投递前先看清市场：岗位、企业、租房、数据与通勤路线。", accent: "#0f8f7e", ids: ["jobs", "companies", "housing", "dashboard", "map", "plan"] },
-  { title: "准备面试", hint: "题库先上传，题目刷得动，面试才练得实。", accent: "#b4701a", ids: ["study-upload", "knowledge", "practice", "interview"] },
-  { title: "工具栏", hint: "协作、心愿与设置，随时可用。", accent: "#5b6478", ids: ["chat", "wish", "settings"] },
+// 每个分区配一张求职主题的扁平插画（求职者 / 写字楼 / 练习面试 / AI 助手）
+const GROUPS: { title: string; hint: string; accent: string; art: string; ids: string[] }[] = [
+  { title: "前置工作", hint: "先把材料备齐：认识自己、写好简历、建好数据空间。", accent: "#3b6fd4", art: "prep", ids: ["home", "guide", "profile", "resume", "data"] },
+  { title: "投递岗位", hint: "投递前先看清市场：岗位、企业、租房、数据与通勤路线。", accent: "#0f8f7e", art: "apply", ids: ["jobs", "companies", "housing", "dashboard", "map", "plan"] },
+  { title: "准备面试", hint: "题库先上传，题目刷得动，面试才练得实。", accent: "#b4701a", art: "interview", ids: ["study-upload", "knowledge", "practice", "interview"] },
+  { title: "工具栏", hint: "协作、心愿与设置，随时可用。", accent: "#5b6478", art: "tools", ids: ["chat", "wish", "settings"] },
 ];
 
 /** 每个板块一句话介绍，鼠标悬停时浮在小卡片上方显示 */
@@ -78,8 +79,17 @@ export default defineComponent({
           GROUPS.map((g) =>
             h("section", { class: "nav-group", key: g.title, style: { "--grp": g.accent } }, [
               h("div", { class: "nav-group-head" }, [
-                h("h2", null, [h("span", { class: "nav-group-dot", "aria-hidden": "true" }), g.title]),
-                h("p", null, g.hint),
+                h("img", {
+                  class: "nav-group-art",
+                  src: "/assets/journey/" + g.art + ".webp",
+                  alt: "",
+                  "aria-hidden": "true",
+                  decoding: "async",
+                }),
+                h("div", { class: "nav-group-title" }, [
+                  h("h2", null, [h("span", { class: "nav-group-dot", "aria-hidden": "true" }), g.title]),
+                  h("p", null, g.hint),
+                ]),
               ]),
               h(
                 "div",
