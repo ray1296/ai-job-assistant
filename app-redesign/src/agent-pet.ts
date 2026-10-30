@@ -277,16 +277,16 @@ export default defineComponent({
     const bubbleQueue: { text: string; duration: number }[] = [];
     // ===== 工作气泡：agent 干活时在立绘上方轮播短句，表示"它正在忙" =====
     const WORK_PHRASES = [
-      "正在翻资料…",
-      "让我想想…",
-      "这段再核对一下…",
-      "快好啦…",
+      "正在检索岗位与题库数据…",
+      "正在梳理你的求职进度…",
+      "正在核对企业与租房信息…",
+      "正在整理成可执行的建议…",
     ];
     let workingTimer: any = 0;
     function startWorking(tool?: string) {
       stopWorking();
       const phrases = tool
-        ? ["正在用「" + tool + "」查一下…", "哒哒哒哒哒……", "这段资料再翻翻…", "快好啦快好啦…"]
+        ? ["正在调用「" + tool + "」…", "正在等待工具返回结果…", "正在整理这一步的数据…"]
         : WORK_PHRASES;
       let i = 0;
       const tick = () => {

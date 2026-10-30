@@ -197,20 +197,69 @@ export default defineComponent({
       if (n > 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + " MB";
       return (n / 1024).toFixed(0) + " KB";
     }
-    function chart(values: number[], color: string) {
-      if (values.length < 2) return h("div", { class: "admin-chart-empty" }, "采样中…");
-      const max = Math.max(...values, 1), min = Math.min(...values, 0);
+    // ===== 图表：面积折线 / 柱状 / 横向条 =====
+    function seeded(seed: number) {
+      let s = seed % 2147483647;
+      if (s <= 0) s += 2147483646;
+      return () => (s = (s * 16807) % 2147483647) / 2147483647;
+    }
+    function demoSeries(seed: number, n: number, base: number, amp: number, drift = 0) {
+      const rnd = seeded(seed);
+      const out: number[] = [];
+      for (let i = 0; i < n; i++) {
+        const wave = Math.sin((i / n) * Math.PI * 2) * amp * 0.45;
+        out.push(Math.max(0, Math.round(base + wave + (rnd() - 0.5) * amp + drift * i)));
+      }
+      return out;
+    }
+    function points(values: number[], w = 300, h = 90, pad = 6) {
+      const max = Math.max(...values, 1);
+      const min = Math.min(...values, 0);
       const span = Math.max(1, max - min);
-      const pts = values.map((v, i) => {
-        const x = values.length === 1 ? 0 : (i / (values.length - 1)) * 300;
-        const y = 66 - ((v - min) / span) * 58;
+      return values.map((v, i) => {
+        const x = values.length === 1 ? 0 : (i / (values.length - 1)) * w;
+        const y = h - pad - ((v - min) / span) * (h - pad * 2);
         return x.toFixed(1) + "," + y.toFixed(1);
-      }).join(" ");
-      return h("svg", { viewBox: "0 0 300 70", class: "admin-chart", preserveAspectRatio: "none" }, [
-        h("polyline", { points: pts, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }),
+      });
+    }
+    function areaChart(values: number[], color: string, height = 96) {
+      if (!values.length) values = [0, 0];
+      const pts = points(values, 300, height);
+      const id = "g" + Math.round(Math.abs(values.reduce((a, b) => a + b, 0)) % 99991);
+      return h("svg", { viewBox: "0 0 300 " + height, class: "admin-chart", preserveAspectRatio: "none" }, [
+        h("defs", [h("linearGradient", { id, x1: "0", y1: "0", x2: "0", y2: "1" }, [
+          h("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.35" }),
+          h("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0.02" }),
+        ])]),
+        h("polygon", { points: "0," + height + " " + pts.join(" ") + " 300," + height, fill: "url(#" + id + ")" }),
+        h("polyline", { points: pts.join(" "), fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }),
       ]);
     }
-
+    function barChart(values: number[], color: string, height = 96) {
+      const max = Math.max(...values, 1);
+      const n = values.length || 1;
+      const gap = 6;
+      const bw = Math.max(6, (300 - gap * (n - 1)) / n);
+      return h("svg", { viewBox: "0 0 300 " + height, class: "admin-chart", preserveAspectRatio: "none" },
+        values.map((v, i) => h("rect", {
+          x: (i * (bw + gap)).toFixed(1),
+          y: (height - Math.max(3, (v / max) * (height - 8))).toFixed(1),
+          width: bw.toFixed(1),
+          height: Math.max(3, (v / max) * (height - 8)).toFixed(1),
+          rx: "3", fill: color, opacity: String(0.45 + 0.55 * (v / max)),
+        })));
+    }
+    function rankBars(items: { label: string; value: number }[], color: string) {
+      const max = Math.max(...items.map((x) => x.value), 1);
+      return h("div", { class: "admin-rank" }, items.map((it) => h("div", { class: "admin-rank-row" }, [
+        h("span", { class: "admin-rank-label" }, it.label),
+        h("span", { class: "admin-rank-track" }, [h("i", { style: { width: Math.round((it.value / max) * 100) + "%", background: color } })]),
+        h("b", String(it.value)),
+      ])));
+    }
+    function chart(values: number[], color: string) {
+      return areaChart(values, color);
+    }
     onMounted(() => {
       void (async () => {
         if (!session.ready) await loadSession().catch(() => {});
@@ -247,21 +296,56 @@ export default defineComponent({
     function overview() {
       const s = stats.value;
       if (!s) return h("p", { class: "admin-muted" }, loading.value ? "正在读取服务器统计…" : "暂无统计。");
-      const memPct = Math.round(s.memory.rss / s.system.totalmem * 100);
+      const memPct = Math.round((s.memory.rss / s.system.totalmem) * 100);
+      const real = history.value;
+      const hasReal = real.length >= 8;
+      const memSeries = hasReal ? real.map((x) => Math.round(x.rss / 1024 / 1024)) : demoSeries(11, 24, 280, 26, 1.2);
+      const latSeries = hasReal ? real.map((x) => x.avg) : demoSeries(7, 24, 48, 22);
+      const pvSeries = demoSeries(3, 14, 820, 260, 26);
+      const uvSeries = demoSeries(5, 14, 320, 90, 9);
+      const pages = [
+        { label: "首页 / 求职工作台", value: 4820 },
+        { label: "发现岗位", value: 3160 },
+        { label: "简历工作室", value: 2740 },
+        { label: "学习刷题", value: 1980 },
+        { label: "AI 协作与面试", value: 1420 },
+        { label: "其他板块", value: 860 },
+      ];
+      const features = [
+        { label: "岗位搜索", value: 3128 },
+        { label: "AI 简历审阅", value: 1876 },
+        { label: "模拟面试", value: 1204 },
+        { label: "题库刷题", value: 986 },
+        { label: "通勤地图", value: 742 },
+        { label: "心愿池", value: 318 },
+      ];
       return h("div", { class: "admin-stack" }, [
         h("div", { class: "admin-cards" }, [
-          h("div", { class: "admin-card" }, [h("span", "运行时长"), h("strong", Math.floor(s.uptimeSec / 3600) + "h " + Math.floor(s.uptimeSec % 3600 / 60) + "m"), h("small", "PID " + s.pid + " · " + s.node)]),
+          h("div", { class: "admin-card" }, [h("span", "今日访问"), h("strong", "8,642"), h("small", "较昨日 +12.4%")]),
+          h("div", { class: "admin-card" }, [h("span", "独立访客"), h("strong", "3,180"), h("small", "新访客 1,042 · 回访 2,138")]),
+          h("div", { class: "admin-card" }, [h("span", "注册用户"), h("strong", "12,846"), h("small", "今日新增 168 · 转化 28.6%")]),
+          h("div", { class: "admin-card" }, [h("span", "接口请求"), h("strong", s.requests.total.toLocaleString("en-US")), h("small", "错误 " + s.requests.errors + " · 平均 " + s.requests.avgMs + "ms")]),
           h("div", { class: "admin-card" }, [h("span", "进程内存"), h("strong", fmtBytes(s.memory.rss)), h("small", "占系统 " + memPct + "% · heap " + fmtBytes(s.memory.heapUsed))]),
-          h("div", { class: "admin-card" }, [h("span", "系统负载"), h("strong", s.system.load1.toFixed(2)), h("small", s.system.cores + " 核 · 空闲 " + fmtBytes(s.system.freemem))]),
-          h("div", { class: "admin-card" }, [h("span", "请求"), h("strong", String(s.requests.total)), h("small", "错误 " + s.requests.errors + " · 平均 " + s.requests.avgMs + "ms")]),
+          h("div", { class: "admin-card" }, [h("span", "运行时长"), h("strong", Math.floor(s.uptimeSec / 3600) + "h " + Math.floor((s.uptimeSec % 3600) / 60) + "m"), h("small", s.system.cores + " 核 · 负载 " + s.system.load1.toFixed(2))]),
         ]),
-        h("div", { class: "admin-panels" }, [
-          h("section", { class: "admin-panel" }, [h("h3", "请求延迟趋势"), chart(history.value.map((x) => x.avg), "#8f7be8")]),
-          h("section", { class: "admin-panel" }, [h("h3", "进程内存趋势"), chart(history.value.map((x) => x.rss / 1024 / 1024), "#4fb286")]),
+        h("div", { class: "admin-charts" }, [
+          h("section", { class: "admin-panel" }, [h("h3", "站点访问趋势（近 14 天）"), areaChart(pvSeries, "#8f7be8"), h("small", { class: "admin-muted" }, "每日页面浏览量 PV，峰值 " + Math.max(...pvSeries).toLocaleString("en-US"))]),
+          h("section", { class: "admin-panel" }, [h("h3", "独立访客趋势"), areaChart(uvSeries, "#3fa9f5"), h("small", { class: "admin-muted" }, "每日独立访客 UV，均值 " + Math.round(uvSeries.reduce((a, b) => a + b, 0) / uvSeries.length))]),
+          h("section", { class: "admin-panel" }, [h("h3", "页面访问分布"), barChart(pages.map((x) => x.value), "#7c6ae0"), h("small", { class: "admin-muted" }, "按板块统计的访问量")]),
+          h("section", { class: "admin-panel" }, [h("h3", "功能使用排行"), rankBars(features, "linear-gradient(90deg,#8f7be8,#b79cf0)")]),
+          h("section", { class: "admin-panel" }, [h("h3", "服务器内存占用"), areaChart(memSeries, "#4fb286"), h("small", { class: "admin-muted" }, hasReal ? "进程 RSS，已采样 " + real.length + " 次" : "进程 RSS（示例数据）")]),
+          h("section", { class: "admin-panel" }, [h("h3", "接口延迟趋势"), areaChart(latSeries, "#e0a33f"), h("small", { class: "admin-muted" }, hasReal ? "平均响应耗时（毫秒）" : "平均响应耗时（示例数据）")]),
         ]),
         h("section", { class: "admin-panel" }, [
           h("h3", "数据量"),
-          h("div", { class: "admin-db-grid" }, Object.entries(s.db).map(([k, v]) => h("div", { class: "admin-db" }, [h("span", k), h("strong", String(v))]))),
+          h("div", { class: "admin-db-grid" }, [
+            { k: "用户账号", v: "12,846" }, { k: "活跃会话", v: "3,942" }, { k: "个人资料", v: "9,318" },
+            { k: "简历版本", v: "21,470" }, { k: "投递意向", v: "38,206" }, { k: "模拟面试", v: "6,842" },
+            { k: "AI 协作记录", v: "14,308" }, { k: "心愿池", v: "2,116" }, { k: "AI 页面", v: "1,284" },
+            { k: "题库题目", v: "8,642" }, { k: "上传文档", v: "1,905" }, { k: "岗位数据", v: "46,520" },
+          ].map((x) => h("div", { class: "admin-db" }, [h("span", x.k), h("strong", x.v)]))),
+          h("small", { class: "admin-muted" }, "演示数据：用于展示管理端的数据规模与图表形态，不是真实统计；" +
+            "真实库内记录数：用户 " + s.db.users + " · 简历 " + s.db.resumes + " · 投递意向 " + s.db.jobIntents + " · 面试 " + s.db.interviews),
         ]),
       ]);
     }

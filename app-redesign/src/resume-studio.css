@@ -2221,3 +2221,4 @@ html[data-theme="night"] .section-continued-title { color: #9fb0d0; }
 
 /* 整页 AI 背景：图片本身是「中间留白、四周装饰」，直接铺满即可 */
 .resume-document.has-background { background-size: cover; background-position: center; background-repeat: no-repeat; }
+

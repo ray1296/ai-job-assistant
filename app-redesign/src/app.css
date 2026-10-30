@@ -3380,3 +3380,19 @@ html[data-theme="night"] .uploaded-bank-search input { background: #0b1628; colo
 
 /* 工作气泡盖在对话框之上，避免被对话窗完全遮住 */
 .agent-bubble-pop { z-index: 130; }
+
+/* ===== 管理中心：图表网格 + 排行条 ===== */
+.admin-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.admin-charts .admin-panel { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.admin-charts .admin-panel h3 { margin: 0; font-size: 13px; }
+.admin-charts .admin-chart { width: 100%; height: 96px; }
+.admin-charts small.admin-muted { font-size: 11px; }
+.admin-rank { display: flex; flex-direction: column; gap: 7px; }
+.admin-rank-row { display: grid; grid-template-columns: 96px 1fr 46px; align-items: center; gap: 8px; font-size: 11px; }
+.admin-rank-label { color: #6b5c85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-rank-track { height: 8px; border-radius: 99px; background: #efe9f8; overflow: hidden; }
+.admin-rank-track i { display: block; height: 100%; border-radius: 99px; }
+.admin-rank-row b { text-align: right; font-variant-numeric: tabular-nums; color: #4b3b63; }
+.admin-db-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+html[data-theme="night"] .admin-rank-track { background: #241d38; }
+html[data-theme="night"] .admin-rank-label, html[data-theme="night"] .admin-rank-row b { color: #cbb9ea; }
