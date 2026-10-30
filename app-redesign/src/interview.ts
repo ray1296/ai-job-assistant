@@ -90,6 +90,7 @@ export default defineComponent({
     const elapsed = ref(0);
     const videoOn = ref(true);
     const micOn = ref(false);
+    const mutedHint = ref(false);
     const observing = ref(true);
     const speechSupported = ref(true);
     const mediaError = ref("");
@@ -297,8 +298,8 @@ export default defineComponent({
         rtStatus.value = "已暂停";
       } else {
         paused.value = false;
-        if (realtime.value) micOn.value = true;
-        else if (speechSupported.value) { setupRecognition(); startRecognition(); }
+        // 暂停恢复后不自动开麦，由用户点麦克风按钮决定
+        if (speechSupported.value) setupRecognition();
         elapsedTimer = window.setInterval(() => { if (alive && !paused.value) elapsed.value++; }, 1000);
         startObservation();
         rtStatus.value = realtime.value ? (rtReady.value ? "在线" : "连接实时模型…") : "在线";
@@ -637,8 +638,9 @@ export default defineComponent({
         mediaError.value = "当前浏览器不支持语音识别；可以继续用文字输入。";
         return;
       }
+      // 默认闭麦：只准备好识别器，等用户点麦克风再开始
       setupRecognition();
-      startRecognition();
+      mutedHint.value = true;
     }
 
     function scheduleTurnCheck() {
@@ -1038,12 +1040,12 @@ export default defineComponent({
     }
 
 
-    async function endInterview() {
+    async function endInterview(skipFeedback = false) {
       if (feedbackBusy.value) return;
       const transcript = messages.value
         .filter((m) => m.role !== "system")
         .map((m) => ({ role: m.role, text: m.text }));
-      if (transcript.length < 2) {
+      if (skipFeedback || transcript.length < 2) {
         started.value = false;
         stopTimers();
         closeRealtime();
@@ -1273,6 +1275,7 @@ export default defineComponent({
           h("span", { class: "interview-timer" }, fmt(elapsed.value)),
           h("button", { class: "interview-pause-btn", onClick: togglePause, disabled: feedbackBusy.value }, paused.value ? "继续" : "暂停"),
           h("button", { class: "interview-end-btn", onClick: () => void endInterview(), disabled: feedbackBusy.value }, feedbackBusy.value ? "整理反馈…" : "结束面试"),
+          h("button", { class: "interview-close-btn", title: "直接结束，不生成反馈", "aria-label": "直接结束", onClick: () => void endInterview(true), disabled: feedbackBusy.value }, "✕"),
         ]),
         h("div", {
           class: "interview-hint" + (hintOpen.value ? " open" : ""),
@@ -1285,7 +1288,7 @@ export default defineComponent({
                 h("header", null, [
                   h("strong", null, "提词器" + (hintCoach.value ? " · " + hintCoach.value : "")),
                   h("button", {
-                    class: "hint-refresh" + (hintSpinner.value ? " spin" : ""),
+                    class: "hint-refresh",
                     title: "按当前对话重新生成话术",
                     "aria-label": "刷新提词",
                     onClick: () => void refreshHint(true),

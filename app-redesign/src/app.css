@@ -3562,3 +3562,13 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .interview-hint-bulb { position: relative; z-index: 3; }
 .interview-hint-card { position: relative; z-index: 2; max-height: min(46vh, 340px); overflow: auto; }
 .interview-hint-card header .hint-close { border: 1px solid #ddd3ee; background: #fff; color: #7a6a96; border-radius: 8px; width: 26px; height: 26px; font-size: 15px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+
+/* 面试头部：允许换行，保证「暂停 / 结束 / 直接结束」都在可见区域 */
+.interview-room-head { flex-wrap: wrap; row-gap: 6px; }
+.interview-room-head > * { flex: 0 0 auto; }
+.interview-room-head strong { flex: 1 1 auto; min-width: 0; }
+.interview-pause-btn, .interview-end-btn, .interview-close-btn { white-space: nowrap; }
+.interview-close-btn { width: 30px; height: 30px; border-radius: 9px; border: 1px solid #e5dcef; background: #fff; color: #7a6a96; font-size: 14px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.interview-close-btn:hover { background: #f6f1ff; border-color: #c9b9e6; }
+/* 刷新图标不再旋转 */
+.hint-refresh.spin { animation: none; }
