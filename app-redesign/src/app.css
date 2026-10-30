@@ -3582,3 +3582,9 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 /* 结束面试按钮：悬停时保持红底白字（之前 hover 变成浅底白字，字看不见） */
 .interview-end-btn:hover, .interview-end-btn:focus-visible { background: #c23a54 !important; color: #fff !important; border-color: #c23a54 !important; }
 .interview-end-btn:disabled { opacity: .6; color: #fff !important; background: #d94b64 !important; }
+
+/* 面试记录：单条 + 删除按钮 */
+.interview-history-row { display: flex; align-items: stretch; gap: 8px; }
+.interview-history-row > .interview-history-item { flex: 1; }
+.interview-history-del { flex: 0 0 auto; width: 34px; border: 1px solid #f3d3d9; background: #fdeef0; color: #b03a4a; border-radius: 10px; cursor: pointer; font-size: 13px; }
+.interview-history-del:hover { background: #fbdde2; }

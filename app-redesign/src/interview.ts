@@ -1124,6 +1124,12 @@ export default defineComponent({
     function openSession(s: any) {
       if (s.feedback) feedback.value = s.feedback;
     }
+    async function deleteSession(id: string) {
+      try {
+        await api("/interview/sessions/" + encodeURIComponent(id), "DELETE", undefined, { timeoutMs: 10000 });
+        sessions.value = sessions.value.filter((x) => x.id !== id);
+      } catch (e) { error.value = errorText(e); }
+    }
     async function clearSessions() {
       if (!sessions.value.length) return;
       if (!confirm("清空全部面试记录和反馈？此操作不可恢复。")) return;
@@ -1261,11 +1267,15 @@ export default defineComponent({
             ]),
             sessions.value.length
               ? h("div", { class: "interview-history" }, sessions.value.map((s) =>
-                  h("button", { key: s.id, class: "interview-history-item", onClick: () => openSession(s) }, [
-                    h("strong", s.jobTitle || "通用岗位"),
-                    h("span", (s.mode === "candidate" ? "AI 求职者" : "AI 面试官") + " · " + (s.style || "综合") +
-                      (s.mode === "interviewer" ? " · " + (DIFFICULTIES.find((d) => d.id === s.difficulty)?.label || "正常") : "")),
-                    h("small", s.feedback?.score != null ? s.feedback.score + " 分" : "查看反馈"),
+                  h("div", { key: s.id, class: "interview-history-row" }, [
+                    h("button", { class: "interview-history-item", onClick: () => openSession(s) }, [
+                      h("strong", s.jobTitle || "通用岗位"),
+                      h("span", (s.mode === "candidate" ? "AI 求职者" : "AI 面试官") + " · " + (s.style || "综合") +
+                        (s.mode === "interviewer" ? " · " + (DIFFICULTIES.find((d) => d.id === s.difficulty)?.label || "正常") : "")),
+                      h("small", (s.createdAt ? new Date(s.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) + " · " : "") +
+                        (s.feedback?.score != null ? s.feedback.score + " 分" : "查看反馈")),
+                    ]),
+                    h("button", { class: "interview-history-del", title: "删除这条记录", "aria-label": "删除这条面试记录", onClick: (e: Event) => { e.stopPropagation(); void deleteSession(s.id); } }, "✕"),
                   ])
                 ))
               : h("p", { class: "muted" }, "还没有面试记录。完成一场面试后，这里会保存评分和反馈（只存文字）。"),
