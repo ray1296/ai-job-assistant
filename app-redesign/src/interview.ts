@@ -818,7 +818,7 @@ export default defineComponent({
       hintDrag.on = false;
       if (hintPos.value) { try { localStorage.setItem("zg.interview.hintPos", JSON.stringify(hintPos.value)); } catch {} }
     }
-    watch(() => messages.value.length, () => { void refreshHint(); });
+    watch(() => messages.value.length, () => { if (speaking.value) return; void refreshHint(); });
     async function ask(message: string) {
       if (busy.value) return;
       busy.value = true;
@@ -1031,7 +1031,8 @@ export default defineComponent({
       if (cvOn.value) startCoach();
       const ms = videoTierInfo.value.ms;
       if (!observing.value || !ms) return;
-      observeTimer = window.setInterval(() => { void observeOnce("periodic"); }, ms);
+      // AI 说话时跳过观察采样：画面分析很吃 CPU，和音频解码抢主线程会让语音一卡一卡
+      observeTimer = window.setInterval(() => { if (speaking.value) return; void observeOnce("periodic"); }, ms);
     }
     function toggleObservation() {
       observing.value = !observing.value;

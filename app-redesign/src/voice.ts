@@ -92,8 +92,10 @@ export async function speakAs(name: string, text: string, force = false, instruc
     const el = new Audio(url);
     onStatus?.(true);
     // 保持音色/音高不变，只略快播放；比等待更快的 TTS 上游更直接。
-    el.playbackRate = 1.12;
-    el.preservesPitch = true;
+    // 1.12 倍速 + 强制保留音高在部分浏览器会触发频繁重采样，听起来一卡一卡；
+    // 降到 1.08 并关闭 preservesPitch，优先保证连贯。
+    el.playbackRate = 1.08;
+    el.preservesPitch = false;
     (el as any).__zgUrl = url;
     audio = el;
     const done = () => {
