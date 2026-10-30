@@ -83,14 +83,33 @@ export default defineComponent({
     const vh = ref(window.innerHeight);
 
     const pos = computed(() => petPositions[props.agentId] || { x: 0, y: 0 });
-    /** 对话框锚定在该 chip 正上方：左边跟随 chip 中心，底边贴在 chip 顶上 10px。 */
+    /**
+     * 对话框优先锚在该 chip 正上方；立绘被拖到页面顶部、上方放不下时，改为显示在立绘下方，
+     * 避免对话框被压到只有一点点高、里面的按钮被裁掉。
+     */
+    const CHIP_H = 74;
     const panelStyle = computed(() => {
       const W = 300;
       const p = pos.value;
       const left = Math.min(Math.max(8, p.x + 27 - W / 2), Math.max(8, vw.value - W - 8));
-      const bottom = Math.max(8, vh.value - p.y + 10);
-      const maxHeight = Math.max(170, Math.min(Math.round(vh.value * 0.52), p.y - 76));
-      return { left: left + "px", bottom: bottom + "px", top: "auto", maxHeight: maxHeight + "px" };
+      const spaceAbove = p.y - CHIP_H - 8;
+      const spaceBelow = vh.value - (p.y + CHIP_H) - 8;
+      const cap = Math.round(vh.value * 0.62);
+      const above = spaceAbove >= 240 || spaceAbove >= spaceBelow;
+      if (above) {
+        return {
+          left: left + "px",
+          bottom: Math.max(8, vh.value - p.y + 10) + "px",
+          top: "auto",
+          maxHeight: Math.max(180, Math.min(cap, spaceAbove)) + "px",
+        };
+      }
+      return {
+        left: left + "px",
+        top: p.y + CHIP_H + "px",
+        bottom: "auto",
+        maxHeight: Math.max(180, Math.min(cap, spaceBelow)) + "px",
+      };
     });
 
     const SESSION_KEY = "zg.agentSessions." + props.agentId;
@@ -683,8 +702,12 @@ export default defineComponent({
     return () => [
       bubbleVisible.value
         ? h("div", {
-            class: "agent-bubble-pop",
-            style: { left: Math.max(8, pos.value.x) + "px", top: Math.max(8, pos.value.y - 62) + "px" },
+            // 气泡优先贴住立绘上方、向上生长（文字长也不会压住立绘）；
+            // 立绘被拖到页面顶部、上方空间不足时，改为显示在立绘下方，箭头翻转朝上。
+            class: "agent-bubble-pop" + (pos.value.y < 120 ? " is-below" : ""),
+            style: pos.value.y < 120
+              ? { left: Math.max(8, pos.value.x) + "px", top: pos.value.y + CHIP_H + 6 + "px", bottom: "auto" }
+              : { left: Math.max(8, pos.value.x) + "px", bottom: Math.max(8, vh.value - pos.value.y + 8) + "px", top: "auto" },
             role: "status",
           }, [
             h("strong", null, "【" + props.name + "】"),

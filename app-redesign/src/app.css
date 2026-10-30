@@ -3374,3 +3374,6 @@ html[data-theme="night"] .uploaded-bank-search input { background: #0b1628; colo
 .map-canvas .amap-layers,
 .map-canvas .amap-layer { filter: saturate(.92) brightness(1.02); }
 .map-canvas .amap-layers img { opacity: .98; }
+
+/* 立绘贴近页面顶部时，气泡改到下方显示，箭头翻转朝上 */
+.agent-bubble-pop.is-below .agent-bubble-tail { bottom: auto; top: -7px; border-right: 0; border-bottom: 0; border-left: 1px solid rgba(218,197,255,.7); border-top: 1px solid rgba(218,197,255,.7); }
