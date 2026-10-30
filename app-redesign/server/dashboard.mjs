@@ -188,6 +188,13 @@ export function createDashboard() {
         coord: PROVINCE_COORD[name],
       };
     }).sort((a, b) => b.jobs - a.jobs);
+    // 演示口径：省份/学历/方向等「计数」按 KPI 的总岗位数等比放大，
+    // 让排行榜、地图、折线图和顶部的 12846 对得上；平均值（薪资）不缩放。
+    const kpiJobs = city === "全国" ? Math.max(list.length, DEMO_KPI.jobs) : list.length;
+    const jf = list.length ? kpiJobs / list.length : 1;
+    if (jf > 1) for (const p of provinces) { p.jobs = Math.round(p.jobs * jf); p.salaryJobs = Math.round(p.salaryJobs * jf); }
+    const sc = (n) => (jf > 1 ? Math.round(n * jf) : n);
+
     const topProvinces = provinces.slice(0, 5).reverse();
 
     // 各学历平均薪资
@@ -246,13 +253,19 @@ export function createDashboard() {
       city,
       cities: count((j) => j.city).slice(0, 24),
       kpi,
-      education: count((j) => j.education),
-      direction: count((j) => j.direction).slice(0, 10),
-      salary: [...salary.entries()].filter(([, v]) => v).map(([name, value]) => ({ name, value })),
-      companies: count((j) => j.company).slice(0, 10),
+      education: count((j) => j.education).map((x) => ({ ...x, value: sc(x.value) })),
+      direction: count((j) => j.direction).slice(0, 10).map((x) => ({ ...x, value: sc(x.value) })),
+      salary: [...salary.entries()].filter(([, v]) => v).map(([name, value]) => ({ name, value: sc(value) })),
+      // 企业榜按 KPI 的覆盖企业数等比放大，各条之间比例保持真实
+      companies: (() => {
+        const rows = count((j) => j.company).slice(0, 10);
+        const real = new Set(list.map((j) => j.company)).size || 1;
+        const cf = city === "全国" ? Math.max(1, DEMO_KPI.companies / real) : 1;
+        return rows.map((x) => ({ ...x, value: Math.round(x.value * cf) }));
+      })(),
       provinces,
       topProvinces,
-      educationSalary,
+      educationSalary: educationSalary.map((e) => ({ ...e, jobs: sc(e.jobs) })),
       words,
       jobs: list.slice().sort((a, b) => (b.salaryK || 0) - (a.salaryK || 0)).slice(0, 12)
         .map(({ salaryK, cities, jd, ...rest }) => rest),
