@@ -547,6 +547,17 @@ const app = defineComponent({
           title: "学习与刷题",
           src: practiceSrc.value,
           style: { display: active.value === "practice" ? "block" : "none" },
+          // 刷题页是旧版 SPA 的 iframe，它自己带鼠标拖尾；主页才需要拖尾，这里在 iframe 内注入样式关掉
+          onLoad: (e: Event) => {
+            try {
+              const doc = (e.target as HTMLIFrameElement).contentDocument;
+              if (!doc || doc.getElementById("zg-no-trail")) return;
+              const st = doc.createElement("style");
+              st.id = "zg-no-trail";
+              st.textContent = "canvas.mouse-trail-canvas{display:none !important}";
+              doc.head.appendChild(st);
+            } catch {}
+          },
         }) : null,
         h("header", { class: "sky-header" }, [
           h(

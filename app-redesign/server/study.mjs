@@ -4,10 +4,18 @@ import fs from "node:fs";
 let catalogCache = null;
 function catalog() {
   if (!catalogCache) {
+    let base = [];
     try {
       const parsed = JSON.parse(fs.readFileSync(new URL("../data/learning-catalog.json", import.meta.url), "utf8"));
-      catalogCache = Array.isArray(parsed) ? parsed : (parsed.questions || []);
-    } catch { catalogCache = []; }
+      base = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+    } catch { base = []; }
+    // 补充题库：演示题（计算/几何）与我自己的考试真题，带题型与选项
+    let extra = [];
+    try {
+      const more = JSON.parse(fs.readFileSync(new URL("../data/study-extra-catalog.json", import.meta.url), "utf8"));
+      extra = Array.isArray(more) ? more : [];
+    } catch { extra = []; }
+    catalogCache = [...extra, ...base];
   }
   return Array.isArray(catalogCache) ? catalogCache : [];
 }
@@ -288,14 +296,15 @@ export function createStudy(db, options = {}) {
     const all = catalog();
     const rows = direction ? all.filter((q) => q.direction === direction) : all;
     return rows.slice(0, limit).map((q) => ({
-      type: "short",
+      type: ["single", "judge", "short", "blank"].includes(String(q.type)) ? q.type : "short",
+      options: Array.isArray(q.options) ? q.options : (typeof q.options === "string" ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : []),
       stem: q.question,
       answer: q.answer || "",
       answerSource: q.answerSource || "",
       simpleAnswer: "",
       source: [q.source, q.sourceUrl].filter(Boolean).join(" "),
       tags: [q.direction, q.category, q.importance].filter(Boolean),
-      analysis: "",
+      analysis: q.analysis || "",
     }));
   }
 
@@ -306,7 +315,11 @@ export function createStudy(db, options = {}) {
       const d = q.direction || "未分类";
       map.set(d, (map.get(d) || 0) + 1);
     }
-    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => {
+      // 演示专区排在第一个卡片，方便答辩时直接找到
+      const demo = (n) => (n.startsWith("演示专区") ? 0 : 1);
+      return demo(a.name) - demo(b.name) || b.count - a.count;
+    });
   }
 
   /**
