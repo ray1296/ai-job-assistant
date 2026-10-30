@@ -5,10 +5,10 @@ import { extractFile } from "./extract-file";
 import { confirmPendingAction } from "./agent-action";
 
 const AGENTS = [
-  { id: "xingye", name: "星野", role: "主理人", tag: "方向 / 规划", avatar: "/assets/companions/b-1.png" },
-  { id: "zhiwei", name: "知微", role: "学习助教", tag: "学习 / 错题", avatar: "/assets/companions/b-3.png" },
-  { id: "yanzhou", name: "砚舟", role: "求职顾问", tag: "岗位 / 简历", avatar: "/assets/companions/a-2.png" },
-  { id: "qichi", name: "栖迟", role: "生活管家", tag: "租房 / 通勤", avatar: "/assets/companions/a-1.jpg" },
+  { id: "xingye", name: "星野", role: "主理人", tag: "方向 / 规划", avatar: "/assets/companions/agent-xingye.webp" },
+  { id: "zhiwei", name: "知微", role: "学习助教", tag: "学习 / 错题", avatar: "/assets/companions/agent-zhiwei.webp" },
+  { id: "yanzhou", name: "砚舟", role: "求职顾问", tag: "岗位 / 简历", avatar: "/assets/companions/agent-yanzhou.webp" },
+  { id: "qichi", name: "栖迟", role: "生活管家", tag: "租房 / 通勤", avatar: "/assets/companions/agent-qichi.webp" },
 ];
 type Attachment = { id: string; name: string; kind: "image" | "text" | "file"; data?: string; text?: string; size: number };
 type ChatSession = { id: string; agentId: string; title: string; messages: Msg[]; updatedAt: number };
@@ -308,7 +308,7 @@ export default defineComponent({
             ])
           : null,
         messages.value.map((m, i) => h("div", { key: i, class: "ds-msg " + m.role }, [
-          m.role !== "system" ? h("img", { class: "ds-msg-avatar", src: m.role === "assistant" ? agent.value.avatar : "/assets/companions/b-1.png", alt: "" }) : null,
+          m.role !== "system" ? h("img", { class: "ds-msg-avatar", src: m.role === "assistant" ? agent.value.avatar : "/assets/companions/agent-xingye.webp", alt: "" }) : null,
           h("div", { class: "ds-msg-body" }, [
             h("div", { class: "ds-msg-name" }, m.role === "assistant" ? agent.value.name : m.role === "user" ? "我" : "系统"),
             m.images?.length ? h("div", { class: "ds-msg-images" }, m.images.map((src, j) => h("img", { key: j, src, alt: "上传图片" }))) : null,

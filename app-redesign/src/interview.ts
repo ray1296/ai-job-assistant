@@ -6,10 +6,10 @@ import { speakAs, stopSpeech } from "./voice";
 import { VideoCoach, type CvMetrics, type CvEvent, type CvStatus } from "./video-coach";
 
 const AGENTS = [
-  { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/a-2.png" },
-  { id: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/b-1.png" },
-  { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/b-3.png" },
-  { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/a-1.jpg" },
+  { id: "yanzhou", name: "砚舟", role: "求职顾问", avatar: "/assets/companions/agent-yanzhou.webp" },
+  { id: "xingye", name: "星野", role: "主理人", avatar: "/assets/companions/agent-xingye.webp" },
+  { id: "zhiwei", name: "知微", role: "学习助教", avatar: "/assets/companions/agent-zhiwei.webp" },
+  { id: "qichi", name: "栖迟", role: "生活管家", avatar: "/assets/companions/agent-qichi.webp" },
 ];
 const STYLES = ["综合", "技术", "HR", "压力面", "行为面"];
 const DIFFICULTIES = [

@@ -162,7 +162,7 @@ const app = defineComponent({
     onMounted(async () => {
       // 四只 agent 头像很小，首屏空闲时预取，后续页面/刷新直接命中缓存。
       requestIdleCallback?.(() => {
-        ["a-1.jpg", "a-2.png", "b-1.png", "b-3.png"].forEach((name) => {
+        ["agent-xingye.webp", "agent-zhiwei.webp", "agent-yanzhou.webp", "agent-qichi.webp"].forEach((name) => {
           const img = new Image();
           img.src = "/assets/companions/" + name;
         });
