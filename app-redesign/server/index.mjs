@@ -1740,7 +1740,14 @@ async function handleRequest(req, res) {
         return send(res, 200, interviewQueue.join(s.user_id));
       {
         const mm = p.match(/^\/api\/interview\/queue\/([a-z0-9]+)$/);
-        if (mm && m === "GET") return send(res, 200, interviewQueue.status(mm[1]));
+        if (mm && m === "GET") {
+          // 页面关闭时用 sendBeacon 发 GET?leave=1，主动释放排队/会话名额
+          if (new URL(req.url, "https://local").searchParams.get("leave")) return send(res, 200, interviewQueue.leave(mm[1]));
+          return send(res, 200, interviewQueue.status(mm[1]));
+        }
+        if (mm && m === "POST") {
+          if (new URL(req.url, "https://local").searchParams.get("leave")) return send(res, 200, interviewQueue.leave(mm[1]));
+        }
         if (mm && m === "DELETE") return send(res, 200, interviewQueue.leave(mm[1]));
       }
       if (p === "/api/interview/sessions" && m === "GET") {

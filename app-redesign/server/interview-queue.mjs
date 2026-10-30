@@ -9,7 +9,9 @@ export function createInterviewQueue(max = 3) {
   const active = new Map();   // token -> {userId,lastSeen,created}
   const waiting = [];         // token[]
   const byUser = new Map();   // userId -> token
-  const TTL = 20 * 60 * 1000;
+  // 面试是短时任务：90 秒没有心跳就认为人已经走了（页面关闭/断网/测试残留），
+  // 避免幽灵会话把名额占满导致"第 N 位排队"。
+  const TTL = 90 * 1000;
 
   function cleanup() {
     const now = Date.now();

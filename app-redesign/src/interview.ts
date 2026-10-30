@@ -548,6 +548,7 @@ export default defineComponent({
       cvHint.value = "";
       elapsed.value = 0;
       started.value = true;
+      startQueueHeartbeat(queueToken.value);
       await nextTick();
       await openMedia();
       const hasMic = !!stream?.getAudioTracks().length;
@@ -738,6 +739,20 @@ export default defineComponent({
     const hintPos = ref<{ x: number; y: number } | null>(null);
     const hintDrag = { on: false, dx: 0, dy: 0, moved: false };
 
+    // 面试进行中：每 30 秒给队列发一次心跳，页面关闭时主动释放名额
+    function startQueueHeartbeat(token: string) {
+      if (!token) return;
+      stopQueueHeartbeat();
+      const ping = () => { void api("/interview/queue/" + token, "GET", undefined, { timeoutMs: 8000 }).catch(() => {}); };
+      queueHeartbeat = window.setInterval(ping, 30000);
+      window.addEventListener("pagehide", () => {
+        try { navigator.sendBeacon("/api/interview/queue/" + token + "?leave=1"); } catch {}
+      }, { once: true });
+    }
+    function stopQueueHeartbeat() {
+      if (queueHeartbeat) { window.clearInterval(queueHeartbeat); queueHeartbeat = 0; }
+    }
+
     async function refreshHint(force = true) {
       const seq = ++hintSeq;
       hintBusy.value = true;
@@ -843,6 +858,7 @@ export default defineComponent({
       const token = queueToken.value;
       queueToken.value = "";
       queueInfo.value = null;
+      stopQueueHeartbeat();
       if (token) { try { await api("/interview/queue/" + token, "DELETE", undefined, { timeoutMs: 8000 }); } catch {} }
     }
     async function pollQueue() {
