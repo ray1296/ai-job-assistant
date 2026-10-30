@@ -16,7 +16,9 @@
 | 阿里云百炼 / 通义千问 | LLM、向量、重排、TTS/ASR | 阿里云服务条款 |
 | uuapi / DeepSeek 兼容接口 | 主对话模型 | 以实际服务条款为准 |
 
-## Live2D 素材
+## Live2D 素材（仅旧原型，当前版本未使用）
+
+> 说明：重构后的 `app-redesign` 已不再包含任何 Live2D 模型或渲染代码（已核对无 live2d 资源），立绘改为本项目自制的插画 + 自行实现的拖动与气泡交互。以下内容仅用于说明旧原型 `app/` 的历史素材。
 
 - 路径：app/public/live2d/live2d-widget-models/
 - 模型包 package.json 标注 **GPL-2.0**（miku、chitose、wanko、z16、izumi、haruto、shizuku、koharu 等）。
