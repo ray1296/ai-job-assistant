@@ -3591,3 +3591,9 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 
 /* 记录删除按钮图标居中 */
 .interview-history-del { display: inline-flex !important; align-items: center; justify-content: center; font-size: 12px !important; line-height: 1 !important; padding: 0 !important; }
+
+/* 讲题画布：中途提问输入框 */
+.agent-tutor-ask { display: flex; gap: 8px; margin: 10px 0 4px; }
+.agent-tutor-ask input { flex: 1; padding: 9px 12px; border: 1px solid #ddd3ee; border-radius: 10px; font: inherit; font-size: 13px; }
+.agent-tutor-ask button { padding: 9px 16px; border: 0; border-radius: 10px; background: #7c6ae0; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.agent-tutor-ask button:disabled { opacity: .55; cursor: default; }

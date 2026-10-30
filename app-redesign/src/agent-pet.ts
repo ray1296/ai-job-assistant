@@ -68,6 +68,8 @@ export default defineComponent({
     const activeSession = ref("");
     const sessionMenu = ref(false);
     const tutorSteps = ref<any[]>([]);
+    const tutorAsk = ref("");
+    const tutorAsking = ref(false);
     const tutorOpen = ref(false);
     const bubbleText = ref("");
     const bubbleVisible = ref(false);
@@ -519,6 +521,27 @@ export default defineComponent({
       scrollLog();
     }
 
+    // 画布中途提问：带上原题与已讲步骤，让 AI 针对问题继续在画布上讲
+    async function askTutorMore() {
+      const q = tutorAsk.value.trim();
+      if (!q || tutorAsking.value) return;
+      tutorAsking.value = true;
+      try {
+        const ctx = tutorSteps.value.slice(0, tutorStep.value + 1).map((x: any) => String(x?.text || "")).join(" / ");
+        const r = await api<any>("/study/tutor", "POST", { question: q, answer: "", message: "已讲内容：" + ctx.slice(0, 1200) + "；学生追问：" + q }, { timeoutMs: 180000 });
+        const more = Array.isArray(r?.steps) ? r.steps : [];
+        if (more.length) {
+          tutorSteps.value = [...tutorSteps.value, ...more];
+          tutorStep.value = tutorSteps.value.length - more.length;
+          if (r?.scene) tutorScene.value = r.scene;
+          await nextTick(); drawTutorBoard(); if (tutorScene.value) await mountTutor3D();
+        }
+        log.value.push({ role: "ai", text: String(r?.reply || "我按你的问题补了一段讲解。") });
+        tutorAsk.value = "";
+        scrollLog();
+      } catch (e) { log.value.push({ role: "ai", text: "追问失败：" + errorText(e) }); }
+      finally { tutorAsking.value = false; }
+    }
     async function resolvePending(ok: boolean) {
       const act = pendingAction.value;
       if (!act?.token || pendingBusy.value) return;
@@ -956,6 +979,16 @@ export default defineComponent({
                 tutorStep.value + 1 < tutorSteps.value.length
                   ? h("button", { class: "agent-tutor-next", onClick: () => (tutorStep.value += 1) }, "懂了，继续")
                   : null,
+                // 中途提问：随时针对不懂的点继续讲，新步骤追加到画布
+                h("div", { class: "agent-tutor-ask" }, [
+                  h("input", {
+                    value: tutorAsk.value,
+                    placeholder: "这一步没懂？直接问：为什么这样算 / 举个例子",
+                    onInput: (e: Event) => (tutorAsk.value = (e.target as HTMLInputElement).value),
+                    onKeydown: (e: KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); void askTutorMore(); } },
+                  }),
+                  h("button", { disabled: tutorAsking.value || !tutorAsk.value.trim(), onClick: () => void askTutorMore() }, tutorAsking.value ? "想想…" : "继续讲"),
+                ]),
                 tutorScene.value
                   ? h("div", { class: "agent-tutor-3d" }, [
                       h("div", { class: "agent-tutor-head" }, [h("strong", null, "3D 演示 · " + (tutorScene.value.text || tutorScene.value.shape || "模型"))]),
