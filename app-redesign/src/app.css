@@ -3597,3 +3597,8 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .agent-tutor-ask input { flex: 1; padding: 9px 12px; border: 1px solid #ddd3ee; border-radius: 10px; font: inherit; font-size: 13px; }
 .agent-tutor-ask button { padding: 9px 16px; border: 0; border-radius: 10px; background: #7c6ae0; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
 .agent-tutor-ask button:disabled { opacity: .55; cursor: default; }
+
+/* 画布里的追问卡片 */
+.agent-tutor-steps .agent-tutor-qa { list-style: none; margin-left: -18px; padding: 10px 12px; border: 1px dashed #d9c9e9; border-radius: 10px; background: #fbf8ff; }
+.agent-tutor-steps .agent-tutor-qa strong { display: block; font-size: 12px; color: #7a5fa8; margin-bottom: 4px; }
+.agent-tutor-steps .agent-tutor-qa span { font-size: 12.5px; line-height: 1.75; color: #3f3353; }

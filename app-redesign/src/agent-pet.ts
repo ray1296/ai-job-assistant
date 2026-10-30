@@ -530,13 +530,15 @@ export default defineComponent({
         const ctx = tutorSteps.value.slice(0, tutorStep.value + 1).map((x: any) => String(x?.text || "")).join(" / ");
         const r = await api<any>("/study/tutor", "POST", { question: q, answer: "", message: "已讲内容：" + ctx.slice(0, 1200) + "；学生追问：" + q }, { timeoutMs: 180000 });
         const more = Array.isArray(r?.steps) ? r.steps : [];
-        if (more.length) {
-          tutorSteps.value = [...tutorSteps.value, ...more];
-          tutorStep.value = tutorSteps.value.length - more.length;
-          if (r?.scene) tutorScene.value = r.scene;
-          await nextTick(); drawTutorBoard(); if (tutorScene.value) await mountTutor3D();
-        }
-        log.value.push({ role: "ai", text: String(r?.reply || "我按你的问题补了一段讲解。") });
+        const text = more.map((x: any) => String(x?.text || "")).join(" ") || String(r?.reply || "我按你的问题补了一段讲解。");
+        // 插在当前这一步之后：原来第 1..N 步顺序不变，追问的内容作为独立一张卡片插进去
+        const at = Math.min(tutorStep.value + 1, tutorSteps.value.length);
+        const next = tutorSteps.value.slice();
+        next.splice(at, 0, { qa: true, question: q, text });
+        tutorSteps.value = next;
+        tutorStep.value = at;
+        if (r?.scene) tutorScene.value = r.scene;
+        await nextTick(); drawTutorBoard(); if (tutorScene.value) await mountTutor3D();
         tutorAsk.value = "";
         scrollLog();
       } catch (e) { log.value.push({ role: "ai", text: "追问失败：" + errorText(e) }); }
@@ -975,7 +977,13 @@ export default defineComponent({
               ]),
               h("div", { class: "agent-tutor-window-body" }, [
                 h("canvas", { ref: tutorBoard, class: "agent-tutor-board" }),
-                h("ol", { class: "agent-tutor-steps" }, visibleTutorSteps.value.map((s: any, i: number) => h("li", { key: i }, String(s?.text || "")))),
+                h("ol", { class: "agent-tutor-steps" }, visibleTutorSteps.value.map((s: any, i: number) =>
+                  s?.qa
+                    ? h("li", { key: i, class: "agent-tutor-qa" }, [
+                        h("strong", null, "你的提问：" + String(s.question || "")),
+                        h("span", null, String(s.text || "")),
+                      ])
+                    : h("li", { key: i }, String(s?.text || "")))),
                 tutorStep.value + 1 < tutorSteps.value.length
                   ? h("button", { class: "agent-tutor-next", onClick: () => (tutorStep.value += 1) }, "懂了，继续")
                   : null,

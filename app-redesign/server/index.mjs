@@ -1836,19 +1836,37 @@ async function handleRequest(req, res) {
             planTrace = out.plan;
             used.push(...out.used);
           } else if (images.length) {
-            // 看图：直接走 visionModel 多模态，不做工具路由
+            // 看图两步走：① 先让视觉模型只描述图片（OCR 界面文字）；② 用描述去检索功能说明，再回答。
+            // 不再把整张功能表塞进提示词——那些 token 大部分用不上，还可能误导模型。
+            let seen = "";
+            try {
+              const desc = await aiGateway.chat(s.user_id, {
+                message: '只输出 JSON：{"labels":[*图片上出现的按钮或标题文字*],"what":"一句话说明这是界面里的什么位置"}。不要回答用户问题，只做识别。',
+                images,
+                persona: personaName,
+                system,
+                model: agentCfg.model,
+              }, undefined);
+              const raw = String(desc.reply || "");
+              const m = raw.match(/\{[\s\S]*\}/);
+              const parsed = m ? JSON.parse(m[0]) : null;
+              const labels = Array.isArray(parsed?.labels) ? parsed.labels.join(" ").slice(0, 200) : "";
+              seen = [labels, String(parsed?.what || "")].filter(Boolean).join("；").slice(0, 300);
+            } catch {}
+            // 用图片里识别出的文字去检索功能说明（而不是用用户原句）
+            const hits = seen ? guideFor(seen).slice(0, 2) : [];
+            const guidePart = hits.length
+              ? "\n\n【站内说明（按截图里的文字检索到）】\n" + hits.map((s) => "【" + s.title + "】" + s.summary + " " + (s.steps || []).slice(0, 2).join("；")).join("\n")
+              : "";
             const answer = await aiGateway.chat(s.user_id, {
               message: (message || "请看看这张图，帮我讲解一下。") +
-                "\n\n【本网站板块速查（截图里的入口都在这里，用它回答它是干什么的）】\n" +
-                allGuide().map((s) => "· " + s.title + "：" + String(s.summary || "").slice(0, 60)).join("\n") +
-                "\n【与你问题最相关的说明】\n" +
-                (guideFor(message || "").slice(0, 3).map((s) => "【" + s.title + "】" + s.summary + " " + (s.steps || []).slice(0, 2).join("；")).join("\n") || "无") +
-                "\n要求：直接回答用户的问题，不要转交给其他 agent；如果截图里的入口在速查表里，就说明它属于哪个板块、点进去能做什么。",
+                (seen ? "\n\n【我已识别到截图内容】" + seen : "") +
+                guidePart +
+                "\n直接回答用户的问题，不要转交给其他 agent；识别有误就说不确定。",
               images, persona: personaName, system, model: agentCfg.model,
             }, undefined);
             reply = String(answer.reply || "").trim();
-            memory = String(answer.memory || "").trim();
-          } else if (peerMatch && AGENT_ID_BY_NAME[peerMatch[1]] && peerMatch[1] !== personaName) {
+            memory = String(answer.memory || "").trim();          } else if (peerMatch && AGENT_ID_BY_NAME[peerMatch[1]] && peerMatch[1] !== personaName) {
             // 显式协作：A 让 B 去查，B 调工具拿数据后回传 A
             const peer = await runPeerTask(s.user_id, AGENT_ID_BY_NAME[peerMatch[1]], peerMatch[2].trim());
             delegation = { agent: peer.agent, tool: peer.tool, task: peer.task, ok: peer.ok };
