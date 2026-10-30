@@ -253,10 +253,15 @@ function centerPos(city, seed) {
     }
     // 重点城市：显式传入 > 投递意向所在城市 > 上海（地图默认视野）
     const focusCity = String(city || jobs.find((j) => j.city)?.city || "上海").replace(/市$/, "").trim() || "上海";
-    // 还没有投递意向时，用当前城市的平台岗位兜底，避免地图上"岗位 0"空空一片
-    if (!jobs.length && typeof deps.platformJobs === "function") {
-      for (const job of deps.platformJobs(focusCity, 30)) {
-        const cpos = centerPos(city || job.city, job.id) || centerPos(job.city, job.id);
+    // 岗位图层永远补足到 30 条：先放自己的投递意向，再用当前城市的平台岗位补齐，
+    // 只有几条意向时地图也不会显得空。
+    if (typeof deps.platformJobs === "function") {
+      const seen = new Set(jobs.map((j) => j.id));
+      for (const job of deps.platformJobs(focusCity, 40)) {
+        if (jobs.length >= 30) break;
+        if (seen.has(job.id)) continue;
+        seen.add(job.id);
+        const cpos = centerPos(job.city || focusCity, job.id) || centerPos(focusCity, job.id);
         if (!cpos) continue;
         jobs.push({
           id: job.id,
@@ -278,10 +283,10 @@ function centerPos(city, seed) {
       if (!h.rent || !Number(h.rent)) continue;
       const arr = byCity.get(h.city) || [];
       // 重点城市优先铺满，其它城市各留少量作为"周边城市"参考
-      if (arr.length < (String(h.city).includes(focusCity) ? 60 : 4)) arr.push(h);
+      if (arr.length < (String(h.city).includes(focusCity) ? 100 : 6)) arr.push(h);
       byCity.set(h.city, arr);
     }
-    const platform = [...byCity.values()].flat().slice(0, 260);
+    const platform = [...byCity.values()].flat().slice(0, 320);
     for (const h of platform) {
       const hSynthetic = /模拟数据/.test(String(h.platform || ""));
       const pos = hSynthetic ? centerPos(h.city, h.id) : (await geocode(h.address, h.city, signal).catch(() => null)) || centerPos(h.city, h.id);
