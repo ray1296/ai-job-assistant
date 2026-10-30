@@ -42,6 +42,8 @@ export default defineComponent({
     const agentId = ref("yanzhou");
     const style = ref("综合");
     const difficulty = ref("normal");
+    // 全双工语音方式：false=整段 TTS（流畅，打断需等播完）；true=流式 PCM（可随时打断，可能卡顿）
+    const streamAudio = ref((() => { try { return localStorage.getItem("zg.interview.streamAudio") === "1"; } catch { return false; } })());
     const duplex = ref<"half" | "full">((() => {
       try { return localStorage.getItem("zg.interview.duplex") === "full" ? "full" : "half"; } catch { return "half"; }
     })());
@@ -454,15 +456,18 @@ export default defineComponent({
           messages.value.push({ role: "ai", text, tts: soundOn.value ? (rtAudioForCurrent ? "ok" : "pending") : "off" });
           scrollTranscript();
         }
-        flushRealtimeAudio();
+        if (streamAudio.value) flushRealtimeAudio();
         speaking.value = true;
+        if (!streamAudio.value && text && soundOn.value) {
+          void speakAs(agent.value.name, text, true, "自然的中文面试对话语气，语速略快；短句之间自然停顿，像真人开口。", () => {}).finally(() => { speaking.value = false; });
+        }
         return;
       }
       if (msg.type === "audio") {
         rtAudioForCurrent = true;
         const last = [...messages.value].reverse().find((m) => m.role === "ai" && m.tts === "pending");
         if (last) last.tts = "ok";
-        if (soundOn.value && !rtDropAudio) void playPcm(String(msg.data || ""));
+        if (streamAudio.value && soundOn.value && !rtDropAudio) void playPcm(String(msg.data || ""));
         return;
       }
       if (msg.type === "speech_started") {
