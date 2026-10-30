@@ -75,6 +75,7 @@ export default defineComponent({
     const hintOpen = ref(false);
     const hintText = ref("");
     const hintBusy = ref(false);
+    const hintSpinner = ref(false);
     const hintCoach = ref("");
     const starting = ref(false);
     const queueInfo = ref<any>(null);
@@ -753,9 +754,10 @@ export default defineComponent({
       if (queueHeartbeat) { window.clearInterval(queueHeartbeat); queueHeartbeat = 0; }
     }
 
-    async function refreshHint(force = true) {
+    async function refreshHint(manual = false) {
       const seq = ++hintSeq;
       hintBusy.value = true;
+      if (manual) hintSpinner.value = true;
       try {
         const transcript = messages.value.slice(-10).map((m) => ({ role: m.role === "me" ? "me" : "ai", text: m.text }));
         const r = await api<any>("/interview/hint", "POST", {
@@ -772,7 +774,10 @@ export default defineComponent({
         if (seq !== hintSeq) return;
         hintText.value = "提词失败：" + errorText(e);
       } finally {
-        if (seq === hintSeq) hintBusy.value = false;
+        // 无论是不是最后一次请求，都要把 loading 关掉：
+        // 否则轮询 + 序号机制会让 hintBusy 一直为 true，刷新图标转个不停
+        hintBusy.value = false;
+        hintSpinner.value = false;
       }
     }
     const lastHintCtx = computed(() => {
@@ -783,8 +788,8 @@ export default defineComponent({
       if (hintDrag.moved) { hintDrag.moved = false; return; }
       hintOpen.value = !hintOpen.value;
       if (hintOpen.value) {
-        void refreshHint();
-        if (!hintTimer) hintTimer = window.setInterval(() => { if (hintOpen.value) void refreshHint(); }, 8000);
+        void refreshHint(true);
+        if (!hintTimer) hintTimer = window.setInterval(() => { if (hintOpen.value) void refreshHint(); }, 15000);
       } else if (hintTimer) {
         window.clearInterval(hintTimer);
         hintTimer = 0;
@@ -1280,10 +1285,10 @@ export default defineComponent({
                 h("header", null, [
                   h("strong", null, "提词器" + (hintCoach.value ? " · " + hintCoach.value : "")),
                   h("button", {
-                    class: "hint-refresh" + (hintBusy.value ? " spin" : ""),
+                    class: "hint-refresh" + (hintSpinner.value ? " spin" : ""),
                     title: "按当前对话重新生成话术",
                     "aria-label": "刷新提词",
-                    onClick: () => void refreshHint(),
+                    onClick: () => void refreshHint(true),
                   }, "⟳"),
                   h("button", {
                     class: "hint-close",
