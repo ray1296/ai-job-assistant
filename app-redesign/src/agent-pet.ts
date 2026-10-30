@@ -275,6 +275,34 @@ export default defineComponent({
     }
 
     const bubbleQueue: { text: string; duration: number }[] = [];
+    // ===== 工作气泡：agent 干活时在立绘上方轮播短句，表示"它正在忙" =====
+    const WORK_PHRASES = [
+      "正在翻资料…",
+      "让我想想…",
+      "这段再核对一下…",
+      "快好啦…",
+    ];
+    let workingTimer: any = 0;
+    function startWorking(tool?: string) {
+      stopWorking();
+      const phrases = tool
+        ? ["正在用「" + tool + "」查一下…", "哒哒哒哒哒……", "这段资料再翻翻…", "快好啦快好啦…"]
+        : WORK_PHRASES;
+      let i = 0;
+      const tick = () => {
+        displayBubble(phrases[i % phrases.length], 2600);
+        i += 1;
+      };
+      tick();
+      workingTimer = setInterval(tick, 2400);
+    }
+    function stopWorking() {
+      if (workingTimer) {
+        clearInterval(workingTimer);
+        workingTimer = 0;
+      }
+    }
+
     function showBubble(text: string, duration = 6500) {
       const clean = String(text || "").replace(/\s+/g, " ").trim().slice(0, 180);
       if (!clean) return;
@@ -504,6 +532,7 @@ export default defineComponent({
       pendingDoc.value = null;
       log.value.push({ role: "me", text: (shown || (doc ? "📄 " + doc.name : "帮我看看这张图。")) + (doc ? "\n\n【附件：" + doc.name + "】" : ""), image: image || undefined });
       busy.value = true;
+      startWorking();
       err.value = "";
       scrollLog();
       try {
@@ -581,6 +610,7 @@ export default defineComponent({
         err.value = errorText(e);
       } finally {
         busy.value = false;
+        stopWorking();
         scrollLog();
       }
     }
