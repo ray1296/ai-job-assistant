@@ -303,9 +303,15 @@ export default defineComponent({
     }
 
     const layersUrl = () => "/geo/layers" + (showAllJobs.value ? "?allJobs=1" : "");
+    // 「全部岗位（平台）」可显示的总量（来自服务端，即使当前没勾选也能显示数字）
+    const platformJobTotal = ref(0);
     async function reloadLayers() {
       try {
-        layers.value = await api<any>(layersUrl());
+        const r = await api<any>(layersUrl());
+        layers.value = r;
+        if (typeof r.platformJobTotal === "number") platformJobTotal.value = r.platformJobTotal;
+        // 勾了「全部岗位」但岗位图层本身没开时，自动把岗位图层打开，否则地图上什么都看不到
+        if (showAllJobs.value && !showJobs.value) showJobs.value = true;
         renderMarkers();
       } catch (e) { error.value = errorText(e); }
     }
@@ -603,6 +609,7 @@ export default defineComponent({
           }
           const rr = await api<any>(layersUrl());
           layers.value = rr;
+          if (typeof rr.platformJobTotal === "number") platformJobTotal.value = rr.platformJobTotal;
           const first = (rr.jobs || []).find((j: any) => j.pos);
           if (first) fb.value = { ...fb.value, lng: first.pos.lng, lat: first.pos.lat, zoom: 13 };
           await loadSubway();
@@ -743,6 +750,7 @@ export default defineComponent({
 
         const r = await api<any>(layersUrl());
         layers.value = r;
+        if (typeof r.platformJobTotal === "number") platformJobTotal.value = r.platformJobTotal;
         // 初始视野放在城市级别（12 级），能一次看到该城市的大部分岗位与房源
         const first = (r.jobs || []).find((j: any) => j.pos) || (r.housing || []).find((h: any) => h.pos);
         if (first) map.setZoomAndCenter(12, [first.pos.lng, first.pos.lat]);
@@ -937,7 +945,7 @@ export default defineComponent({
                 h("div", { class: "map-layers" },
                   ([
                     ["岗位 " + counts.value.jobs + (showAllJobs.value ? "" : "（投递意向）"), showJobs],
-                    ["全部岗位（平台）", showAllJobs],
+                    ["全部岗位（平台）" + (platformJobTotal.value ? " " + platformJobTotal.value : ""), showAllJobs],
                     ["租房 " + counts.value.housing, showHousing],
                     ["地铁站 " + counts.value.subway, showSubway],
                     ["酒店 " + counts.value.hotels, showHotels],

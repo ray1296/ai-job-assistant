@@ -321,7 +321,17 @@ function centerPos(city, seed) {
         });
       }
     }
-    return { jobs, housing, geocoded: jobs.filter((j) => j.pos).length + housing.filter((h) => h.pos).length };
+    // 平台岗位可显示的总量：即使当前只显示投递意向，前端也要能标出「全部岗位」有多少条
+    const platformJobTotal =
+      typeof deps.platformJobs === "function"
+        ? deps.platformJobs(focusCity, 60).filter((j) => centerPos(j.city || focusCity, j.id)).slice(0, 30).length
+        : 0;
+    return {
+      jobs,
+      housing,
+      platformJobTotal,
+      geocoded: jobs.filter((j) => j.pos).length + housing.filter((h) => h.pos).length,
+    };
   }
 
   // POI 详情：列表接口有时不给电话，详情接口更全
