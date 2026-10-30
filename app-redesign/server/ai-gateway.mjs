@@ -367,16 +367,18 @@ export function createAiGateway(privateDir) {
         // 万相对「简历背景」的描述会画满图案并生成乱码文字，实测下来唯一稳定的做法是
         // 明确要求"一张几乎全白的纸 + 一点边角装饰"，并用负向提示词压掉图案与文字。
         const accentHint = accent ? "颜色用 " + accent + " 的极淡版本。" : "颜色用极淡的灰蓝色。";
+        // 注意：提示词里不要出现任何数字与单位——万相会把它们直接画成文字（曾出现 "12% mm"）
         const DECOR_DS = {
-          minimal: "整张画面 92% 以上是纯白色，只在页面最下方的一条窄边里有一段极浅的横向装饰带，" + accentHint,
-          tech: "整张画面 92% 以上是纯白色，只在四个角落各有一个很小、很淡的细线几何图形（直线与点阵），" + accentHint,
-          warm: "整张画面 92% 以上是纯白色，只在页面最下方有一条极淡的柔和色带，像水彩轻轻扫过，" + accentHint,
-          maximal: "整张画面 88% 是纯白色，四角各有一小块很淡的几何色块，" + accentHint,
+          minimal: "极简纸张背景：整页几乎全是纯白色，只在页面最底端有一条由几根细线组成的淡色装饰带，线条长短不一、末端渐渐淡出；" + accentHint,
+          tech: "极简科技感纸张背景：整页几乎全是纯白色，只在页面右上角有一个由小圆点和细直线组成的小型几何标记，页面底端有一条渐渐淡出的细线；" + accentHint,
+          warm: "极简纸张背景：整页几乎全是纯白色，只在页面底端有一条极淡的暖色晕染，像水彩轻轻扫过；" + accentHint,
+          maximal: "纸张背景：整页大面积纯白，四个角各有一小块很淡的几何形状；" + accentHint,
         };
         const styleKey = ["minimal", "tech", "warm", "maximal"].includes(input.style) ? input.style : "minimal";
         const dsPrompt = isBackground
           ? DECOR_DS[styleKey] + "画面其余部分必须保持纯白干净，方便放正文；不要图案、不要纹理、不要重复纹样、不要边框、不要任何文字。"
           : "横向装饰条：左右两端各有一小段极浅的装饰，" + accentHint + "中间大段保持纯白；不要图案、不要纹理、不要边框、不要任何文字。";
+        // 提示词里不要写数字/单位，避免被画成文字
         const submit = await fetch(dsBase + "/api/v1/services/aigc/text2image/image-synthesis", {
           method: "POST",
           signal: controller.signal,
@@ -565,8 +567,12 @@ export function createAiGateway(privateDir) {
           body: JSON.stringify({
             model: images.length ? (cfg.visionModel || cfg.model) : (input.model || cfg.model),
             temperature: 0.1,
-            max_tokens: 4000,
+            // DeepSeek V4 默认会输出 reasoning_content，且思考 token 与正文共享 max_tokens；
+            // 长简历时正文 JSON 会被挤断。结构化任务统一关闭思考并抬高上限。
+            max_tokens: input.task === "chat" ? 4000 : 8000,
             enable_thinking: false,
+            ...(String(cfg.provider || "").toLowerCase() === "deepseek" ? { thinking: { type: "disabled" } } : {}),
+            ...(input.task !== "chat" ? { response_format: { type: "json_object" } } : {}),
             messages: visionMessages
               ? visionMessages
               : input.task === "chat" && Array.isArray(input.historyMessages)
