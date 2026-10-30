@@ -368,15 +368,16 @@ export function createAiGateway(privateDir) {
         // 明确要求"一张几乎全白的纸 + 一点边角装饰"，并用负向提示词压掉图案与文字。
         const accentHint = accent ? "颜色用 " + accent + " 的极淡版本。" : "颜色用极淡的灰蓝色。";
         // 注意：提示词里不要出现任何数字与单位——万相会把它们直接画成文字（曾出现 "12% mm"）
+        // 渲染时以 34% 透明度垫在正文下方，所以可以让画面丰满一些；仍然不能出现任何文字。
         const DECOR_DS = {
-          minimal: "极简纸张背景：整页几乎全是纯白色，只在页面最底端有一条由几根细线组成的淡色装饰带，线条长短不一、末端渐渐淡出；" + accentHint,
-          tech: "极简科技感纸张背景：整页几乎全是纯白色，只在页面右上角有一个由小圆点和细直线组成的小型几何标记，页面底端有一条渐渐淡出的细线；" + accentHint,
-          warm: "极简纸张背景：整页几乎全是纯白色，只在页面底端有一条极淡的暖色晕染，像水彩轻轻扫过；" + accentHint,
-          maximal: "纸张背景：整页大面积纯白，四个角各有一小块很淡的几何形状；" + accentHint,
+          minimal: "整页的浅色纸张质感背景：米白底上有极淡的灰色细线和不规则的纸纹，低对比、安静，适合垫在正文下面；" + accentHint,
+          tech: "整页的浅色科技感背景：淡蓝与淡青的细线网格、小圆点和柔和的光晕铺满整页，对比很低、有秩序感；" + accentHint,
+          warm: "整页的暖色水彩纸背景：米色底上有极淡的暖橙与浅紫晕染，边缘柔和，像高档信纸；" + accentHint,
+          maximal: "整页的浅色几何图案背景：由多个淡色几何块与细线组成的低对比图案铺满整页，层次丰富但不抢眼；" + accentHint,
         };
         const styleKey = ["minimal", "tech", "warm", "maximal"].includes(input.style) ? input.style : "minimal";
         const dsPrompt = isBackground
-          ? DECOR_DS[styleKey] + "画面其余部分必须保持纯白干净，方便放正文；不要图案、不要纹理、不要重复纹样、不要边框、不要任何文字。"
+          ? DECOR_DS[styleKey] + "整页铺满即可，但必须是很低的对比度，正文压上去仍然清晰；不要边框、不要任何文字。"
           : "横向装饰条：左右两端各有一小段极浅的装饰，" + accentHint + "中间大段保持纯白；不要图案、不要纹理、不要边框、不要任何文字。";
         // 提示词里不要写数字/单位，避免被画成文字
         const submit = await fetch(dsBase + "/api/v1/services/aigc/text2image/image-synthesis", {

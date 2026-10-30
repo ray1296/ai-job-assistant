@@ -68,6 +68,28 @@ export default defineComponent({
       layoutSuggestion = ref<any>(null),
       summaryOpen = ref(false),
       pagePlan = ref<{ section: Section; items: Entry[]; first: boolean; last: boolean }[][]>([]);
+    // 画布缩放：0.4 ~ 2.0，只影响编辑器视图，不影响服务端导出的 PDF
+    const zoom = ref((() => {
+      try {
+        const v = Number(localStorage.getItem("zg.resumeZoom"));
+        return Number.isFinite(v) && v >= 0.4 && v <= 2 ? v : 1;
+      } catch { return 1; }
+    })());
+    function setZoom(v: number) {
+      const next = Math.min(2, Math.max(0.4, Math.round(v * 100) / 100));
+      zoom.value = next;
+      try { localStorage.setItem("zg.resumeZoom", String(next)); } catch {}
+    }
+    function fitWidth() {
+      const el = document.querySelector(".resume-desk") as HTMLElement | null;
+      setZoom(((el ? el.clientWidth : 900) - 44) / 794);
+    }
+    function fitPage() {
+      const el = document.querySelector(".resume-desk") as HTMLElement | null;
+      const w = ((el ? el.clientWidth : 900) - 44) / 794;
+      const h = (window.innerHeight - 250 - 20) / 1123;
+      setZoom(Math.min(w, h));
+    }
     const aiWorking = computed(() => layoutBusy.value || sectionBusy.value);
     const aiWorkingText = computed(() => layoutBusy.value
       ? "AI 正在阅读简历结构并优化排版，通常需要十几秒…"
@@ -1055,6 +1077,16 @@ export default defineComponent({
                       ),
                     ),
                   ),
+                  h("div", { class: "resume-zoom", role: "group", "aria-label": "画布缩放" }, [
+                    h("button", { type: "button", title: "缩小一档", "aria-label": "缩小", onClick: () => setZoom(zoom.value - 0.1) }, "−"),
+                    h("span", { class: "resume-zoom-value", "data-testid": "zoom-value" }, Math.round(zoom.value * 100) + "%"),
+                    h("button", { type: "button", title: "放大一档", "aria-label": "放大", onClick: () => setZoom(zoom.value + 0.1) }, "＋"),
+                    h("button", { type: "button", class: "resume-zoom-fit", title: "缩放到刚好铺满可见宽度", onClick: fitWidth }, "适应宽度"),
+                    h("button", { type: "button", class: "resume-zoom-fit", title: "缩放到一屏看到整页", onClick: fitPage }, "整页"),
+                    zoom.value !== 1
+                      ? h("button", { type: "button", class: "resume-zoom-reset", title: "回到 100%", onClick: () => setZoom(1) }, "重置")
+                      : null,
+                  ]),
                   h("span", "HTML 简历 · 双击原位编辑"),
                   h(
                     "span",
@@ -1365,7 +1397,7 @@ export default defineComponent({
                 ]),
                 h(
                   "div",
-                  { class: "resume-desk single-document-desk" },
+                  { class: "resume-desk single-document-desk", style: { "--doc-zoom": String(zoom.value) } },
                   pages.value.map((pageSections, pi) =>
                     h(
                       "article",
@@ -1380,7 +1412,7 @@ export default defineComponent({
                         ],
                         style: {
                           "--resume-font": doc.value.layout.fontSize + "px",
-                          ...(backgroundSrc.value ? { backgroundImage: "url(\"" + backgroundSrc.value + "\")" } : {}),
+                          ...(backgroundSrc.value ? { "--resume-bg": "url(\"" + backgroundSrc.value + "\")" } : {}),
                         },
                         "data-page": pi + 1,
                         "aria-label": "简历文档 第" + (pi + 1) + "页",
