@@ -14,6 +14,28 @@ const GROUPS: { title: string; hint: string; ids: string[] }[] = [
   { title: "工具栏", hint: "协作、心愿与设置，随时可用。", ids: ["chat", "wish", "settings"] },
 ];
 
+/** 每个板块一句话介绍，鼠标悬停时浮在小卡片上方显示 */
+const DESC: Record<string, string> = {
+  home: "今天该做什么：进度、提醒、下一步，都从这里进。",
+  guide: "项目怎么用：按板块查功能说明，也能直接问 AI 伙伴。",
+  profile: "你的档案：经历、技能、照片，填一次到处复用。",
+  resume: "多版本简历：AI 排版与内容审阅，导出 PDF / Word。",
+  data: "上传岗位、房源、面经等数据，自动识别字段并去重。",
+  jobs: "平台岗位库，按方向、城市、学历筛选，可加入投递方案。",
+  companies: "查企业档案、风评与工商信息，判断值不值得投。",
+  housing: "按城市和预算找房，和通勤时间一起算。",
+  dashboard: "省份分布、薪资水平、岗位词云，看市场整体。",
+  map: "岗位和房源落在同一张地图上，算清楚住哪、上班多久。",
+  plan: "为某个岗位生成投递方案，事实校验后保存追踪。",
+  "study-upload": "上传自己的题库，导入后立刻能在面经八股看到。",
+  knowledge: "平台题库加上你上传的题目，带来源可以核对。",
+  practice: "刷题、收藏、错题本，AI 讲题带步骤与 3D 演示。",
+  interview: "文字或语音全双工模拟面试，逐轮追问并给出复盘。",
+  chat: "四位 AI 伙伴协作，可以调用工具、生成报告页。",
+  wish: "把想做的事丢进心愿池，一件件打勾。",
+  settings: "账号、音色、配色与 AI 伙伴显示设置。",
+};
+
 export default defineComponent({
   name: "NavMap",
   props: {
@@ -67,6 +89,7 @@ export default defineComponent({
                       onClick: () => props.onGo(id),
                       "aria-label": label(id),
                       "data-page": id,
+                      "data-desc": DESC[id] || "",
                     },
                     [
                       h("span", { class: "nav-item-no" }, String(steps.value.get(id) || 0).padStart(2, "0")),

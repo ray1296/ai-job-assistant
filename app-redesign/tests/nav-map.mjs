@@ -43,6 +43,17 @@ assert.ok(size >= 17, "板块名字号不小于 17px，实际 " + size);
 const fit = await page.locator(".nav-map").evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
 assert.ok(fit.scroll <= fit.client + 1, "导航不应需要滚动：scrollHeight " + fit.scroll + " > clientHeight " + fit.client);
 
+// 顶部流程介绍必须常显（矮屏也不能隐藏）
+assert.ok(await page.locator(".nav-map-sub").isVisible(), "顶部流程介绍不应被隐藏");
+const subText = await page.locator(".nav-map-sub").innerText();
+assert.match(subText, /求职顺序/, "流程介绍文案缺失");
+
+// 悬停显示板块介绍（不占版面）
+await page.locator('[data-page="map"]').hover();
+await page.waitForTimeout(300);
+const tipOpacity = await page.locator('[data-page="map"]').evaluate((el) => getComputedStyle(el, "::after").opacity);
+assert.equal(tipOpacity, "1", "悬停应显示板块介绍");
+
 // 点击跳转
 await page.locator('[data-page="resume"]').click();
 await page.waitForTimeout(1200);

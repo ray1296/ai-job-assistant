@@ -3186,13 +3186,50 @@ html[data-theme="night"] .guide-tutorial-btn { background: #14233a !important; b
 .nav-item-no { flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f0f2f7; color: #4b5468; font-size: 12px; font-weight: 700; }
 .nav-item.is-current .nav-item-no { background: #2f6bff; color: #ffffff; }
 .nav-item-name { font-size: 17px; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-height: 640px) {
-  .nav-map-h1 { font-size: 24px; }
-  .nav-map-sub { display: none; }
-  .nav-group-head p { display: none; }
-  .nav-item { font-size: 15px; padding: 4px 8px; }
+/* 矮屏：只压缩间距和字号，流程介绍始终保留 */
+@media (max-height: 700px) {
+  .nav-map-head { padding: 10px 32px 9px; }
+  .nav-map-h1 { font-size: 23px; }
+  .nav-map-sub { margin-top: 3px; font-size: 12.5px; }
+  .nav-map-body { padding: 8px 32px 10px; gap: 8px; }
+  .nav-group { padding: 7px 12px 9px; }
+  .nav-group-head { margin-bottom: 5px; }
+  .nav-group-head h2 { font-size: 15px; }
+  .nav-group-head p { font-size: 11.5px; }
+  .nav-group-grid { gap: 7px; }
+  .nav-item { font-size: 15px; padding: 4px 9px; }
   .nav-item-name { font-size: 15px; }
+  .nav-item-no { width: 22px; height: 22px; font-size: 11px; }
 }
+/* 悬停显示板块介绍：不占额外版面 */
+.nav-item { position: relative; }
+.nav-item::after {
+  content: attr(data-desc);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 7px);
+  z-index: 10;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 11px;
+  border: 1px solid #cfd6e4;
+  border-radius: 9px;
+  background: #1b2130;
+  color: #f4f7ff;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 10px 26px rgba(16, 24, 40, .22);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity .14s ease, transform .14s ease, visibility .14s;
+  pointer-events: none;
+}
+.nav-item:hover::after, .nav-item:focus-visible::after { opacity: 1; visibility: visible; transform: translateY(0); }
+html[data-theme="night"] .nav-item::after { background: #0b1628; border-color: #3a5578; color: #eaf1ff; }
 @media (max-width: 900px) {
   .nav-map { overflow-y: auto; }
   .nav-map-head { padding: 14px 16px 10px; }
