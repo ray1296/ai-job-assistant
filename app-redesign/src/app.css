@@ -3572,3 +3572,9 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .interview-close-btn:hover { background: #f6f1ff; border-color: #c9b9e6; }
 /* 刷新图标不再旋转 */
 .hint-refresh.spin { animation: none; }
+
+/* 暂停按钮在浅色头部要看得见（原来白字白底） */
+.interview-pause-btn { border: 1px solid #e5dcef !important; background: #fff !important; color: #5b4a80 !important; border-radius: 999px !important; padding: 6px 14px !important; font-size: 12px !important; font-weight: 600; }
+.interview-pause-btn:hover { background: #f6f1ff !important; }
+/* ✕ 真正居中 */
+.interview-close-btn { display: inline-flex !important; align-items: center; justify-content: center; padding: 0 !important; line-height: 1 !important; font-size: 13px !important; }

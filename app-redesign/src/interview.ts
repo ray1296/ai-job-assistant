@@ -939,7 +939,7 @@ export default defineComponent({
         : "请先做一段 1 分钟自我介绍。";
       await ask(intro);
       startObservation();
-      if (micOn.value === false && speechSupported.value) startRecognition();
+      // 默认闭麦：不自动开麦，等用户点「🎙 开麦」
     }
 
     function stopTimers() {
