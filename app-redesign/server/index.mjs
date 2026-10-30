@@ -3056,14 +3056,19 @@ async function handleRequest(req, res) {
       contentTypes[path.extname(file)] || "application/octet-stream",
     );
     res.setHeader("Content-Length", stat.size);
+    // 图片/字体这类二进制素材内容稳定，给长缓存，避免每次进导航都重新下载装饰图；
+    // 带 contenthash 的打包产物用 immutable；HTML 仍走 no-cache 保证发版能立刻生效。
+    const immutable = /\/assets\/(?:star-map|companions)\//.test(relative) || /\/assets\/.*-[A-Z0-9]{8}\.(?:js|css)$/.test(relative);
+    const binary = /\.(?:webp|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|otf)$/i.test(relative);
     res.setHeader(
       "Cache-Control",
-      /\/assets\/(?:star-map|companions)\//.test(relative)
+      immutable
         ? "public,max-age=31536000,immutable"
-        : /\/assets\/.*-[A-Z0-9]{8}\.js$/.test(relative)
-          ? "public,max-age=31536000,immutable"
+        : binary
+          ? "public,max-age=2592000"
           : "no-cache",
     );
+    if (binary) res.setHeader("Last-Modified", stat.mtime.toUTCString());
     const ext = path.extname(file).toLowerCase();
     const compressible = [".html", ".js", ".mjs", ".css", ".json", ".svg", ".txt"].includes(ext);
     if (compressible) res.setHeader("Vary", "Accept-Encoding");
