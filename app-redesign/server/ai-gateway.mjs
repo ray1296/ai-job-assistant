@@ -881,7 +881,7 @@ export function createAiGateway(privateDir) {
     const system = String(input?.system || "").slice(0, 4000);
     const prompt = String(input?.prompt || "").slice(0, 16000);
     if (!prompt) throw fail(400, "面试反馈输入为空");
-    return { text: await callText(system, prompt, 1600) };
+    return { text: await callText(system, prompt, 4000, { json: true }) };
   }
 
   /** 按岗位定制简历：只允许改 headline/summary/item.content，并生成投递文案 */
@@ -925,7 +925,7 @@ export function createAiGateway(privateDir) {
   }
 
   /** 学习工具箱用：纯文本输出，不套 JSON（原项目提示词直接返回口语化文本） */
-  async function callText(system, user, maxTokens = 1200) {
+  async function callText(system, user, maxTokens = 1200, opts = {}) {
     const cfg = await configFrom(privateDir);
     if (!cfg?.baseUrl || !cfg?.apiKey || !cfg?.model)
       throw fail(503, "AI服务尚未配置");
@@ -941,6 +941,9 @@ export function createAiGateway(privateDir) {
         temperature: 0.4,
         max_tokens: Math.min(8000, Math.max(200, Number(maxTokens) || 1200)),
         enable_thinking: false,
+        // DeepSeek V4 默认输出 reasoning_content，结构化任务必须关思考并要求 JSON，
+        // 否则返回会被截断或夹带思考文本，导致 JSON.parse 失败（面试反馈 0 分就是这么来的）
+        ...(opts.json ? { thinking: { type: "disabled" }, response_format: { type: "json_object" } } : {}),
         messages: [
           { role: "system", content: String(system).slice(0, 4000) },
           { role: "user", content: String(user).slice(0, MAX_IN) },

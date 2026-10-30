@@ -3578,3 +3578,7 @@ html[data-theme="night"] .guide-hero-text p { color: #bdb0d8; }
 .interview-pause-btn:hover { background: #f6f1ff !important; }
 /* ✕ 真正居中 */
 .interview-close-btn { display: inline-flex !important; align-items: center; justify-content: center; padding: 0 !important; line-height: 1 !important; font-size: 13px !important; }
+
+/* 结束面试按钮：悬停时保持红底白字（之前 hover 变成浅底白字，字看不见） */
+.interview-end-btn:hover, .interview-end-btn:focus-visible { background: #c23a54 !important; color: #fff !important; border-color: #c23a54 !important; }
+.interview-end-btn:disabled { opacity: .6; color: #fff !important; background: #d94b64 !important; }
