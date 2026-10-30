@@ -1839,8 +1839,11 @@ async function handleRequest(req, res) {
             // 看图：直接走 visionModel 多模态，不做工具路由
             const answer = await aiGateway.chat(s.user_id, {
               message: (message || "请看看这张图，帮我讲解一下。") +
-                "\n\n【站点功能说明（按用户问题检索），用于识别截图里的入口并说明它干什么】\n" +
-                (guideFor(message || "").slice(0, 4).map((s) => "【" + s.title + "】" + s.summary).join("\n") || "").slice(0, 1800),
+                "\n\n【本网站板块速查（截图里的入口都在这里，用它回答它是干什么的）】\n" +
+                allGuide().map((s) => "· " + s.title + "：" + String(s.summary || "").slice(0, 60)).join("\n") +
+                "\n【与你问题最相关的说明】\n" +
+                (guideFor(message || "").slice(0, 3).map((s) => "【" + s.title + "】" + s.summary + " " + (s.steps || []).slice(0, 2).join("；")).join("\n") || "无") +
+                "\n要求：直接回答用户的问题，不要转交给其他 agent；如果截图里的入口在速查表里，就说明它属于哪个板块、点进去能做什么。",
               images, persona: personaName, system, model: agentCfg.model,
             }, undefined);
             reply = String(answer.reply || "").trim();
