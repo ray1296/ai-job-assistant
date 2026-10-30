@@ -570,6 +570,9 @@ export default defineComponent({
             const peerId = idByName(String(step.agent || ""));
             if (!peerId || peerId === props.agentId) continue;
             emitBubble(peerId, "收到「" + props.name + "」分配的任务：" + String(step.task || "协作处理").slice(0, 70));
+            if (!step.ok) {
+              emitBubble(props.agentId, "【" + step.agent + "】这轮没有返回结果，暂时没有数据。");
+            }
             if (step.ok && step.summary) {
               emitBubble(peerId, "「" + props.name + "」的任务已处理完，结果回传中…");
               emitBubble(props.agentId, "【" + step.agent + "】返回：" + String(step.summary).slice(0, 100));
@@ -884,10 +887,10 @@ export default defineComponent({
                     },
                   }),
                 ]),
-                h("label", { class: "agent-attach", title: "上传 PDF/Word/Excel/PPT" }, [
+                h("label", { class: "agent-attach", title: "上传 PDF/Word/Excel/PPT/JSON/CSV/文本" }, [
                   "📄",
                   h("input", {
-                    type: "file", accept: ".pdf,.docx,.xlsx,.pptx", style: { display: "none" },
+                    type: "file", accept: ".pdf,.docx,.xlsx,.pptx,.json,.csv,.txt,.md", style: { display: "none" },
                     onChange: (e: Event) => {
                       const f = (e.target as HTMLInputElement).files?.[0];
                       if (f) void attachDoc(f);

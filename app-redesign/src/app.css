@@ -3379,7 +3379,8 @@ html[data-theme="night"] .uploaded-bank-search input { background: #0b1628; colo
 .agent-bubble-pop.is-below .agent-bubble-tail { bottom: auto; top: -7px; border-right: 0; border-bottom: 0; border-left: 1px solid rgba(218,197,255,.7); border-top: 1px solid rgba(218,197,255,.7); }
 
 /* 工作气泡盖在对话框之上，避免被对话窗完全遮住 */
-.agent-bubble-pop { z-index: 130; }
+/* 对话打开时让对话框盖住气泡（气泡层级低于 .agent-pet 的 84） */
+.agent-bubble-pop { z-index: 83; }
 
 /* ===== 管理中心：图表网格 + 排行条 ===== */
 .admin-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
@@ -3499,3 +3500,11 @@ html[data-theme="night"] .admin-rank-label, html[data-theme="night"] .admin-rank
 html[data-theme="night"] .orbit-trigger { background: #1b1630 !important; border-color: #3a2f57 !important; color: #d8cff0 !important; }
 html[data-theme="night"] .orbit-trigger-label { color: #d8cff0 !important; }
 html[data-theme="night"] .orbit-trigger:hover { background: #241d3d !important; }
+
+/* 对话框内按钮/提示不参与收缩，避免被压缩到只剩一半 */
+.agent-chat .agent-tutor-entry,
+.agent-chat .agent-page-entry,
+.agent-chat .companion-error,
+.agent-chat .agent-mem-warn,
+.agent-chat .agent-composer { flex: 0 0 auto; }
+.agent-chat .companion-log { flex: 1 1 auto; min-height: 0; padding-bottom: 4px; }

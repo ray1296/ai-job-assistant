@@ -963,9 +963,9 @@ async function handleRequest(req, res) {
         const rawName = String(req.headers["x-file-name"] || new URL(req.url, "http://local").searchParams.get("filename") || "附件");
         let name = rawName; try { name = decodeURIComponent(rawName); } catch {}
         const ext = (name.split(".").pop() || "").toLowerCase();
-        const kindMap = { pdf: "pdf", docx: "docx", xlsx: "xlsx", pptx: "pptx" };
+        const kindMap = { pdf: "pdf", docx: "docx", xlsx: "xlsx", pptx: "pptx", json: "text", csv: "text", tsv: "text", txt: "text", md: "text", log: "text" };
         const kind = kindMap[ext];
-        if (!kind) throw failure(415, "聊天附件支持 PDF / DOCX / XLSX / PPTX；旧版 .doc/.xls 请另存为新格式");
+        if (!kind) throw failure(415, "聊天附件支持 PDF / DOCX / XLSX / PPTX / JSON / CSV / TXT / MD；旧版 .doc/.xls 请另存为新格式");
         const length = Number(req.headers["content-length"]);
         if (!Number.isFinite(length) || length <= 0 || length > 8 * 1024 * 1024)
           throw failure(413, "附件需小于 8MiB");
@@ -973,6 +973,11 @@ async function handleRequest(req, res) {
         for await (const ch of req) chunks.push(ch);
         const buf = Buffer.concat(chunks);
         if (!buf.length) throw failure(400, "附件为空");
+        // 文本类（json/csv/txt/md）直接按 UTF-8 读取，不必进 python 解析
+        if (kind === "text") {
+          const text = buf.toString("utf8").slice(0, 60000);
+          return send(res, 200, { name, text, chars: text.length, truncated: text.length >= 60000, method: ext.toUpperCase() });
+        }
         const dir = path.join(dataDir, "chat-files");
         fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
         const tmp = path.join(dir, "extract-" + randomBytes(8).toString("hex") + "." + ext);
