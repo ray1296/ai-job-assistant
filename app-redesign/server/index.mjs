@@ -20,7 +20,7 @@ import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
 import { createInterviewQueue } from "./interview-queue.mjs";
 import { createAgentActions } from "./agent-actions.mjs";
-import { listJobs, getJob, facets } from "./jobs-catalog.mjs";
+import { listJobs, allJobs, getJob, facets } from "./jobs-catalog.mjs";
 import { validateDocument, documentText } from "./resume-document.mjs";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
@@ -138,6 +138,8 @@ const geo = createGeo(dataDir, {
   housingSets: (userId) => datasets.rowsForMap(userId, "housing", 120),
   // 地图「岗位」图层的兜底数据：当前城市的平台岗位（每个城市都有，保证图层不空）
   platformJobs: (city, limit) => (listJobs({ city, pageSize: limit }, []).jobs || []).slice(0, limit),
+  // 全国岗位（不经过分页限制），地图「全部岗位」图层按城市抽样铺满中国地图
+  platformJobsAll: () => allJobs(),
 });
 const stmt = {
   user: db.prepare(

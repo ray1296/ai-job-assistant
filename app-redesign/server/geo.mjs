@@ -253,36 +253,44 @@ function centerPos(city, seed) {
     }
     // 重点城市：显式传入 > 投递意向所在城市 > 上海（地图默认视野）
     const focusCity = String(city || jobs.find((j) => j.city)?.city || "上海").replace(/市$/, "").trim() || "上海";
-    // 岗位图层默认只放「投递意向」；勾选「全部岗位（平台）」时才补平台岗位到 30 条。
-    if (options.allJobs && typeof deps.platformJobs === "function") {
-      const seen = new Set(jobs.map((j) => j.id));
-      for (const job of deps.platformJobs(focusCity, 40)) {
-        if (jobs.length >= 30) break;
-        if (seen.has(job.id)) continue;
-        seen.add(job.id);
-        const cpos = centerPos(job.city || focusCity, job.id) || centerPos(focusCity, job.id);
-        if (!cpos) continue;
-        jobs.push({
+    // 「全部岗位」图层：全国每个城市都取几条平台岗位，把中国地图铺满。
+    // 这是一条独立的图层，和「意向岗位」互不影响（不再改动 jobs）。
+    const platformJobs = [];
+    if (typeof deps.platformJobsAll === "function") {
+      const perCity = 5;
+      const cap = 240;
+      const byCityMap = new Map();
+      for (const job of deps.platformJobsAll()) {
+        if (platformJobs.length >= cap) break;
+        const c = String(job.city || "").trim();
+        if (!c) continue;
+        const arr = byCityMap.get(c) || [];
+        if (arr.length >= perCity) continue;
+        const pos = centerPos(c, job.id);
+        if (!pos) continue;
+        arr.push({
           id: job.id,
           title: job.title,
           company: job.company,
-          city: job.city,
+          city: c,
           address: job.address || "",
           url: job.url || "",
           platform: true,
-          pos: cpos,
+          pos,
         });
+        byCityMap.set(c, arr);
+        platformJobs.push(arr[arr.length - 1]);
       }
     }
     const housing = [];
     // 平台内置租房（所有账号可见）：只取当前城市附近的前 N 条，避免一次地理编码上百条
     // 按城市抽样，保证不同城市都能看到一些平台房源（否则前 40 条全是北京）
+    // 租房图层同样铺到全国：重点城市铺满，其它城市各留几条，保证缩到全国视角也有房源
     const byCity = new Map();
-    for (const h of loadPlatformHousing(focusCity)) {
+    for (const h of loadPlatformHousing("")) {
       if (!h.rent || !Number(h.rent)) continue;
       const arr = byCity.get(h.city) || [];
-      // 重点城市优先铺满，其它城市各留少量作为"周边城市"参考
-      if (arr.length < (String(h.city).includes(focusCity) ? 100 : 6)) arr.push(h);
+      if (arr.length < (String(h.city).includes(focusCity) ? 80 : 3)) arr.push(h);
       byCity.set(h.city, arr);
     }
     const platform = [...byCity.values()].flat().slice(0, 320);
@@ -321,15 +329,11 @@ function centerPos(city, seed) {
         });
       }
     }
-    // 平台岗位可显示的总量：即使当前只显示投递意向，前端也要能标出「全部岗位」有多少条
-    const platformJobTotal =
-      typeof deps.platformJobs === "function"
-        ? deps.platformJobs(focusCity, 60).filter((j) => centerPos(j.city || focusCity, j.id)).slice(0, 30).length
-        : 0;
     return {
       jobs,
+      platformJobs,
       housing,
-      platformJobTotal,
+      platformJobTotal: platformJobs.length,
       geocoded: jobs.filter((j) => j.pos).length + housing.filter((h) => h.pos).length,
     };
   }

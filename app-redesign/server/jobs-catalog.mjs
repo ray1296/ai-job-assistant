@@ -90,6 +90,10 @@ export function listJobs(q = {}, selectedIds = []) {
     pageSize: size,
   };
 }
+/** 全部岗位（已归一化）：地图「全部岗位」图层按城市抽样时用，避免分页 API 的限制 */
+export function allJobs() {
+  return jobs;
+}
 export function getJob(id) {
   return jobs.find((j) => j.id === id) || null;
 }

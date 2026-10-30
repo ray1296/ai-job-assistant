@@ -62,7 +62,7 @@ export default defineComponent({
     let ruler: any = null;
     let routeLine: any = null;
     let radiusCircle: any = null;
-    const markerGroups: Record<string, any[]> = { job: [], housing: [], subway: [], hotel: [], found: [] };
+    const markerGroups: Record<string, any[]> = { job: [], pjob: [], housing: [], subway: [], hotel: [], found: [] };
 
     const useFallback = ref(false);
     const fb = ref({ zoom: 12, lng: 121.4737, lat: 31.2304 });
@@ -310,17 +310,17 @@ export default defineComponent({
         const r = await api<any>(layersUrl());
         layers.value = r;
         if (typeof r.platformJobTotal === "number") platformJobTotal.value = r.platformJobTotal;
-        // 勾了「全部岗位」但岗位图层本身没开时，自动把岗位图层打开，否则地图上什么都看不到
-        if (showAllJobs.value && !showJobs.value) showJobs.value = true;
         renderMarkers();
       } catch (e) { error.value = errorText(e); }
     }
 
     function renderMarkers() {
       if (!map) return;
-      clearGroup("job"); clearGroup("housing"); clearGroup("subway"); clearGroup("hotel"); clearGroup("found");
+      clearGroup("job"); clearGroup("pjob"); clearGroup("housing"); clearGroup("subway"); clearGroup("hotel"); clearGroup("found");
       if (showJobs.value)
         for (const j of layers.value.jobs || []) markerOf("job", j, () => showInfo(j, "job"));
+      if (showAllJobs.value)
+        for (const j of layers.value.platformJobs || []) markerOf("pjob", j, () => showInfo(j, "job"));
       if (showHousing.value)
         for (const hr of layers.value.housing || []) markerOf("housing", hr, () => showInfo(hr, "housing"));
       if (showSubway.value)
@@ -768,6 +768,7 @@ export default defineComponent({
 
     const counts = computed(() => ({
       jobs: (layers.value.jobs || []).filter((j: any) => j.pos).length,
+      platform: (layers.value.platformJobs || []).filter((j: any) => j.pos).length,
       housing: (layers.value.housing || []).filter((x: any) => x.pos).length,
       subway: subway.value.length,
       hotels: hotels.value.length,
@@ -944,8 +945,8 @@ export default defineComponent({
                 h("h3", "图层"),
                 h("div", { class: "map-layers" },
                   ([
-                    ["岗位 " + counts.value.jobs + (showAllJobs.value ? "" : "（投递意向）"), showJobs],
-                    ["全部岗位（平台）" + (platformJobTotal.value ? " " + platformJobTotal.value : ""), showAllJobs],
+                    ["意向岗位 " + counts.value.jobs, showJobs],
+                    ["全部岗位（平台）" + (counts.value.platform ? " " + counts.value.platform : ""), showAllJobs],
                     ["租房 " + counts.value.housing, showHousing],
                     ["地铁站 " + counts.value.subway, showSubway],
                     ["酒店 " + counts.value.hotels, showHotels],
@@ -959,7 +960,7 @@ export default defineComponent({
                           const on = (e.target as HTMLInputElement).checked;
                           if (flag === showSubwayLines) { void toggleSubwayLines(on); return; }
                           flag.value = on;
-                          if (flag === showAllJobs) { void reloadLayers(); return; }
+                          if (flag === showAllJobs) { renderMarkers(); return; }
                           if (flag === showSubway && !subway.value.length) void loadSubway();
                           if (flag === showHotels && !hotels.value.length) void loadHotels();
                           renderMarkers();
