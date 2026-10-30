@@ -3450,3 +3450,52 @@ html[data-theme="night"] .admin-rank-label, html[data-theme="night"] .admin-rank
 .admin-shell .admin-table th { font-size: 12.5px; }
 .admin-shell .admin-warn a, .admin-shell .admin-back { font-size: 12.5px; }
 .admin-shell .admin-notice-row { font-size: 13px; }
+
+/* ===== 收起/展开控件：去掉星盘金环与发光，统一成简洁扁平样式 ===== */
+.orbit-trigger {
+  background: #fff !important;
+  border: 1px solid #ddd3ee !important;
+  color: #4b3b63 !important;
+  box-shadow: 0 6px 18px rgba(80, 60, 140, .14) !important;
+  font-family: inherit !important;
+  letter-spacing: 0 !important;
+}
+.orbit-trigger:hover {
+  background: #faf7ff !important;
+  border-color: #c4b2e6 !important;
+  box-shadow: 0 8px 22px rgba(80, 60, 140, .18) !important;
+}
+.orbit-trigger-label {
+  font-family: inherit !important;
+  font-size: 13px !important;
+  letter-spacing: 0 !important;
+  color: #4b3b63 !important;
+  text-shadow: none !important;
+}
+.orbit-trigger-orb {
+  background-image: none !important;
+  background: linear-gradient(135deg, #7c6ae0, #9a86e0) !important;
+  box-shadow: 0 2px 8px rgba(124, 106, 224, .35) !important;
+  animation: none !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 34px !important;
+  height: 34px !important;
+}
+.orbit-trigger-orb::before { content: "✦"; color: #fff; font-size: 16px; line-height: 1; }
+.orbit-trigger-orb::after { display: none !important; }
+.orbit-trigger i { animation: none !important; text-shadow: none !important; color: #7c6ae0 !important; }
+
+/* 立绘显隐圆盘：去掉描边和重阴影 */
+.companions-dial {
+  border: 0 !important;
+  background: linear-gradient(135deg, #7c6ae0, #9a86e0) !important;
+  box-shadow: 0 6px 18px rgba(80, 60, 140, .24) !important;
+  font-size: 17px !important;
+  color: #fff !important;
+}
+.companions-dial:hover { filter: brightness(1.06); }
+
+html[data-theme="night"] .orbit-trigger { background: #1b1630 !important; border-color: #3a2f57 !important; color: #d8cff0 !important; }
+html[data-theme="night"] .orbit-trigger-label { color: #d8cff0 !important; }
+html[data-theme="night"] .orbit-trigger:hover { background: #241d3d !important; }

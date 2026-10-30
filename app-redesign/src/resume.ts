@@ -575,6 +575,16 @@ export default defineComponent({
       if (!groups.length) groups.push([]);
       return groups;
     });
+    // 画布缩放（CSS zoom）会把 getBoundingClientRect 的尺寸一起缩小，
+    // 分页算法用的是固定 A4 高度常量，必须先把测量值除回缩放系数，否则缩小后会被算成"一页能塞更多"。
+    function canvasScale() {
+      const deskEl = document.querySelector(".resume-desk") as HTMLElement | null;
+      if (!deskEl) return 1;
+      const raw = getComputedStyle(deskEl).getPropertyValue("--doc-zoom");
+      const z = parseFloat(String(raw).trim());
+      return Number.isFinite(z) && z > 0 ? z : 1;
+    }
+
     let paginationQueued = false;
     async function recalcPagination() {
       if (paginationBusy) { paginationQueued = true; return; }
@@ -589,16 +599,17 @@ export default defineComponent({
         const summary = first.querySelector(".document-summary") as HTMLElement | null;
         // 预留 30px 余量，避免条目 margin/续页标题把页面撑过 A4。
         const contentHeight = 1008;
-        let used = (header?.getBoundingClientRect().height || 0) + (summary?.getBoundingClientRect().height || 0) + 10;
+        const inv = 1 / canvasScale();
+        let used = (header?.getBoundingClientRect().height || 0) * inv + (summary?.getBoundingClientRect().height || 0) * inv + 10;
         const sectionsEl = Array.from(desk.querySelectorAll(".document-section")) as HTMLElement[];
         const headerH = new Map<string, number>();
         const entryH = new Map<string, number>();
         for (const el of sectionsEl) {
           const id = el.getAttribute("data-section-id") || "";
-          if (id && !headerH.has(id)) headerH.set(id, (el.querySelector(".section-heading") as HTMLElement | null)?.getBoundingClientRect().height || 36);
+          if (id && !headerH.has(id)) headerH.set(id, ((el.querySelector(".section-heading") as HTMLElement | null)?.getBoundingClientRect().height || 36) * inv);
           for (const entry of Array.from(el.querySelectorAll(".document-entry"))) {
             const eid = (entry as HTMLElement).getAttribute("data-entry-id") || "";
-            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height + 12);
+            if (eid && !entryH.has(eid)) entryH.set(eid, (entry as HTMLElement).getBoundingClientRect().height * inv + 12);
           }
         }
         const plan: PageFragment[][] = [];
