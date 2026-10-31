@@ -113,6 +113,7 @@ db.exec("CREATE TABLE IF NOT EXISTS interview_sessions(id TEXT PRIMARY KEY, user
 db.exec("CREATE INDEX IF NOT EXISTS interview_sessions_owner ON interview_sessions(user_id, created_at);");
 try { db.exec("ALTER TABLE interview_sessions ADD COLUMN difficulty TEXT"); } catch {}
 const applicationPlan = createApplicationPlan(db, getJob);
+let guideVecCache = null;
 const agentActions = createAgentActions({ db, plan: applicationPlan, listJobs, getDatasets: () => datasets });
 const learning = createLearning(db);
 const resumeImports = createResumeImports(db, dataDir, profileData);
@@ -1858,6 +1859,39 @@ async function handleRequest(req, res) {
             try {
               const toolOut = callTool("project_guide", { topic: seen || String(message || "") }, { userId: s.user_id });
               const secs = Array.isArray(toolOut?.sections) ? toolOut.sections.slice(0, 2) : [];
+            // 关键词没命中时用向量检索（RAG）兜底：把板块说明做嵌入，按语义找最接近的
+            let semanticSections = [];
+            if (!guidePart) {
+              try {
+                if (!guideVecCache) {
+                  const secs = allGuide();
+                  const vecs = await aiGateway.embedTexts(secs.map((s) => s.title + "。" + s.summary));
+                  guideVecCache = vecs && vecs.length === secs.length ? { secs, vecs } : null;
+                }
+                if (guideVecCache) {
+                  const [qv] = await aiGateway.embedTexts([seen || String(message || "")]);
+                  if (qv?.length) {
+                    const cos = (a, b) => {
+                      let dot = 0, na = 0, nb = 0;
+                      for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+                      return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+                    };
+                    const ranked = guideVecCache.secs.map((s, i) => ({ s, score: cos(qv, guideVecCache.vecs[i]) }))
+                      .sort((x, y) => y.score - x.score).slice(0, 2);
+                    if (ranked[0] && ranked[0].score >= 0.35) semanticSections = ranked.map((r) => r.s);
+                  }
+                }
+              } catch {}
+              if (semanticSections.length) {
+                guidePart = "\n\n【向量检索（RAG）匹配到的站内说明】\n" +
+                  semanticSections.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");
+              } else {
+                const fallback = allGuide().slice(0, 3);
+                guidePart = "\n\n【站内说明（未精确匹配，供参考）】\n" +
+                  fallback.map((x) => "【" + x.title + "】" + x.summary).join("\n") +
+                  "\n如果这些都不是用户问的，请如实说不确定。";
+              }
+            }
               if (secs.length) {
                 guidePart = "\n\n【工具 project_guide 查询结果（截图文字：" + (seen || "无") + "）】\n" +
                   secs.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");

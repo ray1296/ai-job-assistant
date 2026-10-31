@@ -170,8 +170,8 @@ export function guideFor(query = "") {
     return { s, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
   if (scored.length) return scored.slice(0, 3).map((x) => x.s);
-  // 4) 完全没命中：返回前 3 块兜底，避免"什么都查不到"
-  return GUIDE_SECTIONS.slice(0, 3);
+  // 4) 完全没命中：返回空数组，交给调用方决定是否改用向量检索（RAG）
+  return [];
 }
 
 export function guideText(query = "") {
