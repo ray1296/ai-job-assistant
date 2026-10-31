@@ -133,14 +133,47 @@ export function allGuide() {
   return GUIDE_SECTIONS;
 }
 
-export function guideFor(query = "") {
-  const q = String(query || "").toLowerCase();
-  if (!q) return GUIDE_SECTIONS;
-  const hit = GUIDE_SECTIONS.filter((s) => (s.title + " " + s.summary + " " + s.steps.join(" ") + " " + s.keywords).toLowerCase().includes(q));
-  if (hit.length) return hit;
-  const tokens = q.match(/[a-z0-9]+|[一-鿿]{2}/g) || [];
-  return GUIDE_SECTIONS.filter((s) => tokens.some((t) => (s.title + s.keywords + s.summary).toLowerCase().includes(t))).slice(0, 4);
+// 站内组件别名：截图里的按钮文字/入口名 → 对应板块，命中直接返回
+const ALIASES = {
+  展开求职导航: "workspace", 收起导航: "workspace", 求职导航: "workspace", 导航: "workspace",
+  知微: "assistants", 星野: "assistants", 砚舟: "assistants", 栖迟: "assistants", 学习: "study",
+  数据空间: "data", 我的数据空间: "data", 数据大屏: "data",
+  简历工作室: "resume", 简历: "resume", 模拟面试: "interview", 面试: "interview",
+  发现岗位: "jobs", 通勤地图: "jobs", 租房: "jobs", 心愿池: "delivery", 投递方案: "delivery",
+  管理中心: "admin", 设置: "start", 新手教程: "start",
+};
+function tokens(q) {
+  const out = new Set();
+  const s = String(q || "").toLowerCase();
+  for (const m of s.match(/[a-z0-9]+/g) || []) out.add(m);
+  const cjk = s.replace(/[^\u4e00-\u9fa5]/g, "");
+  for (let i = 0; i + 2 <= cjk.length; i++) out.add(cjk.slice(i, i + 2));
+  return [...out];
 }
+export function guideFor(query = "") {
+  const raw = String(query || "").trim();
+  if (!raw) return GUIDE_SECTIONS;
+  const q = raw.toLowerCase();
+  // 1) 别名直接命中
+  for (const [k, id] of Object.entries(ALIASES)) {
+    if (raw.includes(k)) { const hit = GUIDE_SECTIONS.find((s) => s.id === id); if (hit) return [hit]; }
+  }
+  // 2) 整串包含
+  const whole = GUIDE_SECTIONS.filter((s) => (s.title + s.summary + s.steps.join(" ") + " " + s.keywords).toLowerCase().includes(q));
+  if (whole.length) return whole;
+  // 3) 分词打分（中文按 2 字切），取分最高的几块
+  const ts = tokens(raw);
+  const scored = GUIDE_SECTIONS.map((s) => {
+    const hay = (s.title + " " + s.summary + " " + s.steps.join(" ") + " " + s.keywords).toLowerCase();
+    let score = 0;
+    for (const tk of ts) if (hay.includes(tk)) score += tk.length >= 2 ? 2 : 1;
+    return { s, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  if (scored.length) return scored.slice(0, 3).map((x) => x.s);
+  // 4) 完全没命中：返回前 3 块兜底，避免"什么都查不到"
+  return GUIDE_SECTIONS.slice(0, 3);
+}
+
 export function guideText(query = "") {
   return guideFor(query).map((s) => "【" + s.title + "】" + s.summary + "\n" + s.steps.map((x, i) => (i + 1) + ". " + x).join("\n")).join("\n\n");
 }
