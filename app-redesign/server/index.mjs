@@ -15,6 +15,7 @@ import { createAgents } from "./agents.mjs";
 import { TOOLS, callTool } from "./tools.mjs";
 import { toolPromptFor } from "./tool-rag.mjs";
 import { allGuide, guideFor, guideText } from "./project-guide.mjs";
+import { inventorySections } from "./ui-inventory.mjs";
 import { loadCompanies, getCompany, loadPlatformHousing } from "./data-catalog.mjs";
 import { createApplicationCopy } from "./application-copy.mjs";
 import { attachRealtimeProxy } from "./realtime-proxy.mjs";
@@ -1854,17 +1855,29 @@ async function handleRequest(req, res) {
               const labels = Array.isArray(parsed?.labels) ? parsed.labels.join(" ").slice(0, 200) : "";
               seen = [labels, String(parsed?.what || "")].filter(Boolean).join("；").slice(0, 300);
             } catch {}
-            // 真正的工具调用：把识别出的界面文字交给 project_guide 查（不再靠关键词猜）
+            // ① 先用 project_guide 工具查板块级说明；② 再查界面元素清单（按钮级）；③ 都没命中走向量检索
             let guidePart = "";
             try {
               const toolOut = callTool("project_guide", { topic: seen || String(message || "") }, { userId: s.user_id });
               const secs = Array.isArray(toolOut?.sections) ? toolOut.sections.slice(0, 2) : [];
-            // 关键词没命中时用向量检索（RAG）兜底：把板块说明做嵌入，按语义找最接近的
+              const q = String(seen || "").toLowerCase();
+              const inv = q ? inventorySections().filter((x) => {
+                const name = String(x.title || "").split("（")[0].toLowerCase();
+                return name.length >= 2 && q.includes(name);
+              }).slice(0, 2) : [];
+              if (inv.length) {
+                guidePart = "\n\n【站内组件说明】\n" + inv.map((x) => "· " + x.title + "：" + x.summary).join("\n");
+              } else if (secs.length) {
+                guidePart = "\n\n【工具 project_guide 查询结果（截图文字：" + (seen || "无") + "）】\n" +
+                  secs.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");
+              }
+            } catch (e) { guidePart = ""; }
+            // RAG：把板块说明 + 界面元素说明一起做嵌入，按语义找最接近的
             let semanticSections = [];
             if (!guidePart) {
               try {
                 if (!guideVecCache) {
-                  const secs = allGuide();
+                  const secs = allGuide().concat(inventorySections());
                   const vecs = await aiGateway.embedTexts(secs.map((s) => s.title + "。" + s.summary));
                   guideVecCache = vecs && vecs.length === secs.length ? { secs, vecs } : null;
                 }
@@ -1878,13 +1891,13 @@ async function handleRequest(req, res) {
                     };
                     const ranked = guideVecCache.secs.map((s, i) => ({ s, score: cos(qv, guideVecCache.vecs[i]) }))
                       .sort((x, y) => y.score - x.score).slice(0, 2);
-                    if (ranked[0] && ranked[0].score >= 0.35) semanticSections = ranked.map((r) => r.s);
+                    if (ranked[0] && ranked[0].score >= 0.3) semanticSections = ranked.map((r) => r.s);
                   }
                 }
               } catch {}
               if (semanticSections.length) {
-                guidePart = "\n\n【向量检索（RAG）匹配到的站内说明】\n" +
-                  semanticSections.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");
+                guidePart = "\n\n【向量检索匹配到的站内说明】\n" +
+                  semanticSections.map((x) => "【" + x.title + "】" + x.summary).join("\n");
               } else {
                 const fallback = allGuide().slice(0, 3);
                 guidePart = "\n\n【站内说明（未精确匹配，供参考）】\n" +
@@ -1892,13 +1905,6 @@ async function handleRequest(req, res) {
                   "\n如果这些都不是用户问的，请如实说不确定。";
               }
             }
-              if (secs.length) {
-                guidePart = "\n\n【工具 project_guide 查询结果（截图文字：" + (seen || "无") + "）】\n" +
-                  secs.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");
-              } else {
-                guidePart = "\n\n【工具 project_guide 没查到匹配的站内功能】如果用户问的是本站入口，如实说不确定，不要编。";
-              }
-            } catch (e) { guidePart = ""; }
             const answer = await aiGateway.chat(s.user_id, {
               message: (message || "请看看这张图，帮我讲解一下。") +
                 (seen ? "\n\n【我已识别到截图内容】" + seen : "") +

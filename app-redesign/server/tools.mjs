@@ -1,6 +1,7 @@
 import { loadCompanies, loadPlatformHousing } from "./data-catalog.mjs";
 import { listJobs } from "./jobs-catalog.mjs";
 import { guideFor, guideText } from "./project-guide.mjs";
+import { inventorySections } from "./ui-inventory.mjs";
 
 export const TOOLS = [
   { name: "search_jobs", description: "按关键词/城市搜索岗位", inputSchema: { type: "object", properties: { keyword: { type: "string" }, city: { type: "string" }, limit: { type: "number" } } } },
@@ -59,7 +60,14 @@ export function callTool(name, args = {}, ctx = {}) {
   }
   if (toolName === "project_guide") {
     const topic = String(args.topic || "").trim();
-    return { sections: guideFor(topic).map((s) => ({ id: s.id, title: s.title, summary: s.summary, steps: s.steps })), text: guideText(topic) };
+    const secs = guideFor(topic).map((s) => ({ id: s.id, title: s.title, summary: s.summary, steps: s.steps }));
+    // 再按界面元素清单补按钮级说明（"批量简化答案"、"收藏"这类）
+    const q = topic.toLowerCase();
+    const inv = (q ? inventorySections().filter((x) => {
+      const name = String(x.title || "").split("（")[0].toLowerCase();
+      return name.length >= 2 && (q.includes(name) || name.includes(q.slice(0, 4)));
+    }).slice(0, 3) : []).map((x) => ({ id: x.id, title: x.title, summary: x.summary, steps: [] }));
+    return { sections: [...inv, ...secs].slice(0, 5), text: [inv.map((x) => x.title + "：" + x.summary).join("\n"), guideText(topic)].filter(Boolean).join("\n") };
   }
   if (toolName === "my_progress") {
     const study = ctx.study;
