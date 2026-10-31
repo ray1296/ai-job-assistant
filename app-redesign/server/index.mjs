@@ -1853,11 +1853,18 @@ async function handleRequest(req, res) {
               const labels = Array.isArray(parsed?.labels) ? parsed.labels.join(" ").slice(0, 200) : "";
               seen = [labels, String(parsed?.what || "")].filter(Boolean).join("；").slice(0, 300);
             } catch {}
-            // 用图片里识别出的文字去检索功能说明（而不是用用户原句）
-            const hits = seen ? guideFor(seen).slice(0, 2) : [];
-            const guidePart = hits.length
-              ? "\n\n【站内说明（按截图里的文字检索到）】\n" + hits.map((s) => "【" + s.title + "】" + s.summary + " " + (s.steps || []).slice(0, 2).join("；")).join("\n")
-              : "";
+            // 真正的工具调用：把识别出的界面文字交给 project_guide 查（不再靠关键词猜）
+            let guidePart = "";
+            try {
+              const toolOut = callTool("project_guide", { topic: seen || String(message || "") }, { userId: s.user_id });
+              const secs = Array.isArray(toolOut?.sections) ? toolOut.sections.slice(0, 2) : [];
+              if (secs.length) {
+                guidePart = "\n\n【工具 project_guide 查询结果（截图文字：" + (seen || "无") + "）】\n" +
+                  secs.map((x) => "【" + x.title + "】" + x.summary + " " + (x.steps || []).slice(0, 3).join("；")).join("\n");
+              } else {
+                guidePart = "\n\n【工具 project_guide 没查到匹配的站内功能】如果用户问的是本站入口，如实说不确定，不要编。";
+              }
+            } catch (e) { guidePart = ""; }
             const answer = await aiGateway.chat(s.user_id, {
               message: (message || "请看看这张图，帮我讲解一下。") +
                 (seen ? "\n\n【我已识别到截图内容】" + seen : "") +
