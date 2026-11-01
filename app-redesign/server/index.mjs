@@ -916,6 +916,22 @@ async function getPdfBrowser() {
   return pdfBrowserPromise;
 }
 async function handleRequest(req, res) {
+  // ===== 访问日志：IP / 时间 / 路径 / 状态，写入 private/access.jsonl =====
+  try {
+    const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").split(",")[0].trim().replace(/^::ffff:/, "");
+    const t0 = Date.now();
+    const url = String(req.url || "");
+    res.on("finish", () => {
+      try {
+        fs.appendFileSync(path.join(dataDir, "access.jsonl"), JSON.stringify({
+          t: t0, ip, m: req.method, p: url.split("?")[0].slice(0, 160),
+          s: res.statusCode, ms: Date.now() - t0,
+          ua: String(req.headers["user-agent"] || "").slice(0, 100),
+          u: req.__zgUser || "",
+        }) + "\n");
+      } catch {}
+    });
+  } catch {}
   const requestId = randomBytes(8).toString("hex");
   const requestStarted = Date.now();
   appMetrics.requests++;
